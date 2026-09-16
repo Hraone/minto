@@ -1,14 +1,204 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>Log in</h2>
-<form method="post">
-  <label>Email</label>
-  <input type="email" name="email" required>
 
-  <label>Password</label>
-  <input type="password" name="password" required>
+<style>
+  .login-wrapper {
+    min-height: 75vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+  }
 
-  <button type="submit">Log in</button>
+  .login-card {
+    width: 100%;
+    max-width: 430px;
+    background: rgba(255, 255, 255, 0.96);
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 24px;
+    padding: 42px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+  }
+
+  .login-header {
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .login-icon {
+    width: 58px;
+    height: 58px;
+    margin: 0 auto 18px;
+    border-radius: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #111827, #374151);
+    color: white;
+    font-size: 25px;
+    font-weight: 700;
+  }
+
+  .login-header h2 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.7px;
+    color: #111827;
+  }
+
+  .login-header p {
+    margin: 9px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+  .login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .form-group label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+  }
+
+  .form-group input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    color: #111827;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.2s ease;
+  }
+
+  .form-group input::placeholder {
+    color: #9ca3af;
+  }
+
+  .form-group input:focus {
+    background: white;
+    border-color: #111827;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.07);
+  }
+
+  .login-button {
+    margin-top: 4px;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    background: #111827;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .login-button:hover {
+    background: #1f2937;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+  }
+
+  .login-button:active {
+    transform: translateY(0);
+  }
+
+  .signup-text {
+    text-align: center;
+    margin: 25px 0 0;
+    font-size: 14px;
+    color: #6b7280;
+  }
+
+  .signup-text a {
+    color: #111827;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .signup-text a:hover {
+    text-decoration: underline;
+  }
+
+  @media (max-width: 500px) {
+    .login-card {
+      padding: 30px 24px;
+      border-radius: 20px;
+    }
+
+    .login-header h2 {
+      font-size: 26px;
+    }
+  }
+</style>
+
+<div class="login-wrapper">
+
+  <div class="login-card">
+
+```
+<div class="login-header">
+  <div class="login-icon">₹</div>
+  <h2>Welcome back</h2>
+  <p>Sign in to continue managing your finances</p>
+</div>
+
+<form method="post" class="login-form">
+
+  <div class="form-group">
+    <label for="email">Email address</label>
+    <input
+      type="email"
+      id="email"
+      name="email"
+      placeholder="you@example.com"
+      autocomplete="email"
+      required
+    >
+  </div>
+
+  <div class="form-group">
+    <label for="password">Password</label>
+    <input
+      type="password"
+      id="password"
+      name="password"
+      placeholder="Enter your password"
+      autocomplete="current-password"
+      required
+    >
+  </div>
+
+  <button type="submit" class="login-button">
+    Log in
+  </button>
+
 </form>
-<p><a href="{{ url_for('signup') }}">Need an account? Sign up</a></p>
+
+<p class="signup-text">
+  Don't have an account?
+  <a href="{{ url_for('signup') }}">Create one</a>
+</p>
+```
+
+  </div>
+
+</div>
+
 {% endblock %}
