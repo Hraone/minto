@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Your sources</h2>
+
+<form method="post">
+  <label>Name</label>
+  <input type="text" name="name" placeholder="e.g. HDFC, ICICI Amex" required>
+
+  <label>Type</label>
+  <div class="chip-group">
+    <label class="chip"><input type="radio" name="source_type" value="savings" checked> Savings</label>
+    <label class="chip"><input type="radio" name="source_type" value="credit_card"> Credit card</label>
+  </div>
+
+  <button type="submit">Add source</button>
+</form>
+
+<h3 style="margin-top:2rem;">Existing</h3>
+{% if sources %}
+<ul>
+  {% for s in sources %}
+  <li>{{ s.name }} — {{ s.source_type }}</li>
+  {% endfor %}
+</ul>
+{% else %}
+<p style="font-size:0.85rem; color:#666;">No sources added yet.</p>
+{% endif %}
+{% endblock %}
