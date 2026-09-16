@@ -1,54 +1,427 @@
 {% extends "base.html" %}
+
 {% block content %}
-<h2>New entry</h2>
+
+<style>
+  .entry-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 35px 20px 60px;
+  }
+
+  .entry-card {
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 24px;
+    padding: 36px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.07);
+  }
+
+  .entry-header {
+    margin-bottom: 30px;
+  }
+
+  .entry-header h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+  }
+
+  .entry-header p {
+    margin: 8px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+  .form-section {
+    margin-bottom: 26px;
+  }
+
+  .form-label {
+    display: block;
+    margin-bottom: 10px;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .amount-input {
+    position: relative;
+  }
+
+  .amount-symbol {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    font-size: 18px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  .amount-input input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 17px 18px 17px 40px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #f9fafb;
+    color: #111827;
+    font-size: 22px;
+    font-weight: 600;
+    outline: none;
+    transition: 0.2s ease;
+  }
+
+  .amount-input input:focus {
+    background: white;
+    border-color: #111827;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.07);
+  }
+
+  .chip-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .chip {
+    position: relative;
+    cursor: pointer;
+    margin: 0 !important;
+  }
+
+  .chip input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .chip span,
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .chip {
+    padding: 10px 17px;
+    border: 1px solid #e5e7eb;
+    border-radius: 999px;
+    background: #f9fafb;
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+  }
+
+  .chip:hover {
+    border-color: #9ca3af;
+    background: #f3f4f6;
+  }
+
+  .chip:has(input:checked) {
+    background: #111827;
+    border-color: #111827;
+    color: white;
+    box-shadow: 0 4px 12px rgba(17, 24, 39, 0.12);
+  }
+
+  .expense-block {
+    padding: 18px;
+    border-radius: 16px;
+    background: #f9fafb;
+    border: 1px solid #f0f0f0;
+    margin-top: 12px;
+  }
+
+  .expense-block .form-label {
+    margin-bottom: 12px;
+  }
+
+  .notes-input,
+  .source-select {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 15px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #f9fafb;
+    color: #111827;
+    font-size: 14px;
+    outline: none;
+    transition: 0.2s ease;
+  }
+
+  .notes-input::placeholder {
+    color: #9ca3af;
+  }
+
+  .notes-input:focus {
+    background: white;
+    border-color: #111827;
+    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.07);
+  }
+
+  .empty-source {
+    margin: 0;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .empty-source a {
+    color: #111827;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .empty-source a:hover {
+    text-decoration: underline;
+  }
+
+  .save-button {
+    width: 100%;
+    margin-top: 4px;
+    padding: 15px;
+    border: none;
+    border-radius: 13px;
+    background: #111827;
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .save-button:hover {
+    background: #1f2937;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+  }
+
+  .save-button:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 600px) {
+    .entry-wrapper {
+      padding: 20px 14px 40px;
+    }
+
+    .entry-card {
+      padding: 26px 20px;
+      border-radius: 20px;
+    }
+
+    .entry-header h2 {
+      font-size: 26px;
+    }
+
+    .chip {
+      padding: 9px 13px;
+      font-size: 12px;
+    }
+  }
+</style>
+
+<div class="entry-wrapper">
+
+  <div class="entry-card">
+
+```
+<div class="entry-header">
+  <h2>New entry</h2>
+  <p>Record an income, expense, investment or transfer.</p>
+</div>
+
 <form method="post">
-  <label>Amount</label>
-  <input type="number" step="0.01" name="amount" required autofocus>
 
-  <label>Direction</label>
-  <div class="chip-group">
-    <label class="chip"><input type="radio" name="direction" value="in" required> In</label>
-    <label class="chip"><input type="radio" name="direction" value="out" checked> Out</label>
-  </div>
+  <!-- Amount -->
+  <div class="form-section">
+    <label class="form-label" for="amount">Amount</label>
 
-  <label>Category</label>
-  <div class="chip-group">
-    {% for c in ["expense", "income", "investment", "transfer"] %}
-    <label class="chip"><input type="radio" name="category" value="{{ c }}" onclick="toggleExpenseCategory()" {% if c == "expense" %}checked{% endif %}> {{ c }}</label>
-    {% endfor %}
-  </div>
-
-  <div id="expense-category-block">
-    <label>Expense category</label>
-    <div class="chip-group">
-      {% for ec in ["food", "travel", "bills", "shopping", "health", "entertainment", "groceries", "rent", "other"] %}
-      <label class="chip"><input type="radio" name="expense_category" value="{{ ec }}"> {{ ec }}</label>
-      {% endfor %}
+    <div class="amount-input">
+      <span class="amount-symbol">₹</span>
+      <input
+        type="number"
+        step="0.01"
+        id="amount"
+        name="amount"
+        placeholder="0.00"
+        required
+        autofocus
+      >
     </div>
   </div>
 
-  <label>Source</label>
-  {% if sources %}
-  <div class="chip-group">
-    {% for s in sources %}
-    <label class="chip"><input type="radio" name="source_id" value="{{ s.id }}"> {{ s.name }}</label>
-    {% endfor %}
+
+  <!-- Direction -->
+  <div class="form-section">
+    <label class="form-label">Direction</label>
+
+    <div class="chip-group">
+      <label class="chip">
+        <input type="radio" name="direction" value="in" required>
+        In
+      </label>
+
+      <label class="chip">
+        <input type="radio" name="direction" value="out" checked>
+        Out
+      </label>
+    </div>
   </div>
-  {% else %}
-  <p style="font-size:0.85rem; color:#666;">No sources yet — <a href="{{ url_for('sources') }}">add your banks/cards first</a>.</p>
-  {% endif %}
 
-  <label>Notes <span style="font-weight:400;">(optional)</span></label>
-  <input type="text" name="notes" placeholder="e.g. lunch with team">
 
-  <button type="submit">Save</button>
+  <!-- Category -->
+  <div class="form-section">
+    <label class="form-label">Category</label>
+
+    <div class="chip-group">
+      {% for c in ["expense", "income", "investment", "transfer"] %}
+
+      <label class="chip">
+        <input
+          type="radio"
+          name="category"
+          value="{{ c }}"
+          onclick="toggleExpenseCategory()"
+          {% if c == "expense" %}checked{% endif %}
+        >
+        {{ c|capitalize }}
+      </label>
+
+      {% endfor %}
+    </div>
+
+
+    <!-- Expense Category -->
+    <div id="expense-category-block" class="expense-block">
+
+      <label class="form-label">Expense category</label>
+
+      <div class="chip-group">
+
+        {% for ec in ["food", "travel", "bills", "shopping", "health", "entertainment", "groceries", "rent", "other"] %}
+
+        <label class="chip">
+          <input
+            type="radio"
+            name="expense_category"
+            value="{{ ec }}"
+          >
+          {{ ec|capitalize }}
+        </label>
+
+        {% endfor %}
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+  <!-- Source -->
+  <div class="form-section">
+
+    <label class="form-label">Source</label>
+
+    {% if sources %}
+
+    <div class="chip-group">
+
+      {% for s in sources %}
+
+      <label class="chip">
+        <input
+          type="radio"
+          name="source_id"
+          value="{{ s.id }}"
+        >
+        {{ s.name }}
+      </label>
+
+      {% endfor %}
+
+    </div>
+
+    {% else %}
+
+    <p class="empty-source">
+      No sources yet —
+      <a href="{{ url_for('sources') }}">
+        add your banks/cards first
+      </a>.
+    </p>
+
+    {% endif %}
+
+  </div>
+
+
+  <!-- Notes -->
+  <div class="form-section">
+
+    <label class="form-label" for="notes">
+      Notes
+      <span style="font-weight:400; color:#9ca3af;">
+        (optional)
+      </span>
+    </label>
+
+    <input
+      type="text"
+      id="notes"
+      name="notes"
+      class="notes-input"
+      placeholder="e.g. Lunch with team"
+    >
+
+  </div>
+
+
+  <!-- Submit -->
+  <button type="submit" class="save-button">
+    Save entry
+  </button>
+
 </form>
+```
+
+  </div>
+
+</div>
 
 <script>
 function toggleExpenseCategory() {
-  const isExpense = document.querySelector('input[name="category"]:checked').value === "expense";
-  document.getElementById("expense-category-block").style.display = isExpense ? "block" : "none";
+  const selectedCategory =
+    document.querySelector('input[name="category"]:checked');
+
+  const expenseBlock =
+    document.getElementById("expense-category-block");
+
+  if (!selectedCategory) return;
+
+  const isExpense = selectedCategory.value === "expense";
+
+  expenseBlock.style.display = isExpense ? "block" : "none";
+
+  if (!isExpense) {
+    document
+      .querySelectorAll('input[name="expense_category"]')
+      .forEach(input => input.checked = false);
+  }
 }
+
 document.addEventListener("DOMContentLoaded", toggleExpenseCategory);
 </script>
+
 {% endblock %}
