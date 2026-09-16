@@ -1,28 +1,436 @@
 {% extends "base.html" %}
+
+{% block title %}Sources · SpendSense{% endblock %}
+
 {% block content %}
+
+<style>
+
+  .sources-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 0 50px;
+  }
+
+  /* Header */
+
+  .sources-header {
+    margin-bottom: 28px;
+  }
+
+  .sources-header h2 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    color: #111827;
+  }
+
+  .sources-header p {
+    margin: 8px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+
+  /* Add source card */
+
+  .source-card {
+    padding: 30px;
+
+    background: rgba(255, 255, 255, 0.97);
+
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 22px;
+
+    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.06);
+  }
+
+  .source-card-title {
+    margin-bottom: 20px;
+  }
+
+  .source-card-title h3 {
+    margin: 0;
+
+    font-size: 17px;
+    font-weight: 650;
+
+    color: #111827;
+  }
+
+  .source-card-title p {
+    margin: 5px 0 0;
+
+    color: #9ca3af;
+    font-size: 12px;
+  }
+
+
+  /* Type chips */
+
+  .source-type-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 9px;
+  }
+
+  .source-type-group .chip {
+    margin: 0;
+  }
+
+
+  /* Existing sources */
+
+  .existing-section {
+    margin-top: 35px;
+  }
+
+  .existing-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    margin-bottom: 12px;
+  }
+
+  .existing-header h3 {
+    margin: 0;
+
+    color: #111827;
+
+    font-size: 17px;
+    font-weight: 650;
+  }
+
+  .source-count {
+    padding: 4px 9px;
+
+    border-radius: 999px;
+
+    background: #f3f4f6;
+
+    color: #6b7280;
+
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+
+  /* Source list */
+
+  .source-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+
+    margin: 0;
+    padding: 0;
+
+    list-style: none;
+  }
+
+  .source-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    padding: 15px 17px;
+
+    background: white;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+
+    transition: 0.2s ease;
+  }
+
+  .source-item:hover {
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+
+    box-shadow: 0 7px 20px rgba(0, 0, 0, 0.04);
+  }
+
+  .source-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    min-width: 0;
+  }
+
+  .source-icon {
+    width: 38px;
+    height: 38px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 11px;
+
+    background: #f3f4f6;
+
+    color: #374151;
+
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .source-name {
+    color: #111827;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .source-type {
+    margin-top: 3px;
+
+    color: #9ca3af;
+
+    font-size: 11px;
+    text-transform: capitalize;
+  }
+
+
+  /* Empty state */
+
+  .empty-state {
+    padding: 28px 20px;
+
+    text-align: center;
+
+    background: white;
+
+    border: 1px dashed #d1d5db;
+    border-radius: 16px;
+  }
+
+  .empty-icon {
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    margin: 0 auto 12px;
+
+    border-radius: 13px;
+
+    background: #f3f4f6;
+
+    color: #6b7280;
+
+    font-size: 18px;
+  }
+
+  .empty-state p {
+    margin: 0;
+
+    color: #6b7280;
+
+    font-size: 13px;
+  }
+
+
+  @media (max-width: 600px) {
+
+    .sources-wrapper {
+      padding: 10px 0 40px;
+    }
+
+    .sources-header h2 {
+      font-size: 26px;
+    }
+
+    .source-card {
+      padding: 24px 20px;
+      border-radius: 20px;
+    }
+
+    .source-item {
+      padding: 13px 14px;
+    }
+
+  }
+
+</style>
+
+<div class="sources-wrapper">
+
+  <!-- Header -->
+
+  <div class="sources-header">
+
+```
 <h2>Your sources</h2>
 
-<form method="post">
-  <label>Name</label>
-  <input type="text" name="name" placeholder="e.g. HDFC, ICICI Amex" required>
+<p>
+  Add the banks and cards you use to track your money.
+</p>
+```
 
-  <label>Type</label>
-  <div class="chip-group">
-    <label class="chip"><input type="radio" name="source_type" value="savings" checked> Savings</label>
-    <label class="chip"><input type="radio" name="source_type" value="credit_card"> Credit card</label>
   </div>
 
-  <button type="submit">Add source</button>
-</form>
+  <!-- Add Source -->
 
-<h3 style="margin-top:2rem;">Existing</h3>
+  <div class="source-card">
+
+```
+<div class="source-card-title">
+
+  <h3>Add a source</h3>
+
+  <p>
+    Keep your transactions organized by account.
+  </p>
+
+</div>
+
+
+<form method="post">
+
+  <label for="source-name">
+    Name
+  </label>
+
+  <input
+    type="text"
+    id="source-name"
+    name="name"
+    placeholder="e.g. HDFC, ICICI Amex"
+    required
+  >
+
+
+  <label>
+    Type
+  </label>
+
+  <div class="source-type-group">
+
+    <label class="chip">
+
+      <input
+        type="radio"
+        name="source_type"
+        value="savings"
+        checked
+      >
+
+      Savings
+
+    </label>
+
+
+    <label class="chip">
+
+      <input
+        type="radio"
+        name="source_type"
+        value="credit_card"
+      >
+
+      Credit card
+
+    </label>
+
+  </div>
+
+
+  <button type="submit">
+    Add source
+  </button>
+
+</form>
+```
+
+  </div>
+
+  <!-- Existing Sources -->
+
+  <div class="existing-section">
+
+```
+<div class="existing-header">
+
+  <h3>Existing sources</h3>
+
+  {% if sources %}
+    <span class="source-count">
+      {{ sources|length }}
+    </span>
+  {% endif %}
+
+</div>
+
+
 {% if sources %}
-<ul>
+
+<ul class="source-list">
+
   {% for s in sources %}
-  <li>{{ s.name }} — {{ s.source_type }}</li>
+
+  <li class="source-item">
+
+    <div class="source-info">
+
+      <div class="source-icon">
+        {% if s.source_type == "credit_card" %}
+          CC
+        {% else %}
+          ₹
+        {% endif %}
+      </div>
+
+      <div>
+
+        <div class="source-name">
+          {{ s.name }}
+        </div>
+
+        <div class="source-type">
+          {{ s.source_type|replace("_", " ") }}
+        </div>
+
+      </div>
+
+    </div>
+
+  </li>
+
   {% endfor %}
+
 </ul>
+
 {% else %}
-<p style="font-size:0.85rem; color:#666;">No sources added yet.</p>
+
+<div class="empty-state">
+
+  <div class="empty-icon">
+    ₹
+  </div>
+
+  <p>
+    No sources added yet.
+  </p>
+
+</div>
+
 {% endif %}
+```
+
+  </div>
+
+</div>
+
 {% endblock %}
