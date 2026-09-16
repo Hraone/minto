@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>New entry</h2>
+<form method="post">
+  <label>Amount</label>
+  <input type="number" step="0.01" name="amount" required autofocus>
+
+  <label>Direction</label>
+  <div class="chip-group">
+    <label class="chip"><input type="radio" name="direction" value="in" required> In</label>
+    <label class="chip"><input type="radio" name="direction" value="out" checked> Out</label>
+  </div>
+
+  <label>Category</label>
+  <div class="chip-group">
+    {% for c in ["expense", "income", "investment", "transfer"] %}
+    <label class="chip"><input type="radio" name="category" value="{{ c }}" onclick="toggleExpenseCategory()" {% if c == "expense" %}checked{% endif %}> {{ c }}</label>
+    {% endfor %}
+  </div>
+
+  <div id="expense-category-block">
+    <label>Expense category</label>
+    <div class="chip-group">
+      {% for ec in ["food", "travel", "bills", "shopping", "health", "entertainment", "groceries", "rent", "other"] %}
+      <label class="chip"><input type="radio" name="expense_category" value="{{ ec }}"> {{ ec }}</label>
+      {% endfor %}
+    </div>
+  </div>
+
+  <label>Source</label>
+  {% if sources %}
+  <div class="chip-group">
+    {% for s in sources %}
+    <label class="chip"><input type="radio" name="source_id" value="{{ s.id }}"> {{ s.name }}</label>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p style="font-size:0.85rem; color:#666;">No sources yet — <a href="{{ url_for('sources') }}">add your banks/cards first</a>.</p>
+  {% endif %}
+
+  <label>Notes <span style="font-weight:400;">(optional)</span></label>
+  <input type="text" name="notes" placeholder="e.g. lunch with team">
+
+  <button type="submit">Save</button>
+</form>
+
+<script>
+function toggleExpenseCategory() {
+  const isExpense = document.querySelector('input[name="category"]:checked').value === "expense";
+  document.getElementById("expense-category-block").style.display = isExpense ? "block" : "none";
+}
+document.addEventListener("DOMContentLoaded", toggleExpenseCategory);
+</script>
+{% endblock %}
