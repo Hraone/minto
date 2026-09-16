@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Expense Tracker</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 420px; margin: 2rem auto; padding: 0 1rem; }
+    nav { display: flex; justify-content: space-between; margin-bottom: 1.5rem; font-size: 0.9rem; }
+    nav a { color: #444; text-decoration: none; }
+    .flash { background: #eef; padding: 0.5rem 1rem; border-radius: 6px; margin-bottom: 1rem; }
+    label { display: block; margin-top: 1rem; font-weight: 600; font-size: 0.9rem; }
+    input, select { width: 100%; padding: 0.5rem; margin-top: 0.25rem; box-sizing: border-box; }
+    .row { display: flex; gap: 0.5rem; }
+    .row > * { flex: 1; }
+    button { margin-top: 1.5rem; padding: 0.6rem 1rem; width: 100%; font-size: 1rem; cursor: pointer; }
+    .chip-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.25rem; }
+    .chip { padding: 0.4rem 0.8rem; border: 1px solid #ccc; border-radius: 999px; cursor: pointer; font-size: 0.85rem; }
+    .chip input { display: none; }
+    .chip:has(input:checked) { background: #333; color: white; border-color: #333; }
+  </style>
+</head>
+<body>
+  {% if session.get('user_id') %}
+  <nav>
+    <div>
+      <a href="{{ url_for('entry') }}">Add</a> ·
+      <a href="{{ url_for('sources') }}">Sources</a>
+    </div>
+    <a href="{{ url_for('logout') }}">Log out</a>
+  </nav>
+  {% endif %}
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}<div class="flash">{{ m }}</div>{% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>
