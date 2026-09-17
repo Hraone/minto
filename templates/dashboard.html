@@ -260,11 +260,7 @@
       <p>{{ txn_count }} transaction{{ "s" if txn_count != 1 else "" }} this period</p>
     </div>
 
-    <div class="period-tabs">
-      {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
-      <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
-      {% endfor %}
-    </div>
+
   </div>
 
   <div class="wealth-section">
@@ -288,7 +284,11 @@
       </div>
     </div>
   </div>
-
+    <div class="period-tabs">
+      {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
+      <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
   <div class="summary-grid">
     <div class="summary-card">
       <div class="summary-label">Money in</div>
