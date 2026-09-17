@@ -1,5 +1,7 @@
 import os
 from functools import wraps
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -153,6 +155,72 @@ def sources():
 
     all_sources = client.table("user_sources").select("*").eq("active", True).execute().data
     return render_template("sources.html", sources=all_sources)
+
+
+def get_period_start(period):
+    now = datetime.now(timezone.utc)
+    if period == "today":
+        return now.replace(hour=0, minute=0, second=0, microsecond=0)
+    elif period == "week":
+        return now - timedelta(days=7)
+    elif period == "year":
+        return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    elif period == "all":
+        return None
+    else:  # month is the default
+        return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+@app.route("/dashboard")
+@login_required
+def dashboard():
+    client = get_user_client()
+    user_id = session["user_id"]
+    period = request.args.get("period", "month")
+    if period not in ("today", "week", "month", "year", "all"):
+        period = "month"
+
+    query = (
+        client.table("transactions")
+        .select("*, user_sources(name, source_type)")
+        .eq("user_id", user_id)
+    )
+    start = get_period_start(period)
+    if start:
+        query = query.gte("created_at", start.isoformat())
+    txns = query.order("created_at", desc=True).execute().data
+
+    total_in = sum(float(t["amount"]) for t in txns if t["direction"] == "in" and t["amount"])
+    total_out = sum(float(t["amount"]) for t in txns if t["direction"] == "out" and t["amount"])
+    net = total_in - total_out
+
+    expense_by_category = defaultdict(float)
+    for t in txns:
+        if t["category"] == "expense" and t["amount"]:
+            key = t.get("expense_category") or "other"
+            expense_by_category[key] += float(t["amount"])
+
+    spend_by_source = defaultdict(float)
+    for t in txns:
+        source = t.get("user_sources")
+        if source and t["amount"] and t["direction"] == "out":
+            spend_by_source[source["name"]] += float(t["amount"])
+
+    recent = txns[:10]
+
+    return render_template(
+        "dashboard.html",
+        period=period,
+        total_in=total_in,
+        total_out=total_out,
+        net=net,
+        txn_count=len(txns),
+        expense_labels=list(expense_by_category.keys()),
+        expense_values=list(expense_by_category.values()),
+        source_labels=list(spend_by_source.keys()),
+        source_values=list(spend_by_source.values()),
+        recent=recent,
+    )
 
 
 @app.route("/health")
