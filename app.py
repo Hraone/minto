@@ -21,12 +21,28 @@ def get_client() -> Client:
 
 
 def get_user_client() -> Client:
-    """A client carrying the logged-in user's session, so Supabase's
-    row-level-security policies scope every query to that user automatically."""
+    """A client carrying the logged-in user's access token, so Supabase's
+    row-level-security policies scope every query to that user automatically.
+
+    Deliberately no refresh-token handling: just the access token, set
+    directly on postgrest's auth header. Simpler, at the cost of needing to
+    log in again once the access token expires (see Supabase's Auth ->
+    Settings -> JWT expiry to make that window longer than the 1-hour default)."""
     client = get_client()
-    if "access_token" in session and "refresh_token" in session:
-        client.auth.set_session(session["access_token"], session["refresh_token"])
+    token = session.get("access_token")
+    if token:
+        client.postgrest.auth(token)
     return client
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_error(e):
+    message = str(e).lower()
+    if "jwt" in message and ("expired" in message or "invalid" in message):
+        session.clear()
+        flash("Your session expired — please log in again.")
+        return redirect(url_for("login"))
+    raise e
 
 
 def login_required(view):
@@ -56,7 +72,7 @@ def signup():
 
         user_id = result.user.id
         if result.session:
-            client.auth.set_session(result.session.access_token, result.session.refresh_token)
+            client.postgrest.auth(result.session.access_token)
         try:
             client.table("profiles").insert({"id": user_id}).execute()
         except Exception:
@@ -83,7 +99,6 @@ def login():
         session["user_id"] = result.user.id
         session["email"] = result.user.email
         session["access_token"] = result.session.access_token
-        session["refresh_token"] = result.session.refresh_token
         return redirect(url_for("entry"))
 
     return render_template("login.html")
@@ -138,6 +153,80 @@ def entry():
     return render_template("entry.html", sources=sources)
 
 
+def compute_source_balances(client, user_id):
+    """All-time balances/outstanding per source. Not period-scoped —
+    these are running totals since the source was created, not tied to
+    whatever date range the dashboard's period filter is showing."""
+    all_sources = (
+        client.table("user_sources")
+        .select("*")
+        .eq("active", True)
+        .order("name")
+        .execute()
+        .data
+    )
+
+    all_txns = (
+        client.table("transactions")
+        .select("source_id, amount, direction, category")
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+
+    flows = defaultdict(lambda: {"in": 0.0, "out": 0.0})
+    for t in all_txns:
+        sid = t.get("source_id")
+        if sid is None or not t.get("amount"):
+            continue
+        flows[sid][t["direction"]] += float(t["amount"])
+
+    savings, credit_cards = [], []
+    for s in all_sources:
+        f = flows[s["id"]]
+        opening = float(s.get("opening_balance") or 0)
+
+        if s["source_type"] == "savings":
+            s["balance"] = opening + f["in"] - f["out"]
+            s["minimum_balance"] = float(s.get("minimum_balance") or 0)
+            s["below_minimum"] = (
+                s["minimum_balance"] > 0 and s["balance"] < s["minimum_balance"]
+            )
+            savings.append(s)
+        else:
+            limit = float(s["credit_limit"]) if s.get("credit_limit") else 0
+            outstanding = max(opening + f["out"] - f["in"], 0)
+            s["outstanding"] = outstanding
+            s["limit"] = limit
+            s["limit_left"] = max(limit - outstanding, 0) if limit else None
+            s["limit_pct"] = round((outstanding / limit) * 100, 1) if limit else None
+            credit_cards.append(s)
+
+    return savings, credit_cards, all_txns
+
+
+def compute_net_worth(all_txns, savings, credit_cards):
+    total_savings = sum(s["balance"] for s in savings)
+    total_cc_debt = sum(s["outstanding"] for s in credit_cards)
+
+    invested_out = sum(
+        float(t["amount"]) for t in all_txns
+        if t.get("category") == "investment" and t.get("direction") == "out" and t.get("amount")
+    )
+    invested_in = sum(
+        float(t["amount"]) for t in all_txns
+        if t.get("category") == "investment" and t.get("direction") == "in" and t.get("amount")
+    )
+    total_invested = invested_out - invested_in
+
+    return {
+        "total_savings": total_savings,
+        "total_invested": total_invested,
+        "total_cc_debt": total_cc_debt,
+        "net_worth": total_savings + total_invested - total_cc_debt,
+    }
+
+
 @app.route("/sources", methods=["GET", "POST"])
 @login_required
 def sources():
@@ -172,51 +261,7 @@ def sources():
                     flash("Couldn't add that source — please try again.")
         return redirect(url_for("sources"))
 
-    all_sources = (
-        client.table("user_sources")
-        .select("*")
-        .eq("active", True)
-        .order("name")
-        .execute()
-        .data
-    )
-
-    txns = (
-        client.table("transactions")
-        .select("source_id, amount, direction")
-        .eq("user_id", user_id)
-        .execute()
-        .data
-    )
-
-    flows = defaultdict(lambda: {"in": 0.0, "out": 0.0})
-    for t in txns:
-        sid = t.get("source_id")
-        if sid is None or not t.get("amount"):
-            continue
-        flows[sid][t["direction"]] += float(t["amount"])
-
-    savings, credit_cards = [], []
-    for s in all_sources:
-        f = flows[s["id"]]
-        opening = float(s.get("opening_balance") or 0)
-
-        if s["source_type"] == "savings":
-            s["balance"] = opening + f["in"] - f["out"]
-            s["minimum_balance"] = float(s.get("minimum_balance") or 0)
-            s["below_minimum"] = (
-                s["minimum_balance"] > 0 and s["balance"] < s["minimum_balance"]
-            )
-            savings.append(s)
-        else:
-            limit = float(s["credit_limit"]) if s.get("credit_limit") else 0
-            outstanding = max(opening + f["out"] - f["in"], 0)
-            s["outstanding"] = outstanding
-            s["limit"] = limit
-            s["limit_left"] = max(limit - outstanding, 0) if limit else None
-            s["limit_pct"] = round((outstanding / limit) * 100, 1) if limit else None
-            credit_cards.append(s)
-
+    savings, credit_cards, _ = compute_source_balances(client, user_id)
     return render_template("sources.html", savings=savings, credit_cards=credit_cards)
 
 
@@ -271,6 +316,9 @@ def dashboard():
 
     recent = txns[:10]
 
+    savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    wealth = compute_net_worth(all_txns, savings, credit_cards)
+
     return render_template(
         "dashboard.html",
         period=period,
@@ -283,6 +331,7 @@ def dashboard():
         source_labels=list(spend_by_source.keys()),
         source_values=list(spend_by_source.values()),
         recent=recent,
+        wealth=wealth,
     )
 
 
