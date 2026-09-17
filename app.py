@@ -1,4 +1,5 @@
 import os
+import uuid
 from functools import wraps
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
@@ -162,6 +163,99 @@ def entry():
     return render_template("entry.html", savings_sources=savings_sources, cc_sources=cc_sources)
 
 
+@app.route("/pay-cc-bill", methods=["GET", "POST"])
+@login_required
+def pay_cc_bill():
+    """Record a credit-card bill payment as a linked pair of transfer legs:
+    money OUT of a savings source and the same amount IN to the card, so the
+    savings balance and the card's outstanding both move together and net
+    worth is unaffected (paying down debt with cash isn't a gain or a loss).
+
+    A single 'expense' entry from savings does NOT reduce the card's
+    outstanding balance — that's the mistake this route exists to prevent.
+    """
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    sources = (
+        client.table("user_sources")
+        .select("*")
+        .eq("active", True)
+        .order("name")
+        .execute()
+        .data
+    )
+    savings_sources = [s for s in sources if s["source_type"] == "savings"]
+    cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
+
+    if request.method == "POST":
+        amount = request.form.get("amount")
+        from_source_id = request.form.get("from_source_id")
+        to_source_id = request.form.get("to_source_id")
+        notes = request.form.get("notes") or None
+
+        if not amount or not from_source_id or not to_source_id:
+            flash("Pick an amount, a savings source to pay from, and a card to pay off.")
+            return render_template(
+                "pay_cc_bill.html",
+                savings_sources=savings_sources,
+                cc_sources=cc_sources,
+            )
+
+        amount = float(amount)
+        transfer_group = str(uuid.uuid4())
+        description = notes or "Credit card bill payment"
+
+        def insert_leg(direction, source_id):
+            entry_row = client.table("entries").insert({
+                "user_id": user_id,
+                "entry_text": description,
+                "mode": "manual",
+            }).execute()
+            entry_id = entry_row.data[0]["id"]
+            client.table("transactions").insert({
+                "id": entry_id,
+                "user_id": user_id,
+                "direction": direction,
+                "category": "transfer",
+                "source_id": int(source_id),
+                "amount": amount,
+                "currency": "INR",
+                "description": description,
+                "raw_text": description,
+                "transfer_group": transfer_group,
+            }).execute()
+            return entry_id
+
+        out_entry_id = None
+        try:
+            out_entry_id = insert_leg("out", from_source_id)
+            insert_leg("in", to_source_id)
+        except Exception as e:
+            # Best-effort rollback: without the first leg, don't leave a
+            # dangling half-transfer sitting in the savings account.
+            if out_entry_id is not None:
+                try:
+                    client.table("entries").delete().eq("id", out_entry_id).execute()
+                except Exception:
+                    pass
+            flash(f"Couldn't record the payment — please try again. ({e})")
+            return render_template(
+                "pay_cc_bill.html",
+                savings_sources=savings_sources,
+                cc_sources=cc_sources,
+            )
+
+        flash("Payment recorded — savings and card balances both updated.")
+        return redirect(url_for("sources"))
+
+    return render_template(
+        "pay_cc_bill.html",
+        savings_sources=savings_sources,
+        cc_sources=cc_sources,
+    )
+
+
 def compute_source_balances(client, user_id):
     """All-time balances/outstanding per source. Not period-scoped —
     these are running totals since the source was created, not tied to
@@ -307,8 +401,18 @@ def dashboard():
         query = query.gte("created_at", start.isoformat())
     txns = query.order("created_at", desc=True).execute().data
 
-    total_in = sum(float(t["amount"]) for t in txns if t["direction"] == "in" and t["amount"])
-    total_out = sum(float(t["amount"]) for t in txns if t["direction"] == "out" and t["amount"])
+    # Transfers (e.g. a credit-card bill payment moving money from savings to
+    # the card) aren't real income or spending — they just move money between
+    # your own sources — so they're excluded from these period totals to
+    # avoid inflating "money in/out" with money that never left your control.
+    total_in = sum(
+        float(t["amount"]) for t in txns
+        if t["direction"] == "in" and t["amount"] and t["category"] != "transfer"
+    )
+    total_out = sum(
+        float(t["amount"]) for t in txns
+        if t["direction"] == "out" and t["amount"] and t["category"] != "transfer"
+    )
     net = total_in - total_out
 
     expense_by_category = defaultdict(float)
@@ -320,7 +424,7 @@ def dashboard():
     spend_by_source = defaultdict(float)
     for t in txns:
         source = t.get("user_sources")
-        if source and t["amount"] and t["direction"] == "out":
+        if source and t["amount"] and t["direction"] == "out" and t["category"] != "transfer":
             spend_by_source[source["name"]] += float(t["amount"])
 
     recent = txns[:10]
