@@ -149,8 +149,17 @@ def entry():
         flash("Saved.")
         return redirect(url_for("entry"))
 
-    sources = client.table("user_sources").select("*").eq("active", True).execute().data
-    return render_template("entry.html", sources=sources)
+    sources = (
+        client.table("user_sources")
+        .select("*")
+        .eq("active", True)
+        .order("name")
+        .execute()
+        .data
+    )
+    savings_sources = [s for s in sources if s["source_type"] == "savings"]
+    cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
+    return render_template("entry.html", savings_sources=savings_sources, cc_sources=cc_sources)
 
 
 def compute_source_balances(client, user_id):
