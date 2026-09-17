@@ -34,28 +34,66 @@
   }
 
   .period-tabs {
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto 26px;
+
     display: flex;
-    gap: 6px;
-    background: #f3f4f6;
-    padding: 4px;
-    border-radius: 12px;
-  }
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
 
-  .period-tab {
-    padding: 7px 13px;
-    border-radius: 9px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #6b7280;
+    padding: 5px;
+
+    background: #f5f6f8;
+    border: 1px solid #e7e9ed;
+    border-radius: 14px;
+
+    box-shadow:
+        0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.period-tab {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-width: 72px;
+    height: 40px;
+
+    padding: 0 16px;
+
+    border-radius: 10px;
+
+    color: #667085;
     text-decoration: none;
-    transition: 0.15s ease;
-  }
 
-  .period-tab.active {
-    background: white;
+    font-size: 14px;
+    font-weight: 500;
+
+    transition:
+        background .2s ease,
+        color .2s ease,
+        box-shadow .2s ease,
+        transform .2s ease;
+}
+
+.period-tab:hover {
     color: #111827;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-  }
+    background: #ffffff;
+}
+
+.period-tab.active {
+    color: #111827;
+    background: #ffffff;
+
+    font-weight: 600;
+
+    box-shadow:
+        0 2px 7px rgba(0, 0, 0, 0.08);
+
+    transform: translateY(-1px);
+}
 
   /* Overall wealth */
 
