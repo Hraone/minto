@@ -83,7 +83,7 @@
     margin: 0;
   }
 
-  /* Expense section */
+  /* Expense / investment sub-category blocks */
 
   .expense-block {
     margin-top: 14px;
@@ -248,7 +248,7 @@
           type="radio"
           name="category"
           value="{{ c }}"
-          onclick="toggleExpenseCategory()"
+          onclick="toggleSubCategory()"
           {% if c == "expense" %}checked{% endif %}
         >
 
@@ -280,6 +280,7 @@
           "bills",
           "shopping",
           "health",
+          "insurance",
           "entertainment",
           "groceries",
           "rent",
@@ -295,6 +296,50 @@
           >
 
           {{ ec|capitalize }}
+
+        </label>
+
+        {% endfor %}
+
+      </div>
+
+    </div>
+
+
+    <!-- Investment Category -->
+
+    <div
+      id="investment-category-block"
+      class="expense-block"
+      style="display: none;"
+    >
+
+      <label class="form-label">
+        Investment category
+      </label>
+
+      <div class="chip-group">
+
+        {% for ic in [
+          "mutual_fund",
+          "stocks",
+          "fixed_deposit",
+          "recurring_deposit",
+          "gold",
+          "ppf_nps",
+          "crypto",
+          "other"
+        ] %}
+
+        <label class="chip">
+
+          <input
+            type="radio"
+            name="investment_category"
+            value="{{ ic }}"
+          >
+
+          {{ ic|replace("_", " ")|capitalize }}
 
         </label>
 
@@ -396,7 +441,7 @@
 
 <script>
 
-function toggleExpenseCategory() {
+function toggleSubCategory() {
 
   const selectedCategory =
     document.querySelector(
@@ -408,32 +453,36 @@ function toggleExpenseCategory() {
       "expense-category-block"
     );
 
+  const investmentBlock =
+    document.getElementById(
+      "investment-category-block"
+    );
+
   if (!selectedCategory) {
     return;
   }
 
-  const isExpense =
-    selectedCategory.value === "expense";
+  const isExpense = selectedCategory.value === "expense";
+  const isInvestment = selectedCategory.value === "investment";
 
-  expenseBlock.style.display =
-    isExpense ? "block" : "none";
-
+  expenseBlock.style.display = isExpense ? "block" : "none";
+  investmentBlock.style.display = isInvestment ? "block" : "none";
 
   /*
-   * Clear the selected expense category
-   * when the user changes to another category.
+   * Clear the sub-category selection whenever the
+   * user switches away from expense/investment.
    */
 
   if (!isExpense) {
-
     document
-      .querySelectorAll(
-        'input[name="expense_category"]'
-      )
-      .forEach(input => {
-        input.checked = false;
-      });
+      .querySelectorAll('input[name="expense_category"]')
+      .forEach(input => { input.checked = false; });
+  }
 
+  if (!isInvestment) {
+    document
+      .querySelectorAll('input[name="investment_category"]')
+      .forEach(input => { input.checked = false; });
   }
 
 }
@@ -441,7 +490,7 @@ function toggleExpenseCategory() {
 
 document.addEventListener(
   "DOMContentLoaded",
-  toggleExpenseCategory
+  toggleSubCategory
 );
 
 </script>
