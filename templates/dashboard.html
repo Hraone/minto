@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard · Minto{% endblock %}
+
+{% block content %}
+
+<style>
+
+  .dash-wrapper {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 10px 0 50px;
+  }
+
+  .dash-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+
+  .dash-header h2 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+  }
+
+  .dash-header p {
+    margin: 6px 0 0;
+    font-size: 13px;
+  }
+
+  .period-tabs {
+    display: flex;
+    gap: 6px;
+    background: #f3f4f6;
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .period-tab {
+    padding: 7px 13px;
+    border-radius: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #6b7280;
+    text-decoration: none;
+    transition: 0.15s ease;
+  }
+
+  .period-tab.active {
+    background: white;
+    color: #111827;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+
+  /* Summary cards */
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin-bottom: 28px;
+  }
+
+  .summary-card {
+    padding: 22px;
+    background: rgba(255,255,255,0.97);
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 18px;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.05);
+  }
+
+  .summary-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+  }
+
+  .summary-value {
+    margin-top: 8px;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.6px;
+    color: #111827;
+  }
+
+  .summary-value.positive { color: #059669; }
+  .summary-value.negative { color: #dc2626; }
+
+  /* Chart cards */
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .chart-card {
+    padding: 24px;
+    background: rgba(255,255,255,0.97);
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 18px;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.05);
+  }
+
+  .chart-card h3 {
+    margin: 0 0 16px;
+    font-size: 15px;
+    font-weight: 650;
+  }
+
+  .chart-empty {
+    padding: 30px 0;
+    text-align: center;
+    color: #9ca3af;
+    font-size: 13px;
+  }
+
+  /* Recent list */
+
+  .recent-card {
+    padding: 24px;
+    background: rgba(255,255,255,0.97);
+    border: 1px solid rgba(0,0,0,0.07);
+    border-radius: 18px;
+    box-shadow: 0 12px 34px rgba(0,0,0,0.05);
+  }
+
+  .recent-card h3 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    font-weight: 650;
+  }
+
+  .txn-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .txn-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+  }
+
+  .txn-desc {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #111827;
+  }
+
+  .txn-meta {
+    font-size: 11.5px;
+    color: #9ca3af;
+    margin-top: 2px;
+    text-transform: capitalize;
+  }
+
+  .txn-amount {
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .txn-amount.in { color: #059669; }
+  .txn-amount.out { color: #111827; }
+
+  @media (max-width: 700px) {
+    .summary-grid { grid-template-columns: 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+  }
+
+</style>
+
+<div class="dash-wrapper">
+
+  <div class="dash-header">
+    <div>
+      <h2>Dashboard</h2>
+      <p>{{ txn_count }} transaction{{ "s" if txn_count != 1 else "" }} this period</p>
+    </div>
+
+    <div class="period-tabs">
+      {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
+      <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Money in</div>
+      <div class="summary-value positive">₹{{ "%.2f"|format(total_in) }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Money out</div>
+      <div class="summary-value negative">₹{{ "%.2f"|format(total_out) }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Net</div>
+      <div class="summary-value {{ 'positive' if net >= 0 else 'negative' }}">₹{{ "%.2f"|format(net) }}</div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Expenses by category</h3>
+      {% if expense_labels %}
+      <canvas id="categoryChart" height="220"></canvas>
+      {% else %}
+      <div class="chart-empty">No expenses recorded in this period.</div>
+      {% endif %}
+    </div>
+
+    <div class="chart-card">
+      <h3>Spend by source</h3>
+      {% if source_labels %}
+      <canvas id="sourceChart" height="220"></canvas>
+      {% else %}
+      <div class="chart-empty">No outgoing transactions with a source in this period.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="recent-card">
+    <h3>Recent transactions</h3>
+    {% if recent %}
+    <ul class="txn-list">
+      {% for t in recent %}
+      <li class="txn-item">
+        <div>
+          <div class="txn-desc">{{ t.description or t.expense_category or t.category }}</div>
+          <div class="txn-meta">
+            {{ t.category }}
+            {% if t.user_sources %} · {{ t.user_sources.name }}{% endif %}
+          </div>
+        </div>
+        <div class="txn-amount {{ t.direction }}">
+          {{ "+" if t.direction == "in" else "-" }}₹{{ "%.2f"|format(t.amount or 0) }}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="chart-empty">No transactions yet in this period.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+{% if expense_labels or source_labels %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+  {% if expense_labels %}
+  new Chart(document.getElementById('categoryChart'), {
+    type: 'pie',
+    data: {
+      labels: {{ expense_labels|tojson }},
+      datasets: [{
+        data: {{ expense_values|tojson }},
+        backgroundColor: ['#111827','#374151','#6b7280','#9ca3af','#d1d5db','#059669','#dc2626','#f59e0b','#3b82f6']
+      }]
+    },
+    options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } } }
+  });
+  {% endif %}
+
+  {% if source_labels %}
+  new Chart(document.getElementById('sourceChart'), {
+    type: 'bar',
+    data: {
+      labels: {{ source_labels|tojson }},
+      datasets: [{
+        data: {{ source_values|tojson }},
+        backgroundColor: '#111827',
+        borderRadius: 6
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true } }
+    }
+  });
+  {% endif %}
+</script>
+{% endif %}
+
+{% endblock %}
