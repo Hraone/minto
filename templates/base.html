@@ -48,21 +48,12 @@
       -webkit-font-smoothing: antialiased;
     }
 
-    /* =========================
-       APP CONTAINER
-       ========================= */
-
     .app-container {
       width: 100%;
       max-width: 1000px;
       margin: 0 auto;
       padding: 0 20px 50px;
     }
-
-
-    /* =========================
-       NAVIGATION
-       ========================= */
 
     .navbar {
       height: 72px;
@@ -111,6 +102,12 @@
       gap: 8px;
     }
 
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .nav-link {
       padding: 8px 12px;
 
@@ -134,10 +131,15 @@
       color: #6b7280;
     }
 
+    .nav-link.primary {
+      background: var(--primary);
+      color: white;
+    }
 
-    /* =========================
-       FLASH MESSAGES
-       ========================= */
+    .nav-link.primary:hover {
+      background: #1f2937;
+      color: white;
+    }
 
     .flash {
       max-width: 680px;
@@ -157,11 +159,6 @@
       box-shadow: 0 5px 20px rgba(0, 0, 0, 0.04);
     }
 
-
-    /* =========================
-       DEFAULT TYPOGRAPHY
-       ========================= */
-
     h1,
     h2,
     h3 {
@@ -176,11 +173,6 @@
     a {
       color: var(--text);
     }
-
-
-    /* =========================
-       FORMS
-       ========================= */
 
     form {
       width: 100%;
@@ -238,11 +230,6 @@
         0 0 0 4px rgba(17, 24, 39, 0.06);
     }
 
-
-    /* =========================
-       BUTTONS
-       ========================= */
-
     button {
       width: 100%;
 
@@ -279,11 +266,6 @@
     button:active {
       transform: translateY(0);
     }
-
-
-    /* =========================
-       CHIP / RADIO CONTROLS
-       ========================= */
 
     .chip-group {
       display: flex;
@@ -341,11 +323,6 @@
         0 4px 12px rgba(17, 24, 39, 0.12);
     }
 
-
-    /* =========================
-       ROW
-       ========================= */
-
     .row {
       display: flex;
       gap: 12px;
@@ -354,11 +331,6 @@
     .row > * {
       flex: 1;
     }
-
-
-    /* =========================
-       MOBILE
-       ========================= */
 
     @media (max-width: 600px) {
 
@@ -400,19 +372,19 @@
   <div class="app-container">
 
 
-{% if session.get('user_id') %}
-
 <nav class="navbar">
 
   <div class="nav-left">
 
     <a
       class="brand"
-      href="{{ url_for('entry') }}"
+      href="{% if session.get('user_id') %}{{ url_for('entry') }}{% else %}{{ url_for('login') }}{% endif %}"
     >
       <span class="brand-icon">₹</span>
       Minto
     </a>
+
+    {% if session.get('user_id') %}
 
     <a
       class="nav-link"
@@ -428,18 +400,42 @@
       Sources
     </a>
 
+    {% endif %}
+
   </div>
 
-  <a
-    class="nav-link logout-link"
-    href="{{ url_for('logout') }}"
-  >
-    Log out
-  </a>
+  <div class="nav-right">
+
+    {% if session.get('user_id') %}
+
+    <a
+      class="nav-link logout-link"
+      href="{{ url_for('logout') }}"
+    >
+      Log out
+    </a>
+
+    {% else %}
+
+    <a
+      class="nav-link"
+      href="{{ url_for('login') }}"
+    >
+      Log in
+    </a>
+
+    <a
+      class="nav-link primary"
+      href="{{ url_for('signup') }}"
+    >
+      Sign up
+    </a>
+
+    {% endif %}
+
+  </div>
 
 </nav>
-
-{% endif %}
 
 
 {% with messages = get_flashed_messages() %}
