@@ -1,0 +1,219 @@
+{% extends "base.html" %}
+
+{% block title %}Pay CC bill · Minto{% endblock %}
+
+{% block content %}
+
+<style>
+  .entry-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 0 50px;
+  }
+
+  .entry-card {
+    background: rgba(255, 255, 255, 0.97);
+    border: 1px solid rgba(0, 0, 0, 0.07);
+    border-radius: 24px;
+    padding: 36px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.07);
+  }
+
+  .entry-header {
+    margin-bottom: 30px;
+  }
+
+  .entry-header h2 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    color: #111827;
+  }
+
+  .entry-header p {
+    margin: 8px 0 0;
+    color: #6b7280;
+    font-size: 14px;
+  }
+
+  .form-section {
+    margin-bottom: 25px;
+  }
+
+  .form-label {
+    display: block;
+    margin: 0 0 9px;
+    color: #374151;
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .amount-input {
+    position: relative;
+  }
+
+  .amount-symbol {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6b7280;
+    font-size: 19px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  .amount-input input {
+    padding: 17px 18px 17px 40px;
+    font-size: 22px;
+    font-weight: 600;
+    border-radius: 14px;
+  }
+
+  .entry-card .chip-group {
+    margin-top: 0;
+  }
+
+  .entry-card .chip {
+    margin: 0;
+  }
+
+  .notes-input {
+    margin-top: 0;
+  }
+
+  .empty-source {
+    margin: 0;
+    padding: 14px 16px;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .empty-source a {
+    color: #111827;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .empty-source a:hover {
+    text-decoration: underline;
+  }
+
+  .save-button {
+    margin-top: 2px;
+  }
+
+  .flow-note {
+    padding: 14px 16px;
+    border: 1px solid #f0f0f0;
+    border-radius: 12px;
+    background: #f9fafb;
+    color: #6b7280;
+    font-size: 12.5px;
+    line-height: 1.5;
+    margin-bottom: 25px;
+  }
+
+  @media (max-width: 600px) {
+    .entry-wrapper { padding: 10px 0 40px; }
+    .entry-card { padding: 26px 20px; border-radius: 20px; }
+    .entry-header h2 { font-size: 26px; }
+  }
+</style>
+
+<div class="entry-wrapper">
+
+  <div class="entry-card">
+
+    <div class="entry-header">
+      <h2>Pay a credit card bill</h2>
+      <p>Records both sides at once: money out of savings, and the card's outstanding paid down.</p>
+    </div>
+
+    <div class="flow-note">
+      This creates two linked entries — an <strong>out / transfer</strong> from the savings source below,
+      and an <strong>in / transfer</strong> against the card — so your savings balance and the card's
+      outstanding both update together. It won't show up as a fresh expense.
+    </div>
+
+    {% if not savings_sources or not cc_sources %}
+
+    <p class="empty-source">
+      You need at least one savings source and one credit card set up first —
+      <a href="{{ url_for('sources') }}">add them here</a>.
+    </p>
+
+    {% else %}
+
+    <form method="post">
+
+      <div class="form-section">
+        <label class="form-label" for="amount">Amount</label>
+        <div class="amount-input">
+          <span class="amount-symbol">₹</span>
+          <input
+            type="number"
+            step="0.01"
+            id="amount"
+            name="amount"
+            placeholder="0.00"
+            required
+            autofocus
+          >
+        </div>
+      </div>
+
+      <div class="form-section">
+        <label class="form-label">Pay from (savings)</label>
+        <div class="chip-group">
+          {% for s in savings_sources %}
+          <label class="chip">
+            <input type="radio" name="from_source_id" value="{{ s.id }}" required>
+            {{ s.name }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-section">
+        <label class="form-label">Pay off (credit card)</label>
+        <div class="chip-group">
+          {% for s in cc_sources %}
+          <label class="chip">
+            <input type="radio" name="to_source_id" value="{{ s.id }}" required>
+            {{ s.name }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="form-section">
+        <label class="form-label" for="notes">
+          Notes
+          <span style="font-weight:400; color:#9ca3af;">(optional)</span>
+        </label>
+        <input
+          type="text"
+          id="notes"
+          name="notes"
+          class="notes-input"
+          placeholder="e.g. September statement"
+        >
+      </div>
+
+      <button type="submit" class="save-button">Record payment</button>
+
+    </form>
+
+    {% endif %}
+
+  </div>
+
+</div>
+
+{% endblock %}
