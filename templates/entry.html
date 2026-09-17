@@ -360,25 +360,56 @@
       Source
     </label>
 
-    {% if sources %}
+    {% if savings_sources or cc_sources %}
 
     <div class="chip-group">
-
-      {% for s in sources %}
-
       <label class="chip">
-
-        <input
-          type="radio"
-          name="source_id"
-          value="{{ s.id }}"
-        >
-
-        {{ s.name }}
-
+        <input type="radio" name="source_type_filter" value="savings" checked onclick="toggleSourceType()">
+        Savings
       </label>
+      <label class="chip">
+        <input type="radio" name="source_type_filter" value="credit_card" onclick="toggleSourceType()">
+        Credit card
+      </label>
+    </div>
 
-      {% endfor %}
+    <div id="savings-source-block" class="expense-block" style="margin-top: 12px;">
+
+      {% if savings_sources %}
+      <div class="chip-group">
+        {% for s in savings_sources %}
+        <label class="chip">
+          <input type="radio" name="source_id" value="{{ s.id }}">
+          {{ s.name }}
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-source">
+        No savings accounts yet —
+        <a href="{{ url_for('sources') }}">add one</a>.
+      </p>
+      {% endif %}
+
+    </div>
+
+    <div id="cc-source-block" class="expense-block" style="margin-top: 12px; display: none;">
+
+      {% if cc_sources %}
+      <div class="chip-group">
+        {% for s in cc_sources %}
+        <label class="chip">
+          <input type="radio" name="source_id" value="{{ s.id }}">
+          {{ s.name }}
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-source">
+        No credit cards yet —
+        <a href="{{ url_for('sources') }}">add one</a>.
+      </p>
+      {% endif %}
 
     </div>
 
@@ -488,10 +519,39 @@ function toggleSubCategory() {
 }
 
 
-document.addEventListener(
-  "DOMContentLoaded",
-  toggleSubCategory
-);
+function toggleSourceType() {
+
+  const selected = document.querySelector(
+    'input[name="source_type_filter"]:checked'
+  );
+
+  if (!selected) {
+    return;
+  }
+
+  const savingsBlock = document.getElementById("savings-source-block");
+  const ccBlock = document.getElementById("cc-source-block");
+  const isSavings = selected.value === "savings";
+
+  savingsBlock.style.display = isSavings ? "block" : "none";
+  ccBlock.style.display = isSavings ? "none" : "block";
+
+  /*
+   * Clear any selected source in whichever block just got
+   * hidden, so a stale pick from the other type can't be
+   * submitted invisibly.
+   */
+
+  const hiddenBlock = isSavings ? ccBlock : savingsBlock;
+  hiddenBlock
+    .querySelectorAll('input[name="source_id"]')
+    .forEach(input => { input.checked = false; });
+
+}
+
+
+document.addEventListener("DOMContentLoaded", toggleSubCategory);
+document.addEventListener("DOMContentLoaded", toggleSourceType);
 
 </script>
 
