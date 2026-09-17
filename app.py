@@ -153,7 +153,9 @@ def sources():
             }
             if source_type == "savings":
                 opening_balance = request.form.get("opening_balance") or 0
+                minimum_balance = request.form.get("minimum_balance") or 0
                 row["opening_balance"] = float(opening_balance)
+                row["minimum_balance"] = float(minimum_balance)
             elif source_type == "credit_card":
                 credit_limit = request.form.get("credit_limit") or None
                 outstanding = request.form.get("outstanding") or 0
@@ -193,6 +195,10 @@ def sources():
 
         if s["source_type"] == "savings":
             s["balance"] = opening + f["in"] - f["out"]
+            s["minimum_balance"] = float(s.get("minimum_balance") or 0)
+            s["below_minimum"] = (
+                s["minimum_balance"] > 0 and s["balance"] < s["minimum_balance"]
+            )
             savings.append(s)
         else:
             limit = float(s["credit_limit"]) if s.get("credit_limit") else 0
