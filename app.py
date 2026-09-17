@@ -106,6 +106,7 @@ def entry():
         direction = request.form.get("direction")
         category = request.form.get("category")
         expense_category = request.form.get("expense_category") or None
+        investment_category = request.form.get("investment_category") or None
         source_id = request.form.get("source_id") or None
         notes = request.form.get("notes") or None
 
@@ -122,6 +123,7 @@ def entry():
             "direction": direction,
             "category": category,
             "expense_category": expense_category,
+            "investment_category": investment_category,
             "source_id": int(source_id) if source_id else None,
             "amount": float(amount) if amount else None,
             "currency": "INR",
@@ -161,7 +163,13 @@ def sources():
                 outstanding = request.form.get("outstanding") or 0
                 row["credit_limit"] = float(credit_limit) if credit_limit else None
                 row["opening_balance"] = float(outstanding)
-            client.table("user_sources").insert(row).execute()
+            try:
+                client.table("user_sources").insert(row).execute()
+            except Exception as e:
+                if "duplicate key" in str(e).lower():
+                    flash(f"You already have a source named '{name}'.")
+                else:
+                    flash("Couldn't add that source — please try again.")
         return redirect(url_for("sources"))
 
     all_sources = (
