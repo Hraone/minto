@@ -146,15 +146,64 @@ def sources():
         name = request.form.get("name", "").strip()
         source_type = request.form.get("source_type")
         if name and source_type:
-            client.table("user_sources").insert({
+            row = {
                 "user_id": user_id,
                 "name": name,
                 "source_type": source_type,
-            }).execute()
+            }
+            if source_type == "savings":
+                opening_balance = request.form.get("opening_balance") or 0
+                row["opening_balance"] = float(opening_balance)
+            elif source_type == "credit_card":
+                credit_limit = request.form.get("credit_limit") or None
+                outstanding = request.form.get("outstanding") or 0
+                row["credit_limit"] = float(credit_limit) if credit_limit else None
+                row["opening_balance"] = float(outstanding)
+            client.table("user_sources").insert(row).execute()
         return redirect(url_for("sources"))
 
-    all_sources = client.table("user_sources").select("*").eq("active", True).execute().data
-    return render_template("sources.html", sources=all_sources)
+    all_sources = (
+        client.table("user_sources")
+        .select("*")
+        .eq("active", True)
+        .order("name")
+        .execute()
+        .data
+    )
+
+    txns = (
+        client.table("transactions")
+        .select("source_id, amount, direction")
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+
+    flows = defaultdict(lambda: {"in": 0.0, "out": 0.0})
+    for t in txns:
+        sid = t.get("source_id")
+        if sid is None or not t.get("amount"):
+            continue
+        flows[sid][t["direction"]] += float(t["amount"])
+
+    savings, credit_cards = [], []
+    for s in all_sources:
+        f = flows[s["id"]]
+        opening = float(s.get("opening_balance") or 0)
+
+        if s["source_type"] == "savings":
+            s["balance"] = opening + f["in"] - f["out"]
+            savings.append(s)
+        else:
+            limit = float(s["credit_limit"]) if s.get("credit_limit") else 0
+            outstanding = max(opening + f["out"] - f["in"], 0)
+            s["outstanding"] = outstanding
+            s["limit"] = limit
+            s["limit_left"] = max(limit - outstanding, 0) if limit else None
+            s["limit_pct"] = round((outstanding / limit) * 100, 1) if limit else None
+            credit_cards.append(s)
+
+    return render_template("sources.html", savings=savings, credit_cards=credit_cards)
 
 
 def get_period_start(period):
