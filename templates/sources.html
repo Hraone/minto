@@ -12,8 +12,6 @@
     padding: 20px 0 50px;
   }
 
-  /* Header */
-
   .sources-header {
     margin-bottom: 28px;
   }
@@ -32,17 +30,11 @@
     font-size: 14px;
   }
 
-
-  /* Add source card */
-
   .source-card {
     padding: 30px;
-
     background: rgba(255, 255, 255, 0.97);
-
     border: 1px solid rgba(0, 0, 0, 0.07);
     border-radius: 22px;
-
     box-shadow: 0 18px 50px rgba(0, 0, 0, 0.06);
   }
 
@@ -52,22 +44,16 @@
 
   .source-card-title h3 {
     margin: 0;
-
     font-size: 17px;
     font-weight: 650;
-
     color: #111827;
   }
 
   .source-card-title p {
     margin: 5px 0 0;
-
     color: #9ca3af;
     font-size: 12px;
   }
-
-
-  /* Type chips */
 
   .source-type-group {
     display: flex;
@@ -79,8 +65,13 @@
     margin: 0;
   }
 
+  .conditional-field {
+    display: none;
+  }
 
-  /* Existing sources */
+  .conditional-field.visible {
+    display: block;
+  }
 
   .existing-section {
     margin-top: 35px;
@@ -90,102 +81,80 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-
     margin-bottom: 12px;
   }
 
   .existing-header h3 {
     margin: 0;
-
     color: #111827;
-
     font-size: 17px;
     font-weight: 650;
   }
 
   .source-count {
     padding: 4px 9px;
-
     border-radius: 999px;
-
     background: #f3f4f6;
-
     color: #6b7280;
-
     font-size: 11px;
     font-weight: 600;
   }
-
-
-  /* Source list */
 
   .source-list {
     display: flex;
     flex-direction: column;
     gap: 10px;
-
     margin: 0;
     padding: 0;
-
     list-style: none;
   }
 
   .source-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-
-    padding: 15px 17px;
-
+    padding: 16px 17px;
     background: white;
-
     border: 1px solid #e5e7eb;
     border-radius: 14px;
-
     transition: 0.2s ease;
   }
 
   .source-item:hover {
     border-color: #d1d5db;
     transform: translateY(-1px);
-
     box-shadow: 0 7px 20px rgba(0, 0, 0, 0.04);
+  }
+
+  .source-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
   }
 
   .source-info {
     display: flex;
     align-items: center;
     gap: 12px;
-
     min-width: 0;
   }
 
   .source-icon {
     width: 38px;
     height: 38px;
-
     flex-shrink: 0;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     border-radius: 11px;
-
     background: #f3f4f6;
-
     color: #374151;
-
     font-size: 15px;
     font-weight: 700;
   }
 
   .source-name {
     color: #111827;
-
     font-size: 14px;
     font-weight: 600;
-
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -193,23 +162,59 @@
 
   .source-type {
     margin-top: 3px;
-
     color: #9ca3af;
-
     font-size: 11px;
     text-transform: capitalize;
   }
 
+  .source-figure {
+    text-align: right;
+    flex-shrink: 0;
+  }
 
-  /* Empty state */
+  .figure-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: #111827;
+  }
+
+  .figure-label {
+    font-size: 10.5px;
+    color: #9ca3af;
+    margin-top: 1px;
+  }
+
+  /* CC limit bar */
+
+  .limit-bar-track {
+    margin-top: 12px;
+    height: 6px;
+    border-radius: 999px;
+    background: #f0f0f0;
+    overflow: hidden;
+  }
+
+  .limit-bar-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: #111827;
+  }
+
+  .limit-bar-fill.warn { background: #f59e0b; }
+  .limit-bar-fill.danger { background: #dc2626; }
+
+  .limit-meta-row {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 7px;
+    font-size: 11px;
+    color: #9ca3af;
+  }
 
   .empty-state {
     padding: 28px 20px;
-
     text-align: center;
-
     background: white;
-
     border: 1px dashed #d1d5db;
     border-radius: 16px;
   }
@@ -217,220 +222,176 @@
   .empty-icon {
     width: 42px;
     height: 42px;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     margin: 0 auto 12px;
-
     border-radius: 13px;
-
     background: #f3f4f6;
-
     color: #6b7280;
-
     font-size: 18px;
   }
 
   .empty-state p {
     margin: 0;
-
     color: #6b7280;
-
     font-size: 13px;
   }
 
-
   @media (max-width: 600px) {
-
-    .sources-wrapper {
-      padding: 10px 0 40px;
-    }
-
-    .sources-header h2 {
-      font-size: 26px;
-    }
-
-    .source-card {
-      padding: 24px 20px;
-      border-radius: 20px;
-    }
-
-    .source-item {
-      padding: 13px 14px;
-    }
-
+    .sources-wrapper { padding: 10px 0 40px; }
+    .sources-header h2 { font-size: 26px; }
+    .source-card { padding: 24px 20px; border-radius: 20px; }
+    .source-item { padding: 13px 14px; }
   }
 
 </style>
 
 <div class="sources-wrapper">
 
-  <!-- Header -->
-
   <div class="sources-header">
-
-
-<h2>Your sources</h2>
-
-<p>
-  Add the banks and cards you use to track your money.
-</p>
-
-
+    <h2>Your sources</h2>
+    <p>Add the banks and cards you use to track your money.</p>
   </div>
 
   <!-- Add Source -->
-
   <div class="source-card">
 
-
-<div class="source-card-title">
-
-  <h3>Add a source</h3>
-
-  <p>
-    Keep your transactions organized by account.
-  </p>
-
-</div>
-
-
-<form method="post">
-
-  <label for="source-name">
-    Name
-  </label>
-
-  <input
-    type="text"
-    id="source-name"
-    name="name"
-    placeholder="e.g. HDFC, ICICI Amex"
-    required
-  >
-
-
-  <label>
-    Type
-  </label>
-
-  <div class="source-type-group">
-
-    <label class="chip">
-
-      <input
-        type="radio"
-        name="source_type"
-        value="savings"
-        checked
-      >
-
-      Savings
-
-    </label>
-
-
-    <label class="chip">
-
-      <input
-        type="radio"
-        name="source_type"
-        value="credit_card"
-      >
-
-      Credit card
-
-    </label>
-
-  </div>
-
-
-  <button type="submit">
-    Add source
-  </button>
-
-</form>
-
-
-  </div>
-
-  <!-- Existing Sources -->
-
-  <div class="existing-section">
-
-
-<div class="existing-header">
-
-  <h3>Existing sources</h3>
-
-  {% if sources %}
-    <span class="source-count">
-      {{ sources|length }}
-    </span>
-  {% endif %}
-
-</div>
-
-
-{% if sources %}
-
-<ul class="source-list">
-
-  {% for s in sources %}
-
-  <li class="source-item">
-
-    <div class="source-info">
-
-      <div class="source-icon">
-        {% if s.source_type == "credit_card" %}
-          CC
-        {% else %}
-          ₹
-        {% endif %}
-      </div>
-
-      <div>
-
-        <div class="source-name">
-          {{ s.name }}
-        </div>
-
-        <div class="source-type">
-          {{ s.source_type|replace("_", " ") }}
-        </div>
-
-      </div>
-
+    <div class="source-card-title">
+      <h3>Add a source</h3>
+      <p>Keep your transactions organized by account.</p>
     </div>
 
-  </li>
+    <form method="post" id="source-form">
 
-  {% endfor %}
+      <label for="source-name">Name</label>
+      <input type="text" id="source-name" name="name" placeholder="e.g. HDFC, ICICI Amex" required>
 
-</ul>
+      <label>Type</label>
+      <div class="source-type-group">
+        <label class="chip">
+          <input type="radio" name="source_type" value="savings" checked onclick="toggleSourceFields()">
+          Savings
+        </label>
+        <label class="chip">
+          <input type="radio" name="source_type" value="credit_card" onclick="toggleSourceFields()">
+          Credit card
+        </label>
+      </div>
 
-{% else %}
+      <div id="savings-fields" class="conditional-field visible">
+        <label for="opening_balance">Current balance</label>
+        <input type="number" step="0.01" id="opening_balance" name="opening_balance" placeholder="0.00">
+      </div>
 
-<div class="empty-state">
+      <div id="cc-fields" class="conditional-field">
+        <label for="credit_limit">Credit limit</label>
+        <input type="number" step="0.01" id="credit_limit" name="credit_limit" placeholder="0.00">
 
-  <div class="empty-icon">
-    ₹
+        <label for="outstanding">Current outstanding balance <span style="font-weight:400; color:#9ca3af;">(optional)</span></label>
+        <input type="number" step="0.01" id="outstanding" name="outstanding" placeholder="0.00">
+      </div>
+
+      <button type="submit">Add source</button>
+
+    </form>
+
   </div>
 
-  <p>
-    No sources added yet.
-  </p>
+  <!-- Savings -->
+  <div class="existing-section">
+    <div class="existing-header">
+      <h3>Savings accounts</h3>
+      {% if savings %}<span class="source-count">{{ savings|length }}</span>{% endif %}
+    </div>
+
+    {% if savings %}
+    <ul class="source-list">
+      {% for s in savings %}
+      <li class="source-item">
+        <div class="source-top-row">
+          <div class="source-info">
+            <div class="source-icon">₹</div>
+            <div>
+              <div class="source-name">{{ s.name }}</div>
+              <div class="source-type">savings</div>
+            </div>
+          </div>
+          <div class="source-figure">
+            <div class="figure-value">₹{{ "%.2f"|format(s.balance) }}</div>
+            <div class="figure-label">available</div>
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">₹</div>
+      <p>No savings accounts added yet.</p>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Credit cards -->
+  <div class="existing-section">
+    <div class="existing-header">
+      <h3>Credit cards</h3>
+      {% if credit_cards %}<span class="source-count">{{ credit_cards|length }}</span>{% endif %}
+    </div>
+
+    {% if credit_cards %}
+    <ul class="source-list">
+      {% for s in credit_cards %}
+      <li class="source-item">
+        <div class="source-top-row">
+          <div class="source-info">
+            <div class="source-icon">CC</div>
+            <div>
+              <div class="source-name">{{ s.name }}</div>
+              <div class="source-type">credit card</div>
+            </div>
+          </div>
+          <div class="source-figure">
+            <div class="figure-value">₹{{ "%.2f"|format(s.outstanding) }}</div>
+            <div class="figure-label">outstanding</div>
+          </div>
+        </div>
+
+        {% if s.limit %}
+        <div class="limit-bar-track">
+          <div class="limit-bar-fill {% if s.limit_pct >= 90 %}danger{% elif s.limit_pct >= 70 %}warn{% endif %}"
+               style="width: {{ [s.limit_pct, 100]|min }}%;"></div>
+        </div>
+        <div class="limit-meta-row">
+          <span>{{ s.limit_pct }}% used</span>
+          <span>₹{{ "%.2f"|format(s.limit_left) }} left of ₹{{ "%.2f"|format(s.limit) }}</span>
+        </div>
+        {% else %}
+        <div class="limit-meta-row">
+          <span>No credit limit set for this card</span>
+        </div>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <div class="empty-icon">CC</div>
+      <p>No credit cards added yet.</p>
+    </div>
+    {% endif %}
+  </div>
 
 </div>
 
-{% endif %}
-
-
-  </div>
-
-</div>
+<script>
+function toggleSourceFields() {
+  const isSavings = document.querySelector('input[name="source_type"]:checked').value === "savings";
+  document.getElementById("savings-fields").classList.toggle("visible", isSavings);
+  document.getElementById("cc-fields").classList.toggle("visible", !isSavings);
+}
+document.addEventListener("DOMContentLoaded", toggleSourceFields);
+</script>
 
 {% endblock %}
