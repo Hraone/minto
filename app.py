@@ -11,6 +11,10 @@ load_dotenv()
 
 app = Flask(__name__)
 app.secret_key = os.environ["SECRET_KEY"]
+# How long a logged-in session survives with no activity at all — separate
+# from the Supabase access token's 1-hour life, which refresh_if_needed()
+# renews automatically as long as this outer session is still alive.
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
@@ -21,15 +25,38 @@ def get_client() -> Client:
     return create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 
+def refresh_if_needed(client):
+    """Proactively swaps the access token for a fresh one via the stored
+    refresh token when it's expired or about to be, so the user isn't
+    bounced to /login every hour just because Supabase's JWTs are
+    short-lived. Runs on a plain (unauthenticated) client — refresh_session
+    talks to the Auth API, not postgrest, so it doesn't need the old token
+    set first."""
+    expires_at = session.get("expires_at")
+    refresh_token = session.get("refresh_token")
+    if not refresh_token or expires_at is None:
+        return
+    if datetime.now(timezone.utc).timestamp() < expires_at - 60:
+        return  # still valid for at least another minute, nothing to do
+    try:
+        result = client.auth.refresh_session(refresh_token)
+        session["access_token"] = result.session.access_token
+        # Supabase rotates refresh tokens on every use — the old one stops
+        # working, so this MUST be re-saved or the next refresh will fail.
+        session["refresh_token"] = result.session.refresh_token
+        session["expires_at"] = result.session.expires_at
+    except Exception:
+        # Refresh token itself is dead (e.g. expired after long inactivity,
+        # or revoked) — nothing left to do but require a real login.
+        session.clear()
+
+
 def get_user_client() -> Client:
     """A client carrying the logged-in user's access token, so Supabase's
     row-level-security policies scope every query to that user automatically.
-
-    Deliberately no refresh-token handling: just the access token, set
-    directly on postgrest's auth header. Simpler, at the cost of needing to
-    log in again once the access token expires (see Supabase's Auth ->
-    Settings -> JWT expiry to make that window longer than the 1-hour default)."""
+    Refreshes the token first if it's close to expiring (see refresh_if_needed)."""
     client = get_client()
+    refresh_if_needed(client)
     token = session.get("access_token")
     if token:
         client.postgrest.auth(token)
@@ -97,9 +124,12 @@ def login():
             flash(f"Login failed: {e}")
             return render_template("login.html")
 
+        session.permanent = True  # survive browser restarts, not just the tab
         session["user_id"] = result.user.id
         session["email"] = result.user.email
         session["access_token"] = result.session.access_token
+        session["refresh_token"] = result.session.refresh_token
+        session["expires_at"] = result.session.expires_at
         return redirect(url_for("entry"))
 
     return render_template("login.html")
@@ -311,6 +341,12 @@ def compute_source_balances(client, user_id):
 def compute_net_worth(all_txns, savings, credit_cards):
     total_savings = sum(s["balance"] for s in savings)
     total_cc_debt = sum(s["outstanding"] for s in credit_cards)
+    total_cc_limit = sum(s["limit"] for s in credit_cards if s.get("limit"))
+    # Only meaningful if at least one card has a limit set — otherwise leave
+    # it out rather than showing a misleading 0%.
+    overall_utilization_pct = (
+        round((total_cc_debt / total_cc_limit) * 100, 1) if total_cc_limit else None
+    )
 
     invested_out = sum(
         float(t["amount"]) for t in all_txns
@@ -326,6 +362,7 @@ def compute_net_worth(all_txns, savings, credit_cards):
         "total_savings": total_savings,
         "total_invested": total_invested,
         "total_cc_debt": total_cc_debt,
+        "overall_utilization_pct": overall_utilization_pct,
         "net_worth": total_savings + total_invested - total_cc_debt,
     }
 
