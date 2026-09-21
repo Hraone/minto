@@ -19,6 +19,17 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
 
+# How often login_required re-checks with Supabase's Auth service that the
+# session's user still actually exists. An access token stays valid (passes
+# signature checks) until its own expiry no matter what happens to the
+# underlying auth.users row — deleting the user doesn't revoke tokens already
+# issued to them — so without this check, a browser that was logged in before
+# a user gets deleted (e.g. from the Supabase dashboard) would keep working
+# for up to an hour with no way to detect it short of an insert failing.
+# Lower to 0 to check on every single request instead (safer, adds one extra
+# Auth API round trip per page load).
+USER_VERIFY_INTERVAL_SECONDS = 300
+
 
 def get_client() -> Client:
     """A plain (unauthenticated) client — used for signup/login itself."""
@@ -66,9 +77,19 @@ def get_user_client() -> Client:
 @app.errorhandler(Exception)
 def handle_unexpected_error(e):
     message = str(e).lower()
-    if "jwt" in message and ("expired" in message or "invalid" in message):
+    session_is_dead = (
+        # Access/refresh token itself is bad or expired.
+        ("jwt" in message and ("expired" in message or "invalid" in message))
+        # The logged-in user's auth.users row is gone (e.g. deleted from the
+        # Supabase dashboard) but their browser still holds an old, technically
+        # unexpired access token — inserts then fail with a foreign key
+        # violation like 'is not present in table "users"', which isn't a JWT
+        # error but means exactly the same thing: this session is no longer valid.
+        or ("foreign key" in message and "users" in message)
+    )
+    if session_is_dead:
         session.clear()
-        flash("Your session expired — please log in again.")
+        flash("Your session is no longer valid — please log in again.")
         return redirect(url_for("login"))
     raise e
 
@@ -78,6 +99,23 @@ def login_required(view):
     def wrapped(*args, **kwargs):
         if "user_id" not in session:
             return redirect(url_for("login"))
+
+        now = datetime.now(timezone.utc).timestamp()
+        last_verified = session.get("verified_at", 0)
+        if now - last_verified > USER_VERIFY_INTERVAL_SECONDS:
+            client = get_user_client()  # also refreshes the access token if it's stale
+            try:
+                # Asks Supabase's Auth service directly whether this user
+                # still exists, rather than trusting the JWT's own claim to
+                # still be valid — this is the actual source of truth that
+                # a deleted user can no longer pass.
+                client.auth.get_user(session["access_token"])
+                session["verified_at"] = now
+            except Exception:
+                session.clear()
+                flash("Your account is no longer valid — please log in again.")
+                return redirect(url_for("login"))
+
         return view(*args, **kwargs)
     return wrapped
 
@@ -546,6 +584,14 @@ def dashboard():
         wealth=wealth,
         outstanding_loans=outstanding_loans,
     )
+
+
+@app.route("/favicon.ico")
+def favicon():
+    # Some browsers request /favicon.ico by convention no matter what the
+    # <head> <link> tags say — this is what was showing up as harmless but
+    # noisy 404s in the deploy logs before.
+    return redirect(url_for("static", filename="favicon.svg"))
 
 
 @app.route("/health")
