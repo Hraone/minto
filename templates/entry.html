@@ -162,7 +162,7 @@
 
 <div class="entry-header">
   <h2>New entry</h2>
-  <p>Record an income, expense, investment or transfer.</p>
+  <p>Record an income, expense, investment, loan or transfer.</p>
 </div>
 
 
@@ -240,7 +240,7 @@
 
     <div class="chip-group">
 
-      {% for c in ["expense", "income", "investment", "transfer"] %}
+      {% for c in ["expense", "income", "investment", "lending", "transfer"] %}
 
       <label class="chip">
 
@@ -346,6 +346,64 @@
         {% endfor %}
 
       </div>
+
+    </div>
+
+
+    <!-- Lending Counterparty -->
+
+    <div
+      id="lending-category-block"
+      class="expense-block"
+      style="display: none;"
+    >
+
+      <label class="form-label" for="counterparty">
+        Who
+        <span style="font-weight:400; color:#9ca3af;">
+          (friend's name — use the same spelling each time so it adds up correctly)
+        </span>
+      </label>
+
+      <input
+        type="text"
+        id="counterparty"
+        name="counterparty"
+        class="notes-input"
+        placeholder="e.g. Rohan"
+        list="counterparty-list"
+      >
+
+      <datalist id="counterparty-list">
+        {% for name in known_counterparties %}
+        <option value="{{ name }}"></option>
+        {% endfor %}
+      </datalist>
+
+      <p style="margin: 10px 0 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
+        Out = you gave them money. In = they paid you back. Neither counts as
+        an expense or income — it shows up as money owed to you until repaid.
+      </p>
+
+      {% if outstanding_loans %}
+      <div style="margin-top: 14px;">
+        <p class="form-label" style="margin-bottom: 8px;">
+          Got paid back? Tap to fill it in
+        </p>
+        <div class="chip-group">
+          {% for person in outstanding_loans if person.amount > 0 %}
+          <button
+            type="button"
+            class="chip"
+            style="cursor:pointer; font:inherit; color:inherit;"
+            onclick="markRepaid('{{ person.name|e }}', {{ person.amount }})"
+          >
+            {{ person.name }} · ₹{{ "%.2f"|format(person.amount) }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
 
     </div>
 
@@ -489,19 +547,26 @@ function toggleSubCategory() {
       "investment-category-block"
     );
 
+  const lendingBlock =
+    document.getElementById(
+      "lending-category-block"
+    );
+
   if (!selectedCategory) {
     return;
   }
 
   const isExpense = selectedCategory.value === "expense";
   const isInvestment = selectedCategory.value === "investment";
+  const isLending = selectedCategory.value === "lending";
 
   expenseBlock.style.display = isExpense ? "block" : "none";
   investmentBlock.style.display = isInvestment ? "block" : "none";
+  lendingBlock.style.display = isLending ? "block" : "none";
 
   /*
    * Clear the sub-category selection whenever the
-   * user switches away from expense/investment.
+   * user switches away from expense/investment/lending.
    */
 
   if (!isExpense) {
@@ -514,6 +579,10 @@ function toggleSubCategory() {
     document
       .querySelectorAll('input[name="investment_category"]')
       .forEach(input => { input.checked = false; });
+  }
+
+  if (!isLending) {
+    document.getElementById("counterparty").value = "";
   }
 
 }
@@ -552,6 +621,20 @@ function toggleSourceType() {
 
 document.addEventListener("DOMContentLoaded", toggleSubCategory);
 document.addEventListener("DOMContentLoaded", toggleSourceType);
+
+function markRepaid(name, amount) {
+
+  // Category is already "lending" (this button only appears inside that
+  // block) — just flip direction to "in" and fill in who / how much.
+
+  document
+    .querySelectorAll('input[name="direction"]')
+    .forEach(input => { input.checked = (input.value === "in"); });
+
+  document.getElementById("counterparty").value = name;
+  document.getElementById("amount").value = amount;
+
+}
 
 </script>
 
