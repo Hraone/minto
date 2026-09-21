@@ -141,6 +141,36 @@ def logout():
     return redirect(url_for("login"))
 
 
+def get_lending_summary(client, user_id):
+    """All-time per-person lending ledger (category='lending' only, not
+    period-scoped): positive amount = they still owe you, negative = you've
+    somehow taken in more than you gave out (rare, but shown honestly rather
+    than hidden). Also returns every counterparty name ever used, settled or
+    not, so the entry form can offer a pick-list and prevent spelling drift
+    (e.g. "Rohan" vs "Rohan K") from splitting one person into two ledgers."""
+    rows = (
+        client.table("transactions")
+        .select("counterparty, amount, direction")
+        .eq("user_id", user_id)
+        .eq("category", "lending")
+        .execute()
+        .data
+    )
+    lent_by_person = defaultdict(float)
+    for t in rows:
+        if not t.get("amount"):
+            continue
+        person = t.get("counterparty") or "Unspecified"
+        lent_by_person[person] += float(t["amount"]) if t["direction"] == "out" else -float(t["amount"])
+
+    known_names = sorted(lent_by_person.keys())
+    outstanding = sorted(
+        ({"name": n, "amount": a} for n, a in lent_by_person.items() if round(a, 2) != 0),
+        key=lambda x: -x["amount"],
+    )
+    return known_names, outstanding
+
+
 @app.route("/", methods=["GET", "POST"])
 @login_required
 def entry():
@@ -153,6 +183,7 @@ def entry():
         category = request.form.get("category")
         expense_category = request.form.get("expense_category") or None
         investment_category = request.form.get("investment_category") or None
+        counterparty = request.form.get("counterparty") or None
         source_id = request.form.get("source_id") or None
         notes = request.form.get("notes") or None
 
@@ -170,6 +201,7 @@ def entry():
             "category": category,
             "expense_category": expense_category,
             "investment_category": investment_category,
+            "counterparty": counterparty if category == "lending" else None,
             "source_id": int(source_id) if source_id else None,
             "amount": float(amount) if amount else None,
             "currency": "INR",
@@ -190,7 +222,14 @@ def entry():
     )
     savings_sources = [s for s in sources if s["source_type"] == "savings"]
     cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
-    return render_template("entry.html", savings_sources=savings_sources, cc_sources=cc_sources)
+    known_counterparties, outstanding_loans = get_lending_summary(client, user_id)
+    return render_template(
+        "entry.html",
+        savings_sources=savings_sources,
+        cc_sources=cc_sources,
+        known_counterparties=known_counterparties,
+        outstanding_loans=outstanding_loans,
+    )
 
 
 @app.route("/pay-cc-bill", methods=["GET", "POST"])
@@ -358,12 +397,27 @@ def compute_net_worth(all_txns, savings, credit_cards):
     )
     total_invested = invested_out - invested_in
 
+    # Money lent to other people (e.g. a friend) leaves your account like an
+    # expense would, but unlike an expense you expect it back — so it's
+    # counted as a receivable asset here, the same way an investment is,
+    # rather than as spending. A repayment ("in") shrinks it back down.
+    lent_out = sum(
+        float(t["amount"]) for t in all_txns
+        if t.get("category") == "lending" and t.get("direction") == "out" and t.get("amount")
+    )
+    lent_in = sum(
+        float(t["amount"]) for t in all_txns
+        if t.get("category") == "lending" and t.get("direction") == "in" and t.get("amount")
+    )
+    total_lent = lent_out - lent_in
+
     return {
         "total_savings": total_savings,
         "total_invested": total_invested,
+        "total_lent": total_lent,
         "total_cc_debt": total_cc_debt,
         "overall_utilization_pct": overall_utilization_pct,
-        "net_worth": total_savings + total_invested - total_cc_debt,
+        "net_worth": total_savings + total_invested + total_lent - total_cc_debt,
     }
 
 
@@ -439,16 +493,19 @@ def dashboard():
     txns = query.order("created_at", desc=True).execute().data
 
     # Transfers (e.g. a credit-card bill payment moving money from savings to
-    # the card) aren't real income or spending — they just move money between
-    # your own sources — so they're excluded from these period totals to
-    # avoid inflating "money in/out" with money that never left your control.
+    # the card) and lending (money handed to a friend, or repaid by one)
+    # aren't real income or spending — they just move money between your own
+    # sources, or convert cash into a receivable you'll get back — so both
+    # are excluded from these period totals to avoid inflating "money in/out"
+    # with money that never actually left your net worth.
+    non_flow_categories = ("transfer", "lending")
     total_in = sum(
         float(t["amount"]) for t in txns
-        if t["direction"] == "in" and t["amount"] and t["category"] != "transfer"
+        if t["direction"] == "in" and t["amount"] and t["category"] not in non_flow_categories
     )
     total_out = sum(
         float(t["amount"]) for t in txns
-        if t["direction"] == "out" and t["amount"] and t["category"] != "transfer"
+        if t["direction"] == "out" and t["amount"] and t["category"] not in non_flow_categories
     )
     net = total_in - total_out
 
@@ -461,13 +518,18 @@ def dashboard():
     spend_by_source = defaultdict(float)
     for t in txns:
         source = t.get("user_sources")
-        if source and t["amount"] and t["direction"] == "out" and t["category"] != "transfer":
+        if source and t["amount"] and t["direction"] == "out" and t["category"] not in non_flow_categories:
             spend_by_source[source["name"]] += float(t["amount"])
 
     recent = txns[:10]
 
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
     wealth = compute_net_worth(all_txns, savings, credit_cards)
+
+    # Outstanding loans by person — all-time, like net worth, not scoped to
+    # the period tabs. Only people with a nonzero balance are shown; fully
+    # repaid loans (out - in == 0) drop off automatically.
+    _, outstanding_loans = get_lending_summary(client, user_id)
 
     return render_template(
         "dashboard.html",
@@ -482,6 +544,7 @@ def dashboard():
         source_values=list(spend_by_source.values()),
         recent=recent,
         wealth=wealth,
+        outstanding_loans=outstanding_loans,
     )
 
 
