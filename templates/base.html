@@ -8,11 +8,11 @@
 
   <title>{% block title %}Minto{% endblock %}</title>
 
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}">
   <!-- Fallback for the few browsers/contexts that ignore SVG favicons (some
        older Safari versions, some link-preview crawlers) and just request
        /favicon.ico directly regardless of what <link> tags say. -->
-  <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}">
+  <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}">
 
   <style>
 
