@@ -16,6 +16,17 @@ app.secret_key = os.environ["SECRET_KEY"]
 # renews automatically as long as this outer session is still alive.
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
+
+@app.context_processor
+def inject_asset_version():
+    """Cache-busting query string for static assets like the favicon.
+    Browsers cache favicons unusually aggressively — bump this constant any
+    time you replace static/favicon.svg with a new design, and every page
+    will pick up the change immediately instead of showing the old icon
+    until someone happens to hard-refresh."""
+    return {"asset_version": "1"}
+
+
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
 
