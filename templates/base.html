@@ -89,17 +89,15 @@
       width: 34px;
       height: 34px;
 
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: block;
+      object-fit: cover;
 
       border-radius: 10px;
+      overflow: hidden;
 
+      /* Shows through if your uploaded favicon.svg has transparent areas —
+         remove this if your design already fills the full square itself. */
       background: var(--primary);
-      color: white;
-
-      font-size: 16px;
-      font-weight: 700;
     }
 
     .nav-left {
@@ -386,7 +384,11 @@
       class="brand"
       href="{% if session.get('user_id') %}{{ url_for('entry') }}{% else %}{{ url_for('login') }}{% endif %}"
     >
-      <span class="brand-icon">₹</span>
+      <img
+        class="brand-icon"
+        src="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}"
+        alt=""
+      >
       Minto
     </a>
 
