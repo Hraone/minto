@@ -34,66 +34,28 @@
   }
 
   .period-tabs {
-    width: fit-content;
-    max-width: 100%;
-    margin: 0 auto 26px;
-
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 5px;
+    gap: 6px;
+    background: #f3f4f6;
+    padding: 4px;
+    border-radius: 12px;
+  }
 
-    padding: 5px;
-
-    background: #f5f6f8;
-    border: 1px solid #e7e9ed;
-    border-radius: 14px;
-
-    box-shadow:
-        0 2px 8px rgba(0, 0, 0, 0.03);
-}
-
-.period-tab {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    min-width: 72px;
-    height: 40px;
-
-    padding: 0 16px;
-
-    border-radius: 10px;
-
-    color: #667085;
-    text-decoration: none;
-
-    font-size: 14px;
-    font-weight: 500;
-
-    transition:
-        background .2s ease,
-        color .2s ease,
-        box-shadow .2s ease,
-        transform .2s ease;
-}
-
-.period-tab:hover {
-    color: #111827;
-    background: #ffffff;
-}
-
-.period-tab.active {
-    color: #111827;
-    background: #ffffff;
-
+  .period-tab {
+    padding: 7px 13px;
+    border-radius: 9px;
+    font-size: 13px;
     font-weight: 600;
+    color: #6b7280;
+    text-decoration: none;
+    transition: 0.15s ease;
+  }
 
-    box-shadow:
-        0 2px 7px rgba(0, 0, 0, 0.08);
-
-    transform: translateY(-1px);
-}
+  .period-tab.active {
+    background: white;
+    color: #111827;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
 
   /* Overall wealth */
 
@@ -298,7 +260,11 @@
       <p>{{ txn_count }} transaction{{ "s" if txn_count != 1 else "" }} this period</p>
     </div>
 
-
+    <div class="period-tabs">
+      {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
+      <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
   </div>
 
   <div class="wealth-section">
@@ -313,6 +279,10 @@
         <div class="summary-value">₹{{ "%.2f"|format(wealth.total_invested) }}</div>
       </div>
       <div class="wealth-card">
+        <div class="summary-label">Lent out</div>
+        <div class="summary-value">₹{{ "%.2f"|format(wealth.total_lent) }}</div>
+      </div>
+      <div class="wealth-card">
         <div class="summary-label">Credit card debt</div>
         <div class="summary-value negative">₹{{ "%.2f"|format(wealth.total_cc_debt) }}</div>
       </div>
@@ -321,12 +291,24 @@
         <div class="summary-value">₹{{ "%.2f"|format(wealth.net_worth) }}</div>
       </div>
     </div>
-  </div>
-    <div class="period-tabs">
-      {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
-      <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
-      {% endfor %}
+    {% if outstanding_loans %}
+    <div style="margin-top: 16px;">
+      <div class="summary-label" style="margin-bottom: 8px;">Lending, by person</div>
+      <ul style="list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px;">
+        {% for person in outstanding_loans %}
+        <li style="padding:6px 12px; border-radius:999px; background:#f3f4f6; font-size:13px; color:#374151;">
+          {% if person.amount > 0 %}
+          {{ person.name }} owes you ₹{{ "%.2f"|format(person.amount) }}
+          {% else %}
+          You owe {{ person.name }} ₹{{ "%.2f"|format(-person.amount) }}
+          {% endif %}
+        </li>
+        {% endfor %}
+      </ul>
     </div>
+    {% endif %}
+  </div>
+
   <div class="summary-grid">
     <div class="summary-card">
       <div class="summary-label">Money in</div>
@@ -341,6 +323,9 @@
       <div class="summary-value {{ 'positive' if net >= 0 else 'negative' }}">₹{{ "%.2f"|format(net) }}</div>
     </div>
   </div>
+  <p style="margin: -10px 0 20px; font-size: 12px; color: #9ca3af;">
+    Excludes transfers (e.g. paying a credit card bill) and lending (money given to or repaid by a friend) — neither is real income or spending.
+  </p>
 
   <div class="chart-grid">
     <div class="chart-card">
