@@ -8,11 +8,28 @@
 
   <title>{% block title %}Minto{% endblock %}</title>
 
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}">
-  <!-- Fallback for the few browsers/contexts that ignore SVG favicons (some
-       older Safari versions, some link-preview crawlers) and just request
-       /favicon.ico directly regardless of what <link> tags say. -->
-  <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}">
+  <link id="favicon" rel="icon" type="image/svg+xml"
+        href="{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}">
+  <link id="alternate-favicon" rel="alternate icon"
+        href="{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}">
+
+  <script>
+    (function () {
+      const savedTheme = localStorage.getItem("minto-theme");
+      const theme = savedTheme === "dark" || savedTheme === "light"
+        ? savedTheme
+        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+
+      document.documentElement.dataset.theme = theme;
+      document.documentElement.style.colorScheme = theme;
+
+      const favicon = "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
+      const darkFavicon = "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}";
+
+      document.getElementById("favicon").href = theme === "dark" ? darkFavicon : favicon;
+      document.getElementById("alternate-favicon").href = theme === "dark" ? darkFavicon : favicon;
+    })();
+  </script>
 
   <style>
 
@@ -23,10 +40,47 @@
     :root {
       --text: #111827;
       --muted: #6b7280;
+      --subtle: #9ca3af;
       --border: #e5e7eb;
+      --border-soft: rgba(0, 0, 0, 0.07);
       --surface: #ffffff;
+      --surface-soft: #f9fafb;
+      --surface-muted: #f3f4f6;
       --background: #f6f7f9;
       --primary: #111827;
+      --primary-hover: #1f2937;
+      --positive: #059669;
+      --negative: #dc2626;
+      --focus: rgba(17, 24, 39, 0.08);
+      --shadow: rgba(0, 0, 0, 0.06);
+    }
+
+    :root[data-theme="dark"] {
+      --text: #f3f4f6;
+      --muted: #a1a1aa;
+      --subtle: #71717a;
+      --border: #27272a;
+      --border-soft: rgba(255, 255, 255, 0.08);
+      --surface: #18181b;
+      --surface-soft: #1f1f23;
+      --surface-muted: #27272a;
+      --background: #09090b;
+      --primary: #f4f4f5;
+      --primary-hover: #e4e4e7;
+      --positive: #34d399;
+      --negative: #f87171;
+      --focus: rgba(255, 255, 255, 0.10);
+      --shadow: rgba(0, 0, 0, 0.30);
+    }
+
+    html {
+      background: var(--background);
+      color-scheme: light;
+      transition: background-color 0.2s ease;
+    }
+
+    html[data-theme="dark"] {
+      color-scheme: dark;
     }
 
     body {
@@ -46,12 +100,13 @@
       background:
         radial-gradient(
           circle at top left,
-          #ffffff 0%,
-          #f6f7f9 45%,
-          #f3f4f6 100%
+          var(--surface) 0%,
+          var(--background) 48%,
+          var(--surface-muted) 100%
         );
 
       -webkit-font-smoothing: antialiased;
+      transition: background 0.2s ease, color 0.2s ease;
     }
 
     .app-container {
@@ -336,6 +391,280 @@
       flex: 1;
     }
 
+    /* Theme toggle */
+
+    .theme-toggle {
+      width: 38px;
+      height: 38px;
+      margin: 0;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: none;
+      font-size: 17px;
+      line-height: 1;
+    }
+
+    .theme-toggle:hover {
+      background: var(--surface-muted);
+      color: var(--text);
+      transform: none;
+      box-shadow: none;
+    }
+
+    .theme-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+    }
+
+    .theme-icon.sun { display: none; }
+    :root[data-theme="dark"] .theme-icon.moon { display: none; }
+    :root[data-theme="dark"] .theme-icon.sun { display: inline-flex; }
+
+    /* Global dark-mode safety net for page-specific inline styles. */
+    :root[data-theme="dark"] body {
+      background: var(--background) !important;
+      color: var(--text) !important;
+    }
+
+    :root[data-theme="dark"] .navbar {
+      border-bottom-color: var(--border-soft) !important;
+    }
+
+    :root[data-theme="dark"] .nav-link {
+      color: #a1a1aa !important;
+    }
+
+    :root[data-theme="dark"] .nav-link:hover {
+      background: var(--surface-muted) !important;
+      color: var(--text) !important;
+    }
+
+    :root[data-theme="dark"] .nav-link.primary {
+      background: #f4f4f5 !important;
+      color: #18181b !important;
+    }
+
+    :root[data-theme="dark"] .nav-link.primary:hover {
+      background: #ffffff !important;
+      color: #09090b !important;
+    }
+
+    :root[data-theme="dark"] .brand {
+      color: var(--text) !important;
+    }
+
+    :root[data-theme="dark"] .brand-icon {
+      background: #f4f4f5 !important;
+      filter: invert(1);
+    }
+
+    :root[data-theme="dark"] .flash,
+    :root[data-theme="dark"] .entry-card,
+    :root[data-theme="dark"] .signup-card,
+    :root[data-theme="dark"] .login-card,
+    :root[data-theme="dark"] .source-card,
+    :root[data-theme="dark"] .source-item,
+    :root[data-theme="dark"] .empty-state,
+    :root[data-theme="dark"] .wealth-card,
+    :root[data-theme="dark"] .summary-card,
+    :root[data-theme="dark"] .chart-card,
+    :root[data-theme="dark"] .recent-card {
+      background: var(--surface) !important;
+      border-color: var(--border-soft) !important;
+      color: var(--text) !important;
+      box-shadow: 0 18px 50px var(--shadow) !important;
+    }
+
+    :root[data-theme="dark"] h1,
+    :root[data-theme="dark"] h2,
+    :root[data-theme="dark"] h3,
+    :root[data-theme="dark"] .entry-header h2,
+    :root[data-theme="dark"] .signup-header h2,
+    :root[data-theme="dark"] .login-header h2,
+    :root[data-theme="dark"] .sources-header h2,
+    :root[data-theme="dark"] .source-card-title h3,
+    :root[data-theme="dark"] .existing-header h3,
+    :root[data-theme="dark"] .source-name,
+    :root[data-theme="dark"] .figure-value,
+    :root[data-theme="dark"] .txn-desc,
+    :root[data-theme="dark"] .summary-value {
+      color: var(--text) !important;
+    }
+
+    :root[data-theme="dark"] p,
+    :root[data-theme="dark"] .entry-header p,
+    :root[data-theme="dark"] .signup-header p,
+    :root[data-theme="dark"] .login-header p,
+    :root[data-theme="dark"] .sources-header p,
+    :root[data-theme="dark"] .source-card-title p,
+    :root[data-theme="dark"] .source-type,
+    :root[data-theme="dark"] .figure-label,
+    :root[data-theme="dark"] .txn-meta,
+    :root[data-theme="dark"] .chart-empty,
+    :root[data-theme="dark"] .password-hint,
+    :root[data-theme="dark"] .login-text,
+    :root[data-theme="dark"] .signup-text {
+      color: var(--muted) !important;
+    }
+
+    :root[data-theme="dark"] label,
+    :root[data-theme="dark"] .form-label,
+    :root[data-theme="dark"] .form-group label {
+      color: #d4d4d8 !important;
+    }
+
+    :root[data-theme="dark"] input,
+    :root[data-theme="dark"] select,
+    :root[data-theme="dark"] textarea {
+      background: var(--surface-soft) !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
+    }
+
+    :root[data-theme="dark"] input::placeholder,
+    :root[data-theme="dark"] textarea::placeholder {
+      color: var(--subtle) !important;
+    }
+
+    :root[data-theme="dark"] input:focus,
+    :root[data-theme="dark"] select:focus,
+    :root[data-theme="dark"] textarea:focus {
+      background: #232327 !important;
+      border-color: #52525b !important;
+      box-shadow: 0 0 0 4px var(--focus) !important;
+    }
+
+    :root[data-theme="dark"] .chip {
+      background: var(--surface-soft) !important;
+      border-color: var(--border) !important;
+      color: #d4d4d8 !important;
+    }
+
+    :root[data-theme="dark"] .chip:hover {
+      background: var(--surface-muted) !important;
+      border-color: #3f3f46 !important;
+    }
+
+    :root[data-theme="dark"] .chip:has(input:checked) {
+      background: #f4f4f5 !important;
+      border-color: #f4f4f5 !important;
+      color: #18181b !important;
+    }
+
+    :root[data-theme="dark"] button,
+    :root[data-theme="dark"] .login-button,
+    :root[data-theme="dark"] .signup-button {
+      background: #f4f4f5 !important;
+      color: #18181b !important;
+    }
+
+    :root[data-theme="dark"] button:hover,
+    :root[data-theme="dark"] .login-button:hover,
+    :root[data-theme="dark"] .signup-button:hover {
+      background: #ffffff !important;
+      color: #09090b !important;
+    }
+
+    :root[data-theme="dark"] .expense-block,
+    :root[data-theme="dark"] .empty-source,
+    :root[data-theme="dark"] .flow-note {
+      background: var(--surface-soft) !important;
+      border-color: var(--border) !important;
+      color: var(--muted) !important;
+    }
+
+    :root[data-theme="dark"] .empty-source a,
+    :root[data-theme="dark"] .login-text a,
+    :root[data-theme="dark"] .signup-text a {
+      color: var(--text) !important;
+    }
+
+    :root[data-theme="dark"] .source-count,
+    :root[data-theme="dark"] .all-time-badge {
+      background: var(--surface-muted) !important;
+      color: var(--muted) !important;
+    }
+
+    :root[data-theme="dark"] .source-icon,
+    :root[data-theme="dark"] .empty-icon {
+      background: var(--surface-muted) !important;
+      color: #d4d4d8 !important;
+    }
+
+    :root[data-theme="dark"] .limit-bar-track {
+      background: #3f3f46 !important;
+    }
+
+    :root[data-theme="dark"] .below-minimum-badge {
+      background: rgba(220, 38, 38, 0.14) !important;
+      color: #f87171 !important;
+    }
+
+    :root[data-theme="dark"] .source-item.warning {
+      background: rgba(127, 29, 29, 0.12) !important;
+      border-color: rgba(248, 113, 113, 0.35) !important;
+    }
+
+    :root[data-theme="dark"] .txn-item {
+      border-color: var(--border) !important;
+    }
+
+    :root[data-theme="dark"] .period-tabs {
+      background: var(--surface-muted) !important;
+    }
+
+    :root[data-theme="dark"] .period-tab {
+      color: var(--muted) !important;
+    }
+
+    :root[data-theme="dark"] .period-tab.active {
+      background: var(--surface) !important;
+      color: var(--text) !important;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+    }
+
+    :root[data-theme="dark"] .wealth-section {
+      border-bottom-color: var(--border-soft) !important;
+    }
+
+    :root[data-theme="dark"] .wealth-card.highlight {
+      background: #f4f4f5 !important;
+      border-color: #f4f4f5 !important;
+    }
+
+    :root[data-theme="dark"] .wealth-card.highlight .summary-label,
+    :root[data-theme="dark"] .wealth-card.highlight .summary-value {
+      color: #18181b !important;
+    }
+
+    :root[data-theme="dark"] .summary-value.positive,
+    :root[data-theme="dark"] .txn-amount.in {
+      color: #34d399 !important;
+    }
+
+    :root[data-theme="dark"] .summary-value.negative {
+      color: #f87171 !important;
+    }
+
+    :root[data-theme="dark"] .txn-amount.out {
+      color: var(--text) !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        transition-duration: 0.01ms !important;
+      }
+    }
+
     @media (max-width: 600px) {
 
       .app-container {
@@ -386,7 +715,7 @@
     >
       <img
         class="brand-icon"
-        src="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}"
+        src="{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}"
         alt=""
       >
       Minto
@@ -427,6 +756,17 @@
   </div>
 
   <div class="nav-right">
+
+    <button
+      type="button"
+      class="theme-toggle"
+      id="theme-toggle"
+      aria-label="Switch to dark mode"
+      title="Switch theme"
+    >
+      <span class="theme-icon moon" aria-hidden="true">☾</span>
+      <span class="theme-icon sun" aria-hidden="true">☀</span>
+    </button>
 
     {% if session.get('user_id') %}
 
@@ -481,6 +821,49 @@
 
 
   </div>
+
+<script>
+(function () {
+  const root = document.documentElement;
+  const toggle = document.getElementById("theme-toggle");
+  const favicon = document.getElementById("favicon");
+  const alternateFavicon = document.getElementById("alternate-favicon");
+
+  const lightFavicon = "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
+  const darkFavicon = "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}";
+
+  function updateTheme(theme, persist) {
+    root.dataset.theme = theme;
+    root.style.colorScheme = theme;
+
+    if (persist) {
+      localStorage.setItem("minto-theme", theme);
+    }
+
+    const faviconUrl = theme === "dark" ? darkFavicon : lightFavicon;
+    if (favicon) favicon.href = faviconUrl;
+    if (alternateFavicon) alternateFavicon.href = faviconUrl;
+
+    if (toggle) {
+      const next = theme === "dark" ? "light" : "dark";
+      toggle.setAttribute("aria-label", `Switch to ${next} mode`);
+      toggle.setAttribute("title", `Switch to ${next} mode`);
+    }
+
+    window.dispatchEvent(new CustomEvent("minto-theme-change", {
+      detail: { theme }
+    }));
+  }
+
+  if (toggle) {
+    toggle.addEventListener("click", function () {
+      updateTheme(root.dataset.theme === "dark" ? "light" : "dark", true);
+    });
+  }
+
+  updateTheme(root.dataset.theme || "light", false);
+})();
+</script>
 
 </body>
 
