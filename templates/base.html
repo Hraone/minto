@@ -26,15 +26,28 @@
 
   <title>{% block title %}Minto{% endblock %}</title>
 
-  <!-- Browser tab icon: follows the OS/browser's own light-dark preference
-       (this is independent of the in-app toggle below — browsers don't let
-       page JS control which favicon a <link> shows, only prefers-color-scheme). -->
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}" media="(prefers-color-scheme: light)">
-  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}" media="(prefers-color-scheme: dark)">
-  <!-- Fallback for the few browsers/contexts that ignore the above (some
-       older Safari versions, some link-preview crawlers) and just request
-       /favicon.ico directly regardless of what <link> tags say. -->
-  <link rel="alternate icon" href="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}">
+  <!-- Minto theme-aware favicon -->
+  <link
+    id="minto-favicon"
+    rel="icon"
+    type="image/svg+xml"
+    href="{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}"
+  >
+  <script>
+    (function () {
+      function setFavicon(theme) {
+        var favicon = document.getElementById("minto-favicon");
+        if (!favicon) return;
+        favicon.href = theme === "dark"
+          ? "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}"
+          : "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
+      }
+
+      try {
+        setFavicon(document.documentElement.getAttribute("data-theme") || "light");
+      } catch (e) {}
+    })();
+  </script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -647,39 +660,9 @@
 
   </style>
 
-<!-- Minto theme-aware favicons -->
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" media="(prefers-color-scheme: light)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-dark.svg') }}" media="(prefers-color-scheme: dark)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" id="minto-favicon">
-<script>
-(function () {
-  const saved = localStorage.getItem('minto-theme');
-  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const favicon = document.getElementById('minto-favicon');
-  if (favicon) {
-    favicon.href = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.dataset.light = "{{ url_for('static', filename='favicon-light.svg') }}";
-    favicon.dataset.dark = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.href = theme === 'dark' ? favicon.dataset.dark : favicon.dataset.light;
-  }
-})();
-</script>
-
-
-<style id="minto-logo-theme-css">
-.minto-logo-picture { display: inline-flex; align-items: center; }
-.minto-logo { display: block; width: 120px; height: auto; max-width: 100%; }
-</style>
-
 </head>
 
 <body>
-<!-- Minto theme-aware logo -->
-<picture class="minto-logo-picture">
-  <source srcset="{{ url_for('static', filename='logo-dark.svg') }}" media="(prefers-color-scheme: dark)">
-  <img class="minto-logo" src="{{ url_for('static', filename='logo-light.svg') }}" alt="Minto">
-</picture>
-
 
   <div class="app-container">
 
@@ -694,13 +677,13 @@
     >
       <img
         class="brand-icon brand-icon-light"
-        src="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}"
-        alt=""
+        src="{{ url_for('static', filename='logo-light.svg') }}?v={{ asset_version }}"
+        alt="Minto"
       >
       <img
         class="brand-icon brand-icon-dark"
-        src="{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}"
-        alt=""
+        src="{{ url_for('static', filename='logo-dark.svg') }}?v={{ asset_version }}"
+        alt="Minto"
       >
       Minto
     </a>
@@ -843,14 +826,32 @@
   {% endif %}
 
   <script>
+    function setMintoFavicon(theme) {
+      var favicon = document.getElementById("minto-favicon");
+      if (!favicon) return;
+
+      favicon.href = theme === "dark"
+        ? "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}"
+        : "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
+    }
+
     function toggleTheme() {
       var current = document.documentElement.getAttribute("data-theme");
       var next = current === "dark" ? "light" : "dark";
+
       document.documentElement.setAttribute("data-theme", next);
+      setMintoFavicon(next);
+
       try {
         localStorage.setItem("minto-theme", next);
       } catch (e) {}
     }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      setMintoFavicon(
+        document.documentElement.getAttribute("data-theme") || "light"
+      );
+    });
   </script>
 
 </body>

@@ -1,21 +1,3 @@
-<!-- Minto theme-aware favicons -->
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" media="(prefers-color-scheme: light)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-dark.svg') }}" media="(prefers-color-scheme: dark)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" id="minto-favicon">
-<script>
-(function () {
-  const saved = localStorage.getItem('minto-theme');
-  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const favicon = document.getElementById('minto-favicon');
-  if (favicon) {
-    favicon.href = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.dataset.light = "{{ url_for('static', filename='favicon-light.svg') }}";
-    favicon.dataset.dark = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.href = theme === 'dark' ? favicon.dataset.dark : favicon.dataset.light;
-  }
-})();
-</script>
-
 {% extends "base.html" %}
 
 {% block content %}
@@ -188,8 +170,8 @@
 
 <div class="signup-header">
   <div class="signup-icon">
-    <img class="icon-light" src="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}" alt="">
-    <img class="icon-dark" src="{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}" alt="">
+    <img class="icon-light" src="{{ url_for('static', filename='logo-light.svg') }}?v={{ asset_version }}" alt="">
+    <img class="icon-dark" src="{{ url_for('static', filename='logo-dark.svg') }}?v={{ asset_version }}" alt="">
   </div>
 
   <h2>Create your account</h2>
