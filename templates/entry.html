@@ -1,0 +1,661 @@
+<!-- Minto theme-aware favicons -->
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" media="(prefers-color-scheme: light)">
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-dark.svg') }}" media="(prefers-color-scheme: dark)">
+<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" id="minto-favicon">
+<script>
+(function () {
+  const saved = localStorage.getItem('minto-theme');
+  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const favicon = document.getElementById('minto-favicon');
+  if (favicon) {
+    favicon.href = "{{ url_for('static', filename='favicon-dark.svg') }}";
+    favicon.dataset.light = "{{ url_for('static', filename='favicon-light.svg') }}";
+    favicon.dataset.dark = "{{ url_for('static', filename='favicon-dark.svg') }}";
+    favicon.href = theme === 'dark' ? favicon.dataset.dark : favicon.dataset.light;
+  }
+})();
+</script>
+
+{% extends "base.html" %}
+
+{% block title %}New Entry · Minto{% endblock %}
+
+{% block content %}
+
+<style>
+  .entry-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 0 50px;
+  }
+
+  .entry-card {
+    background: var(--surface-translucent);
+    border: 1px solid var(--shadow-card);
+    border-radius: 24px;
+    padding: 36px;
+    box-shadow: 0 20px 60px var(--shadow-card);
+  }
+
+  .entry-header {
+    margin-bottom: 30px;
+  }
+
+  .entry-header h2 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    color: var(--text);
+  }
+
+  .entry-header p {
+    margin: 8px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+  }
+
+  .form-section {
+    margin-bottom: 25px;
+  }
+
+  .form-label {
+    display: block;
+    margin: 0 0 9px;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* Amount */
+
+  .amount-input {
+    position: relative;
+  }
+
+  .amount-symbol {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    font-size: 19px;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
+  .amount-input input {
+    padding: 17px 18px 17px 40px;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    border-radius: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Chips */
+
+  .entry-card .chip-group {
+    margin-top: 0;
+  }
+
+  .entry-card .chip {
+    margin: 0;
+  }
+
+  /* Expense / investment sub-category blocks */
+
+  .expense-block {
+    margin-top: 14px;
+    padding: 18px;
+
+    border: 1px solid var(--surface-subtle-border);
+    border-radius: 16px;
+
+    background: var(--surface-subtle);
+  }
+
+  .expense-block .form-label {
+    margin-bottom: 12px;
+  }
+
+  /* Notes */
+
+  .notes-input {
+    margin-top: 0;
+  }
+
+  /* Empty source */
+
+  .empty-source {
+    margin: 0;
+    padding: 14px 16px;
+
+    border: 1px solid var(--surface-subtle-border);
+    border-radius: 12px;
+
+    background: var(--surface-subtle);
+
+    color: var(--muted);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  .empty-source a {
+    color: var(--text);
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .empty-source a:hover {
+    text-decoration: underline;
+  }
+
+  /* Save */
+
+  .save-button {
+    margin-top: 2px;
+  }
+
+  @media (max-width: 600px) {
+
+    .entry-wrapper {
+      padding: 10px 0 40px;
+    }
+
+    .entry-card {
+      padding: 26px 20px;
+      border-radius: 20px;
+    }
+
+    .entry-header h2 {
+      font-size: 26px;
+    }
+
+  }
+</style>
+
+<div class="entry-wrapper">
+
+  <div class="entry-card">
+
+
+<div class="entry-header">
+  <h2>New entry</h2>
+  <p>Record an income, expense, investment, loan or transfer.</p>
+</div>
+
+
+<form method="post">
+
+  <!-- Amount -->
+
+  <div class="form-section">
+
+    <label class="form-label" for="amount">
+      Amount
+    </label>
+
+    <div class="amount-input">
+
+      <span class="amount-symbol">₹</span>
+
+      <input
+        type="number"
+        step="0.01"
+        id="amount"
+        name="amount"
+        placeholder="0.00"
+        required
+        autofocus
+      >
+
+    </div>
+
+  </div>
+
+
+  <!-- Direction -->
+
+  <div class="form-section">
+
+    <label class="form-label">
+      Direction
+    </label>
+
+    <div class="chip-group">
+
+      <label class="chip">
+        <input
+          type="radio"
+          name="direction"
+          value="in"
+          required
+        >
+        In
+      </label>
+
+      <label class="chip">
+        <input
+          type="radio"
+          name="direction"
+          value="out"
+          checked
+        >
+        Out
+      </label>
+
+    </div>
+
+  </div>
+
+
+  <!-- Category -->
+
+  <div class="form-section">
+
+    <label class="form-label">
+      Category
+    </label>
+
+    <div class="chip-group">
+
+      {% for c in ["expense", "income", "investment", "lending", "transfer"] %}
+
+      <label class="chip">
+
+        <input
+          type="radio"
+          name="category"
+          value="{{ c }}"
+          onclick="toggleSubCategory()"
+          {% if c == "expense" %}checked{% endif %}
+        >
+
+        {{ c|capitalize }}
+
+      </label>
+
+      {% endfor %}
+
+    </div>
+
+
+    <!-- Expense Category -->
+
+    <div
+      id="expense-category-block"
+      class="expense-block"
+    >
+
+      <label class="form-label">
+        Expense category
+      </label>
+
+      <div class="chip-group">
+
+        {% for ec in [
+          "food",
+          "travel",
+          "bills",
+          "shopping",
+          "health",
+          "insurance",
+          "entertainment",
+          "groceries",
+          "rent",
+          "other"
+        ] %}
+
+        <label class="chip">
+
+          <input
+            type="radio"
+            name="expense_category"
+            value="{{ ec }}"
+          >
+
+          {{ ec|capitalize }}
+
+        </label>
+
+        {% endfor %}
+
+      </div>
+
+    </div>
+
+
+    <!-- Investment Category -->
+
+    <div
+      id="investment-category-block"
+      class="expense-block"
+      style="display: none;"
+    >
+
+      <label class="form-label">
+        Investment category
+      </label>
+
+      <div class="chip-group">
+
+        {% for ic in [
+          "mutual_fund",
+          "stocks",
+          "fixed_deposit",
+          "recurring_deposit",
+          "gold",
+          "ppf_nps",
+          "crypto",
+          "other"
+        ] %}
+
+        <label class="chip">
+
+          <input
+            type="radio"
+            name="investment_category"
+            value="{{ ic }}"
+          >
+
+          {{ ic|replace("_", " ")|capitalize }}
+
+        </label>
+
+        {% endfor %}
+
+      </div>
+
+    </div>
+
+
+    <!-- Lending Counterparty -->
+
+    <div
+      id="lending-category-block"
+      class="expense-block"
+      style="display: none;"
+    >
+
+      <label class="form-label" for="counterparty">
+        Who
+        <span style="font-weight:400; color:var(--muted-2);">
+          (friend's name — use the same spelling each time so it adds up correctly)
+        </span>
+      </label>
+
+      <input
+        type="text"
+        id="counterparty"
+        name="counterparty"
+        class="notes-input"
+        placeholder="e.g. Rohan"
+        list="counterparty-list"
+      >
+
+      <datalist id="counterparty-list">
+        {% for name in known_counterparties %}
+        <option value="{{ name }}"></option>
+        {% endfor %}
+      </datalist>
+
+      <p style="margin: 10px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
+        Out = you gave them money. In = they paid you back. Neither counts as
+        an expense or income — it shows up as money owed to you until repaid.
+      </p>
+
+      {% if outstanding_loans %}
+      <div style="margin-top: 14px;">
+        <p class="form-label" style="margin-bottom: 8px;">
+          Got paid back? Tap to fill it in
+        </p>
+        <div class="chip-group">
+          {% for person in outstanding_loans if person.amount > 0 %}
+          <button
+            type="button"
+            class="chip"
+            style="cursor:pointer; font:inherit; color:inherit;"
+            onclick="markRepaid('{{ person.name|e }}', {{ person.amount }})"
+          >
+            {{ person.name }} · ₹{{ "%.2f"|format(person.amount) }}
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+
+  </div>
+
+
+  <!-- Source -->
+
+  <div class="form-section">
+
+    <label class="form-label">
+      Source
+    </label>
+
+    {% if savings_sources or cc_sources %}
+
+    <div class="chip-group">
+      <label class="chip">
+        <input type="radio" name="source_type_filter" value="savings" checked onclick="toggleSourceType()">
+        Savings
+      </label>
+      <label class="chip">
+        <input type="radio" name="source_type_filter" value="credit_card" onclick="toggleSourceType()">
+        Credit card
+      </label>
+    </div>
+
+    <div id="savings-source-block" class="expense-block" style="margin-top: 12px;">
+
+      {% if savings_sources %}
+      <div class="chip-group">
+        {% for s in savings_sources %}
+        <label class="chip">
+          <input type="radio" name="source_id" value="{{ s.id }}">
+          {{ s.name }}
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-source">
+        No savings accounts yet —
+        <a href="{{ url_for('sources') }}">add one</a>.
+      </p>
+      {% endif %}
+
+    </div>
+
+    <div id="cc-source-block" class="expense-block" style="margin-top: 12px; display: none;">
+
+      {% if cc_sources %}
+      <div class="chip-group">
+        {% for s in cc_sources %}
+        <label class="chip">
+          <input type="radio" name="source_id" value="{{ s.id }}">
+          {{ s.name }}
+        </label>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="empty-source">
+        No credit cards yet —
+        <a href="{{ url_for('sources') }}">add one</a>.
+      </p>
+      {% endif %}
+
+    </div>
+
+    {% else %}
+
+    <p class="empty-source">
+
+      No sources yet —
+      <a href="{{ url_for('sources') }}">
+        add your banks/cards first
+      </a>.
+
+    </p>
+
+    {% endif %}
+
+  </div>
+
+
+  <!-- Notes -->
+
+  <div class="form-section">
+
+    <label
+      class="form-label"
+      for="notes"
+    >
+      Notes
+      <span style="font-weight:400; color:var(--muted-2);">
+        (optional)
+      </span>
+    </label>
+
+    <input
+      type="text"
+      id="notes"
+      name="notes"
+      class="notes-input"
+      placeholder="e.g. Lunch with team"
+    >
+
+  </div>
+
+
+  <!-- Save -->
+
+  <button
+    type="submit"
+    class="save-button"
+  >
+    Save entry
+  </button>
+
+</form>
+
+
+  </div>
+
+</div>
+
+<script>
+
+function toggleSubCategory() {
+
+  const selectedCategory =
+    document.querySelector(
+      'input[name="category"]:checked'
+    );
+
+  const expenseBlock =
+    document.getElementById(
+      "expense-category-block"
+    );
+
+  const investmentBlock =
+    document.getElementById(
+      "investment-category-block"
+    );
+
+  const lendingBlock =
+    document.getElementById(
+      "lending-category-block"
+    );
+
+  if (!selectedCategory) {
+    return;
+  }
+
+  const isExpense = selectedCategory.value === "expense";
+  const isInvestment = selectedCategory.value === "investment";
+  const isLending = selectedCategory.value === "lending";
+
+  expenseBlock.style.display = isExpense ? "block" : "none";
+  investmentBlock.style.display = isInvestment ? "block" : "none";
+  lendingBlock.style.display = isLending ? "block" : "none";
+
+  /*
+   * Clear the sub-category selection whenever the
+   * user switches away from expense/investment/lending.
+   */
+
+  if (!isExpense) {
+    document
+      .querySelectorAll('input[name="expense_category"]')
+      .forEach(input => { input.checked = false; });
+  }
+
+  if (!isInvestment) {
+    document
+      .querySelectorAll('input[name="investment_category"]')
+      .forEach(input => { input.checked = false; });
+  }
+
+  if (!isLending) {
+    document.getElementById("counterparty").value = "";
+  }
+
+}
+
+
+function toggleSourceType() {
+
+  const selected = document.querySelector(
+    'input[name="source_type_filter"]:checked'
+  );
+
+  if (!selected) {
+    return;
+  }
+
+  const savingsBlock = document.getElementById("savings-source-block");
+  const ccBlock = document.getElementById("cc-source-block");
+  const isSavings = selected.value === "savings";
+
+  savingsBlock.style.display = isSavings ? "block" : "none";
+  ccBlock.style.display = isSavings ? "none" : "block";
+
+  /*
+   * Clear any selected source in whichever block just got
+   * hidden, so a stale pick from the other type can't be
+   * submitted invisibly.
+   */
+
+  const hiddenBlock = isSavings ? ccBlock : savingsBlock;
+  hiddenBlock
+    .querySelectorAll('input[name="source_id"]')
+    .forEach(input => { input.checked = false; });
+
+}
+
+
+document.addEventListener("DOMContentLoaded", toggleSubCategory);
+document.addEventListener("DOMContentLoaded", toggleSourceType);
+
+function markRepaid(name, amount) {
+
+  // Category is already "lending" (this button only appears inside that
+  // block) — just flip direction to "in" and fill in who / how much.
+
+  document
+    .querySelectorAll('input[name="direction"]')
+    .forEach(input => { input.checked = (input.value === "in"); });
+
+  document.getElementById("counterparty").value = name;
+  document.getElementById("amount").value = amount;
+
+}
+
+</script>
+
+{% endblock %}
