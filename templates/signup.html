@@ -14,11 +14,11 @@
   .signup-card {
     width: 100%;
     max-width: 430px;
-    background: rgba(255, 255, 255, 0.96);
-    border: 1px solid rgba(0, 0, 0, 0.07);
+    background: var(--surface-translucent);
+    border: 1px solid var(--shadow-card);
     border-radius: 24px;
     padding: 42px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 20px 60px var(--shadow-card);
   }
 
   .signup-header {
@@ -30,27 +30,30 @@
     width: 58px;
     height: 58px;
     margin: 0 auto 18px;
-    border-radius: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: linear-gradient(135deg, #111827, #374151);
-    color: white;
-    font-size: 25px;
-    font-weight: 700;
   }
+
+  .signup-icon img {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: contain;
+  }
+
+  .signup-icon .icon-dark { display: none; }
+  [data-theme="dark"] .signup-icon .icon-light { display: none; }
+  [data-theme="dark"] .signup-icon .icon-dark { display: block; }
 
   .signup-header h2 {
     margin: 0;
     font-size: 30px;
     font-weight: 700;
     letter-spacing: -0.7px;
-    color: #111827;
+    color: var(--text);
   }
 
   .signup-header p {
     margin: 9px 0 0;
-    color: #6b7280;
+    color: var(--muted);
     font-size: 14px;
     line-height: 1.5;
   }
@@ -70,40 +73,40 @@
   .form-group label {
     font-size: 13px;
     font-weight: 600;
-    color: #374151;
+    color: var(--text-secondary);
   }
 
   .label-hint {
     font-weight: 400;
-    color: #9ca3af;
+    color: var(--muted-2);
   }
 
   .form-group input {
     width: 100%;
     box-sizing: border-box;
     padding: 14px 15px;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border);
     border-radius: 12px;
-    background: #f9fafb;
-    color: #111827;
+    background: var(--surface-subtle);
+    color: var(--text);
     font-size: 15px;
     outline: none;
     transition: all 0.2s ease;
   }
 
   .form-group input::placeholder {
-    color: #9ca3af;
+    color: var(--muted-2);
   }
 
   .form-group input:focus {
-    background: white;
-    border-color: #111827;
-    box-shadow: 0 0 0 4px rgba(17, 24, 39, 0.07);
+    background: var(--surface);
+    border-color: var(--text);
+    box-shadow: 0 0 0 4px var(--ring);
   }
 
   .password-hint {
     font-size: 12px;
-    color: #9ca3af;
+    color: var(--muted-2);
     margin-top: -2px;
   }
 
@@ -113,8 +116,8 @@
     padding: 14px;
     border: none;
     border-radius: 12px;
-    background: #111827;
-    color: white;
+    background: var(--primary);
+    color: var(--primary-contrast);
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
@@ -122,9 +125,9 @@
   }
 
   .signup-button:hover {
-    background: #1f2937;
+    background: var(--primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+    box-shadow: 0 8px 20px var(--shadow-lift);
   }
 
   .signup-button:active {
@@ -135,11 +138,11 @@
     text-align: center;
     margin: 25px 0 0;
     font-size: 14px;
-    color: #6b7280;
+    color: var(--muted);
   }
 
   .login-text a {
-    color: #111827;
+    color: var(--text);
     font-weight: 600;
     text-decoration: none;
   }
@@ -166,7 +169,10 @@
 
 
 <div class="signup-header">
-  <div class="signup-icon">₹</div>
+  <div class="signup-icon">
+    <img class="icon-light" src="{{ url_for('static', filename='favicon.svg') }}?v={{ asset_version }}" alt="">
+    <img class="icon-dark" src="{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}" alt="">
+  </div>
 
   <h2>Create your account</h2>
 
