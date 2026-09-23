@@ -12,11 +12,11 @@
   }
 
   .entry-card {
-    background: rgba(255, 255, 255, 0.97);
-    border: 1px solid rgba(0, 0, 0, 0.07);
+    background: var(--surface-translucent);
+    border: 1px solid var(--shadow-card);
     border-radius: 24px;
     padding: 36px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.07);
+    box-shadow: 0 20px 60px var(--shadow-card);
   }
 
   .entry-header {
@@ -28,12 +28,12 @@
     font-size: 30px;
     font-weight: 700;
     letter-spacing: -0.8px;
-    color: #111827;
+    color: var(--text);
   }
 
   .entry-header p {
     margin: 8px 0 0;
-    color: #6b7280;
+    color: var(--muted);
     font-size: 14px;
   }
 
@@ -44,7 +44,7 @@
   .form-label {
     display: block;
     margin: 0 0 9px;
-    color: #374151;
+    color: var(--text-secondary);
     font-size: 13px;
     font-weight: 600;
   }
@@ -58,7 +58,7 @@
     left: 16px;
     top: 50%;
     transform: translateY(-50%);
-    color: #6b7280;
+    color: var(--muted);
     font-size: 19px;
     font-weight: 600;
     pointer-events: none;
@@ -66,9 +66,11 @@
 
   .amount-input input {
     padding: 17px 18px 17px 40px;
-    font-size: 22px;
-    font-weight: 600;
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
     border-radius: 14px;
+    font-variant-numeric: tabular-nums;
   }
 
   .entry-card .chip-group {
@@ -86,16 +88,16 @@
   .empty-source {
     margin: 0;
     padding: 14px 16px;
-    border: 1px solid #f0f0f0;
+    border: 1px solid var(--surface-subtle-border);
     border-radius: 12px;
-    background: #f9fafb;
-    color: #6b7280;
+    background: var(--surface-subtle);
+    color: var(--muted);
     font-size: 13px;
     line-height: 1.5;
   }
 
   .empty-source a {
-    color: #111827;
+    color: var(--text);
     font-weight: 600;
     text-decoration: none;
   }
@@ -110,10 +112,10 @@
 
   .flow-note {
     padding: 14px 16px;
-    border: 1px solid #f0f0f0;
+    border: 1px solid var(--surface-subtle-border);
     border-radius: 12px;
-    background: #f9fafb;
-    color: #6b7280;
+    background: var(--surface-subtle);
+    color: var(--muted);
     font-size: 12.5px;
     line-height: 1.5;
     margin-bottom: 25px;
@@ -195,7 +197,7 @@
       <div class="form-section">
         <label class="form-label" for="notes">
           Notes
-          <span style="font-weight:400; color:#9ca3af;">(optional)</span>
+          <span style="font-weight:400; color:var(--muted-2);">(optional)</span>
         </label>
         <input
           type="text"
