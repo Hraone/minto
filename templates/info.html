@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block content %}
+<style>
+  .info-page {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 42px 20px 70px;
+  }
+
+  .info-hero {
+    text-align: center;
+    padding: 28px 10px 34px;
+  }
+
+  .info-logo {
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 22px;
+  }
+
+  .info-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  .info-logo .dark-logo { display: none; }
+  [data-theme="dark"] .info-logo .light-logo { display: none; }
+  [data-theme="dark"] .info-logo .dark-logo { display: block; }
+
+  .info-hero h1 {
+    margin: 0;
+    color: var(--text);
+    font-size: clamp(30px, 5vw, 44px);
+    line-height: 1.1;
+    letter-spacing: -1.2px;
+  }
+
+  .info-hero p {
+    max-width: 650px;
+    margin: 14px auto 0;
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1.7;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+  }
+
+  .info-card {
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface-translucent);
+    box-shadow: 0 14px 40px var(--shadow-card);
+  }
+
+  .info-number {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border-radius: 10px;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    font-size: 13px;
+    font-weight: 800;
+    margin-bottom: 16px;
+  }
+
+  .info-card h2 {
+    margin: 0 0 8px;
+    color: var(--text);
+    font-size: 18px;
+  }
+
+  .info-card p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.65;
+  }
+
+  .info-note {
+    margin-top: 18px;
+    padding: 20px 22px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface-subtle);
+  }
+
+  .info-note strong {
+    color: var(--text);
+  }
+
+  .info-note p {
+    margin: 7px 0 0;
+    color: var(--muted);
+    line-height: 1.6;
+    font-size: 14px;
+  }
+
+  .info-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 30px;
+  }
+
+  .info-primary,
+  .info-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 46px;
+    padding: 0 22px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  .info-primary {
+    background: var(--primary);
+    color: var(--primary-contrast);
+  }
+
+  .info-secondary {
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  @media (max-width: 680px) {
+    .info-page { padding-top: 24px; }
+    .info-grid { grid-template-columns: 1fr; }
+    .info-card { padding: 20px; }
+    .info-actions { flex-direction: column; }
+    .info-primary, .info-secondary { width: 100%; box-sizing: border-box; }
+  }
+</style>
+
+<div class="info-page">
+  <section class="info-hero">
+    <div class="info-logo" aria-hidden="true">
+      <img class="light-logo" src="{{ url_for('static', filename='logo-light.svg') }}?v={{ asset_version }}" alt="">
+      <img class="dark-logo" src="{{ url_for('static', filename='logo-dark.svg') }}?v={{ asset_version }}" alt="">
+    </div>
+    <h1>Welcome to Minto</h1>
+    <p>
+      A simple personal finance app designed to help you record your spending,
+      understand where your money goes, and keep your accounts organized.
+    </p>
+  </section>
+
+  <section class="info-grid" aria-label="How Minto works">
+    <article class="info-card">
+      <div class="info-number">01</div>
+      <h2>Track every expense</h2>
+      <p>Add income and expenses as you make them. Keep your daily money activity in one place instead of relying on memory or scattered notes.</p>
+    </article>
+
+    <article class="info-card">
+      <div class="info-number">02</div>
+      <h2>Organize your sources</h2>
+      <p>Create sources such as cash, savings accounts, bank accounts, or credit cards so your transactions stay organized.</p>
+    </article>
+
+    <article class="info-card">
+      <div class="info-number">03</div>
+      <h2>Understand your money</h2>
+      <p>Use the dashboard to review spending, income, balances, and your overall financial picture for the selected period.</p>
+    </article>
+
+    <article class="info-card">
+      <div class="info-number">04</div>
+      <h2>Keep credit-card bills clear</h2>
+      <p>Record credit-card payments separately so transfers and actual spending don't get mixed together in your financial records.</p>
+    </article>
+  </section>
+
+  <div class="info-note">
+    <strong>Your data, your account.</strong>
+    <p>
+      Minto is built around your own account and your own financial records.
+      Review your entries regularly and use accurate amounts and sources to keep your dashboard meaningful.
+    </p>
+  </div>
+
+  <div class="info-actions">
+    <a class="info-primary" href="{{ url_for('entry') }}">Start using Minto</a>
+    <a class="info-secondary" href="{{ url_for('dashboard') }}">View dashboard</a>
+  </div>
+</div>
+{% endblock %}
