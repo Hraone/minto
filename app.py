@@ -155,6 +155,8 @@ def signup():
         except Exception:
             pass  # profile row may already exist, or email confirmation is pending
 
+        # Show the onboarding/info page after this user's first successful login.
+        session["show_info"] = True
         flash("Account created. Check your email if confirmation is required, then log in.")
         return redirect(url_for("login"))
 
@@ -179,9 +181,20 @@ def login():
         session["access_token"] = result.session.access_token
         session["refresh_token"] = result.session.refresh_token
         session["expires_at"] = result.session.expires_at
+
+        # New users see Minto's short introduction once before entering the app.
+        if session.pop("show_info", False):
+            return redirect(url_for("info"))
+
         return redirect(url_for("entry"))
 
     return render_template("login.html")
+
+
+@app.route("/info")
+@login_required
+def info():
+    return render_template("info.html")
 
 
 @app.route("/logout")
