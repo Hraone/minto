@@ -279,6 +279,7 @@ def entry():
         counterparty = request.form.get("counterparty") or None
         source_id = request.form.get("source_id") or None
         notes = request.form.get("notes") or None
+        transaction_date = request.form.get("transaction_date") or None
 
         entry_row = client.table("entries").insert({
             "user_id": user_id,
@@ -287,7 +288,7 @@ def entry():
         }).execute()
         entry_id = entry_row.data[0]["id"]
 
-        client.table("transactions").insert({
+        transaction_row = {
             "id": entry_id,
             "user_id": user_id,
             "direction": direction,
@@ -300,7 +301,12 @@ def entry():
             "currency": "INR",
             "description": notes,
             "raw_text": notes,
-        }).execute()
+        }
+        if transaction_date:
+            transaction_row["transaction_date"] = transaction_date
+        # else: omitted entirely so the column's own DB default (today) applies —
+        # explicitly sending null here would fail the not-null constraint.
+        client.table("transactions").insert(transaction_row).execute()
 
         flash("Saved.")
         return redirect(url_for("entry"))
@@ -326,6 +332,7 @@ def entry():
         outstanding_loans=outstanding_loans,
         expense_categories=expense_categories,
         investment_categories=investment_categories,
+        today=datetime.now(timezone.utc).date().isoformat(),
     )
 
 
@@ -734,6 +741,20 @@ def sources():
     return render_template("sources.html", savings=savings, cash=cash, credit_cards=credit_cards)
 
 
+@app.template_filter("nice_date")
+def nice_date(value):
+    """'2026-09-23' -> '23 Sep', or '23 Sep 2025' if not this year — used to
+    show a transaction's actual date in the Recent Transactions list."""
+    if not value:
+        return ""
+    try:
+        d = datetime.strptime(value, "%Y-%m-%d").date()
+    except (ValueError, TypeError):
+        return value
+    this_year = datetime.now(timezone.utc).date().year
+    return d.strftime("%d %b" if d.year == this_year else "%d %b %Y")
+
+
 def get_period_start(period):
     now = datetime.now(timezone.utc)
     if period == "today":
@@ -764,8 +785,8 @@ def dashboard():
     )
     start = get_period_start(period)
     if start:
-        query = query.gte("created_at", start.isoformat())
-    txns = query.order("created_at", desc=True).execute().data
+        query = query.gte("transaction_date", start.date().isoformat())
+    txns = query.order("transaction_date", desc=True).order("created_at", desc=True).execute().data
 
     # Transfers (e.g. a credit-card bill payment moving money from savings to
     # the card) and lending (money handed to a friend, or repaid by one)
