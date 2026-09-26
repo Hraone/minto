@@ -444,7 +444,7 @@
         <div>
           <div class="txn-desc">{{ t.description or t.expense_category or t.category }}</div>
           <div class="txn-meta">
-            {{ t.transaction_date|nice_date }} · {{ t.category }}
+            {{ t.category }}
             {% if t.user_sources %} · {{ t.user_sources.name }}{% endif %}
           </div>
         </div>
