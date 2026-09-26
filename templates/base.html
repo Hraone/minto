@@ -702,7 +702,7 @@
       <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add Entry</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Sources</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Pay CC Bill</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Settle Card Bill</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Withdraw Cash</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About</a>
 
@@ -828,7 +828,7 @@
         <polyline points="7 23 3 19 7 15"></polyline>
         <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
       </svg>
-      Pay CC Bill
+      Settle Card Bill
     </a>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
