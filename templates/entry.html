@@ -1,21 +1,3 @@
-<!-- Minto theme-aware favicons -->
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" media="(prefers-color-scheme: light)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-dark.svg') }}" media="(prefers-color-scheme: dark)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" id="minto-favicon">
-<script>
-(function () {
-  const saved = localStorage.getItem('minto-theme');
-  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const favicon = document.getElementById('minto-favicon');
-  if (favicon) {
-    favicon.href = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.dataset.light = "{{ url_for('static', filename='favicon-light.svg') }}";
-    favicon.dataset.dark = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.href = theme === 'dark' ? favicon.dataset.dark : favicon.dataset.light;
-  }
-})();
-</script>
-
 {% extends "base.html" %}
 
 {% block title %}New Entry · Minto{% endblock %}
@@ -145,6 +127,16 @@
     color: var(--text);
     font-weight: 600;
     text-decoration: none;
+  }
+
+  .add-category-chip {
+    border-style: dashed;
+    color: var(--muted);
+    background: transparent;
+  }
+
+  .add-category-chip:hover {
+    color: var(--text);
   }
 
   .empty-source a:hover {
@@ -292,20 +284,9 @@
         Expense category
       </label>
 
-      <div class="chip-group">
+      <div class="chip-group" id="expense-category-chips">
 
-        {% for ec in [
-          "food",
-          "travel",
-          "bills",
-          "shopping",
-          "health",
-          "insurance",
-          "entertainment",
-          "groceries",
-          "rent",
-          "other"
-        ] %}
+        {% for ec in expense_categories %}
 
         <label class="chip">
 
@@ -315,11 +296,13 @@
             value="{{ ec }}"
           >
 
-          {{ ec|capitalize }}
+          {{ ec|replace("_", " ")|title }}
 
         </label>
 
         {% endfor %}
+
+        <button type="button" class="chip add-category-chip" onclick="addCategory('expense')">+ Add</button>
 
       </div>
 
@@ -338,18 +321,9 @@
         Investment category
       </label>
 
-      <div class="chip-group">
+      <div class="chip-group" id="investment-category-chips">
 
-        {% for ic in [
-          "mutual_fund",
-          "stocks",
-          "fixed_deposit",
-          "recurring_deposit",
-          "gold",
-          "ppf_nps",
-          "crypto",
-          "other"
-        ] %}
+        {% for ic in investment_categories %}
 
         <label class="chip">
 
@@ -359,11 +333,13 @@
             value="{{ ic }}"
           >
 
-          {{ ic|replace("_", " ")|capitalize }}
+          {{ ic|replace("_", " ")|title }}
 
         </label>
 
         {% endfor %}
+
+        <button type="button" class="chip add-category-chip" onclick="addCategory('investment')">+ Add</button>
 
       </div>
 
@@ -443,7 +419,7 @@
     <div class="chip-group">
       <label class="chip">
         <input type="radio" name="source_type_filter" value="savings" checked onclick="toggleSourceType()">
-        Savings
+        Cash / savings
       </label>
       <label class="chip">
         <input type="radio" name="source_type_filter" value="credit_card" onclick="toggleSourceType()">
@@ -457,14 +433,14 @@
       <div class="chip-group">
         {% for s in savings_sources %}
         <label class="chip">
-          <input type="radio" name="source_id" value="{{ s.id }}">
+          <input type="radio" name="source_id" value="{{ s.id }}" {% if loop.first %}required{% endif %}>
           {{ s.name }}
         </label>
         {% endfor %}
       </div>
       {% else %}
       <p class="empty-source">
-        No savings accounts yet —
+        No cash or savings sources yet —
         <a href="{{ url_for('sources') }}">add one</a>.
       </p>
       {% endif %}
@@ -477,7 +453,7 @@
       <div class="chip-group">
         {% for s in cc_sources %}
         <label class="chip">
-          <input type="radio" name="source_id" value="{{ s.id }}">
+          <input type="radio" name="source_id" value="{{ s.id }}" {% if loop.first %}required{% endif %}>
           {{ s.name }}
         </label>
         {% endfor %}
@@ -653,6 +629,61 @@ function markRepaid(name, amount) {
 
   document.getElementById("counterparty").value = name;
   document.getElementById("amount").value = amount;
+
+}
+
+function addCategory(kind) {
+
+  // A plain prompt() rather than a custom inline input — this is a rare,
+  // quick action, and it keeps the rest of whatever's already filled in on
+  // this form untouched (a fetch() call, not a page navigation).
+
+  const label = kind === "expense" ? "New expense category" : "New investment category";
+  const name = prompt(label + ":");
+  if (!name || !name.trim()) {
+    return;
+  }
+
+  const body = new URLSearchParams({ kind: kind, name: name.trim() });
+
+  fetch("{{ url_for('add_category') }}", { method: "POST", body: body })
+    .then(response => response.json())
+    .then(data => {
+      if (!data.ok) {
+        alert(data.error || "Couldn't add that category.");
+        return;
+      }
+
+      const container = document.getElementById(kind + "-category-chips");
+      const addButton = container.querySelector(".add-category-chip");
+
+      // If it already existed (e.g. added earlier from another device),
+      // don't create a duplicate chip — just select the existing one.
+      const existing = container.querySelector('input[value="' + CSS.escape(data.name) + '"]');
+      if (existing) {
+        existing.checked = true;
+        return;
+      }
+
+      const label = document.createElement("label");
+      label.className = "chip";
+
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = kind + "_category";
+      input.value = data.name;
+      input.checked = true;
+
+      const displayName = data.name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(" " + displayName));
+
+      container.insertBefore(label, addButton);
+    })
+    .catch(() => {
+      alert("Couldn't add that category — please try again.");
+    });
 
 }
 

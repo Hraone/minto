@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Pay CC bill · Minto{% endblock %}
+{% block title %}Withdraw cash · Minto{% endblock %}
 
 {% block content %}
 
@@ -133,20 +133,22 @@
   <div class="entry-card">
 
     <div class="entry-header">
-      <h2>Pay a credit card bill</h2>
-      <p>Records both sides at once: money out of savings, and the card's outstanding paid down.</p>
+      <h2>Withdraw cash</h2>
+      <p>Records both sides at once: money out of the bank, cash added to what you're carrying.</p>
     </div>
 
     <div class="flow-note">
-      This creates two linked entries — an <strong>out / transfer</strong> from the cash/savings source below,
-      and an <strong>in / transfer</strong> against the card — so your savings balance and the card's
-      outstanding both update together. It won't show up as a fresh expense.
+      This creates two linked entries — an <strong>out / transfer</strong> from the bank account below,
+      and an <strong>in / transfer</strong> to the cash source — so your bank balance and your cash on
+      hand both update together. It won't show up as a fresh expense, and it's the only way cash should
+      increase here (other than being handed cash directly by someone, which is just an ordinary
+      income or repayment entry).
     </div>
 
-    {% if not savings_sources or not cc_sources %}
+    {% if not bank_sources or not cash_sources %}
 
     <p class="empty-source">
-      You need at least one cash or savings source and one credit card set up first —
+      You need at least one savings account and one cash source set up first —
       <a href="{{ url_for('sources') }}">add them here</a>.
     </p>
 
@@ -171,9 +173,9 @@
       </div>
 
       <div class="form-section">
-        <label class="form-label">Pay from (cash / savings)</label>
+        <label class="form-label">Withdraw from (bank account)</label>
         <div class="chip-group">
-          {% for s in savings_sources %}
+          {% for s in bank_sources %}
           <label class="chip">
             <input type="radio" name="from_source_id" value="{{ s.id }}" required>
             {{ s.name }}
@@ -183,9 +185,9 @@
       </div>
 
       <div class="form-section">
-        <label class="form-label">Pay off (credit card)</label>
+        <label class="form-label">Add to (cash)</label>
         <div class="chip-group">
-          {% for s in cc_sources %}
+          {% for s in cash_sources %}
           <label class="chip">
             <input type="radio" name="to_source_id" value="{{ s.id }}" required>
             {{ s.name }}
@@ -204,11 +206,11 @@
           id="notes"
           name="notes"
           class="notes-input"
-          placeholder="e.g. September statement"
+          placeholder="e.g. ATM withdrawal"
         >
       </div>
 
-      <button type="submit" class="save-button">Record payment</button>
+      <button type="submit" class="save-button">Record withdrawal</button>
 
     </form>
 

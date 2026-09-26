@@ -1,21 +1,3 @@
-<!-- Minto theme-aware favicons -->
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" media="(prefers-color-scheme: light)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-dark.svg') }}" media="(prefers-color-scheme: dark)">
-<link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon-light.svg') }}" id="minto-favicon">
-<script>
-(function () {
-  const saved = localStorage.getItem('minto-theme');
-  const theme = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const favicon = document.getElementById('minto-favicon');
-  if (favicon) {
-    favicon.href = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.dataset.light = "{{ url_for('static', filename='favicon-light.svg') }}";
-    favicon.dataset.dark = "{{ url_for('static', filename='favicon-dark.svg') }}";
-    favicon.href = theme === 'dark' ? favicon.dataset.dark : favicon.dataset.light;
-  }
-})();
-</script>
-
 {% extends "base.html" %}
 
 {% block title %}Dashboard · Minto{% endblock %}
@@ -315,6 +297,45 @@
   .txn-amount.in { color: var(--positive); }
   .txn-amount.out { color: var(--text); }
 
+  .txn-item form {
+    width: auto;
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  .txn-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 30px;
+    height: 30px;
+    margin: 0;
+    padding: 0;
+
+    border: 0;
+    border-radius: 8px;
+
+    background: transparent;
+    color: var(--muted-2);
+
+    cursor: pointer;
+
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+
+  .txn-delete svg {
+    width: 15px;
+    height: 15px;
+  }
+
+  .txn-delete:hover {
+    background: var(--danger-bg);
+    color: var(--negative);
+    transform: none;
+    box-shadow: none;
+  }
+
 </style>
 
 <div class="dash-wrapper">
@@ -430,6 +451,14 @@
         <div class="txn-amount tnum {{ t.direction }}">
           {{ "+" if t.direction == "in" else "-" }}₹{{ "%.2f"|format(t.amount or 0) }}
         </div>
+        <form method="post" action="{{ url_for('delete_transaction', entry_id=t.id) }}" onsubmit="return confirm('Delete this transaction?{{ ' Both linked legs of this transfer will be removed.' if t.transfer_group else '' }}');">
+          <button type="submit" class="txn-delete" aria-label="Delete transaction" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </form>
       </li>
       {% endfor %}
     </ul>
