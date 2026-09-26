@@ -207,6 +207,27 @@
   </div>
 
 
+  <!-- Date -->
+
+  <div class="form-section">
+
+    <label class="form-label" for="transaction_date">
+      Date
+      <span style="font-weight:400; color:var(--muted-2);">(when it actually happened, not necessarily today)</span>
+    </label>
+
+    <input
+      type="date"
+      id="transaction_date"
+      name="transaction_date"
+      value="{{ today }}"
+      max="{{ today }}"
+      required
+    >
+
+  </div>
+
+
   <!-- Direction -->
 
   <div class="form-section">
