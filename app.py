@@ -41,6 +41,37 @@ SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
 # Auth API round trip per page load).
 USER_VERIFY_INTERVAL_SECONDS = 300
 
+# The categories every user starts with, for the expense/investment
+# sub-category chips on the Add Entry form. Kept short and generic on
+# purpose — anyone can add their own on top via /categories/add, stored per
+# user in user_categories, and "Other" is always pinned last regardless of
+# how many custom ones someone has added.
+FIXED_EXPENSE_CATEGORIES = [
+    "food", "travel", "bills", "shopping", "health",
+    "insurance", "entertainment", "groceries", "rent",
+]
+FIXED_INVESTMENT_CATEGORIES = [
+    "mutual_fund", "stocks", "fixed_deposit", "recurring_deposit",
+    "gold", "ppf_nps", "crypto",
+]
+
+
+def get_categories(client, user_id, kind, fixed_list):
+    """The chip list for one category kind ('expense' or 'investment'):
+    the fixed defaults everyone gets, plus this user's own custom ones from
+    user_categories, with 'other' always pinned last as a catch-all."""
+    custom = (
+        client.table("user_categories")
+        .select("name")
+        .eq("user_id", user_id)
+        .eq("kind", kind)
+        .order("name")
+        .execute()
+        .data
+    )
+    custom_names = [c["name"] for c in custom]
+    return fixed_list + custom_names + ["other"]
+
 
 def get_client() -> Client:
     """A plain (unauthenticated) client — used for signup/login itself."""
@@ -282,15 +313,19 @@ def entry():
         .execute()
         .data
     )
-    savings_sources = [s for s in sources if s["source_type"] == "savings"]
+    savings_sources = [s for s in sources if s["source_type"] in ("savings", "cash")]
     cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
     known_counterparties, outstanding_loans = get_lending_summary(client, user_id)
+    expense_categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
+    investment_categories = get_categories(client, user_id, "investment", FIXED_INVESTMENT_CATEGORIES)
     return render_template(
         "entry.html",
         savings_sources=savings_sources,
         cc_sources=cc_sources,
         known_counterparties=known_counterparties,
         outstanding_loans=outstanding_loans,
+        expense_categories=expense_categories,
+        investment_categories=investment_categories,
     )
 
 
@@ -316,7 +351,7 @@ def pay_cc_bill():
         .execute()
         .data
     )
-    savings_sources = [s for s in sources if s["source_type"] == "savings"]
+    savings_sources = [s for s in sources if s["source_type"] in ("savings", "cash")]
     cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
 
     if request.method == "POST":
@@ -387,6 +422,176 @@ def pay_cc_bill():
     )
 
 
+@app.route("/categories/add", methods=["POST"])
+@login_required
+def add_category():
+    """Adds a custom expense/investment category for this user only, on top
+    of the fixed defaults everyone gets (see FIXED_EXPENSE_CATEGORIES /
+    FIXED_INVESTMENT_CATEGORIES). Called via fetch() from the Add Entry page
+    so a mid-entry category addition doesn't lose whatever else was already
+    filled in on that form — hence a small JSON response instead of a
+    redirect."""
+    client = get_user_client()
+    user_id = session["user_id"]
+    kind = request.form.get("kind")
+    name = (request.form.get("name") or "").strip().lower()
+
+    if kind not in ("expense", "investment") or not name or name == "other":
+        return {"ok": False, "error": "That's not a valid category name."}, 400
+
+    try:
+        client.table("user_categories").insert({
+            "user_id": user_id,
+            "kind": kind,
+            "name": name,
+        }).execute()
+    except Exception:
+        # Most likely already exists for this user (unique constraint on
+        # user_id + kind + name) — not an error from their point of view.
+        pass
+
+    return {"ok": True, "name": name}
+
+
+@app.route("/transactions/<int:entry_id>/delete", methods=["POST"])
+@login_required
+def delete_transaction(entry_id):
+    """Deletes a transaction. If it's one leg of a linked transfer (a Pay CC
+    Bill payment or a cash withdrawal), both legs are deleted together —
+    removing just one would silently strand the other, leaving a balance
+    that no longer reflects a real withdrawal or payment on either side."""
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    txn = (
+        client.table("transactions")
+        .select("id, transfer_group")
+        .eq("id", entry_id)
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+    if not txn:
+        flash("That transaction wasn't found.")
+        return redirect(request.referrer or url_for("dashboard"))
+
+    transfer_group = txn[0].get("transfer_group")
+    ids_to_delete = [entry_id]
+    if transfer_group:
+        paired = (
+            client.table("transactions")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("transfer_group", transfer_group)
+            .execute()
+            .data
+        )
+        ids_to_delete = [p["id"] for p in paired]
+
+    for tid in ids_to_delete:
+        # Deleting the entries row cascades to its transactions row too.
+        client.table("entries").delete().eq("id", tid).eq("user_id", user_id).execute()
+
+    flash("Deleted both linked legs of that transfer." if len(ids_to_delete) > 1 else "Transaction deleted.")
+    return redirect(request.referrer or url_for("dashboard"))
+
+
+@app.route("/withdraw-cash", methods=["GET", "POST"])
+@login_required
+def withdraw_cash():
+    """Record cash withdrawn from a bank account as a linked pair of transfer
+    legs: money OUT of a savings source and the same amount IN to a cash
+    source — the only way cash is meant to increase in this app. (Being
+    handed cash directly by someone is different — that's just an ordinary
+    income or lending-repayment entry with Cash as the source; no pairing
+    needed there since no bank balance is meant to drop alongside it.)
+
+    Without this route, someone would have to create both legs by hand and
+    could easily create only one — inflating cash on hand with no matching
+    drop in the bank balance it actually came from.
+    """
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    sources = (
+        client.table("user_sources")
+        .select("*")
+        .eq("active", True)
+        .order("name")
+        .execute()
+        .data
+    )
+    bank_sources = [s for s in sources if s["source_type"] == "savings"]
+    cash_sources = [s for s in sources if s["source_type"] == "cash"]
+
+    if request.method == "POST":
+        amount = request.form.get("amount")
+        from_source_id = request.form.get("from_source_id")
+        to_source_id = request.form.get("to_source_id")
+        notes = request.form.get("notes") or None
+
+        if not amount or not from_source_id or not to_source_id:
+            flash("Pick an amount, a bank account to withdraw from, and which cash source it's going into.")
+            return render_template(
+                "withdraw_cash.html",
+                bank_sources=bank_sources,
+                cash_sources=cash_sources,
+            )
+
+        amount = float(amount)
+        transfer_group = str(uuid.uuid4())
+        description = notes or "Cash withdrawal"
+
+        def insert_leg(direction, source_id):
+            entry_row = client.table("entries").insert({
+                "user_id": user_id,
+                "entry_text": description,
+                "mode": "manual",
+            }).execute()
+            entry_id = entry_row.data[0]["id"]
+            client.table("transactions").insert({
+                "id": entry_id,
+                "user_id": user_id,
+                "direction": direction,
+                "category": "transfer",
+                "source_id": int(source_id),
+                "amount": amount,
+                "currency": "INR",
+                "description": description,
+                "raw_text": description,
+                "transfer_group": transfer_group,
+            }).execute()
+            return entry_id
+
+        out_entry_id = None
+        try:
+            out_entry_id = insert_leg("out", from_source_id)
+            insert_leg("in", to_source_id)
+        except Exception as e:
+            # Best-effort rollback: without the first leg, don't leave a
+            # dangling half-transfer sitting in the bank account.
+            if out_entry_id is not None:
+                try:
+                    client.table("entries").delete().eq("id", out_entry_id).execute()
+                except Exception:
+                    pass
+            flash(f"Couldn't record the withdrawal — please try again. ({e})")
+            return render_template(
+                "withdraw_cash.html",
+                bank_sources=bank_sources,
+                cash_sources=cash_sources,
+            )
+
+        flash("Withdrawal recorded — bank and cash balances both updated.")
+        return redirect(url_for("sources"))
+
+    return render_template(
+        "withdraw_cash.html",
+        bank_sources=bank_sources,
+        cash_sources=cash_sources,
+    )
+
+
 def compute_source_balances(client, user_id):
     """All-time balances/outstanding per source. Not period-scoped —
     these are running totals since the source was created, not tied to
@@ -420,7 +625,10 @@ def compute_source_balances(client, user_id):
         f = flows[s["id"]]
         opening = float(s.get("opening_balance") or 0)
 
-        if s["source_type"] == "savings":
+        # Cash behaves exactly like a savings account for balance math — an
+        # opening amount plus whatever's flowed in or out — it's only kept
+        # visually separate (see sources.html) because it isn't a bank.
+        if s["source_type"] in ("savings", "cash"):
             s["balance"] = opening + f["in"] - f["out"]
             s["minimum_balance"] = float(s.get("minimum_balance") or 0)
             s["below_minimum"] = (
@@ -503,6 +711,9 @@ def sources():
                 minimum_balance = request.form.get("minimum_balance") or 0
                 row["opening_balance"] = float(opening_balance)
                 row["minimum_balance"] = float(minimum_balance)
+            elif source_type == "cash":
+                opening_balance = request.form.get("cash_opening_balance") or 0
+                row["opening_balance"] = float(opening_balance)
             elif source_type == "credit_card":
                 credit_limit = request.form.get("credit_limit") or None
                 outstanding = request.form.get("outstanding") or 0
@@ -518,7 +729,9 @@ def sources():
         return redirect(url_for("sources"))
 
     savings, credit_cards, _ = compute_source_balances(client, user_id)
-    return render_template("sources.html", savings=savings, credit_cards=credit_cards)
+    cash = [s for s in savings if s["source_type"] == "cash"]
+    savings = [s for s in savings if s["source_type"] == "savings"]
+    return render_template("sources.html", savings=savings, cash=cash, credit_cards=credit_cards)
 
 
 def get_period_start(period):
