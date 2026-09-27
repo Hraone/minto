@@ -17,6 +17,22 @@ app.secret_key = os.environ["SECRET_KEY"]
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 
 
+@app.after_request
+def add_no_cache_headers(response):
+    """Every page here reflects a specific logged-in session — if a browser
+    (or a backgrounded/suspended mobile tab) serves a disk-cached copy of one
+    without re-checking with the server, someone could see stale content
+    (e.g. an old page's state) sitting behind a nav bar rendered fresh for
+    whatever their *current* session actually is. Cheap to disable caching
+    entirely here since this isn't a content site where caching matters.
+    Static assets (favicon, etc.) are exempt — they already have their own
+    ?v= cache-busting query param when they actually change."""
+    if request.endpoint != "static":
+        response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+    return response
+
+
 @app.context_processor
 def inject_asset_version():
     """Cache-busting query string for static assets like the favicon.
@@ -164,6 +180,9 @@ def login_required(view):
 
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
+    if request.method == "GET" and session.get("user_id"):
+        return redirect(url_for("entry"))
+
     if request.method == "POST":
         email = request.form["email"].strip()
         password = request.form["password"]
@@ -196,6 +215,13 @@ def signup():
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
+    # Never show the login form to someone who's already authenticated —
+    # without this, a stale/cached copy of this page could sit alongside a
+    # nav bar that still (correctly) shows "Log out", making it look like
+    # the two are out of sync.
+    if request.method == "GET" and session.get("user_id"):
+        return redirect(url_for("entry"))
+
     if request.method == "POST":
         email = request.form["email"].strip()
         password = request.form["password"]
