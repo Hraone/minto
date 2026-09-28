@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+
+{% block title %}Trips · Minto{% endblock %}
+
+{% block content %}
+
+<style>
+  .trips-wrapper {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 6px 0 50px;
+  }
+
+  .trips-header h2 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+  }
+
+  .trips-header p {
+    margin: 6px 0 24px;
+    font-size: 14px;
+  }
+
+  .trip-card {
+    padding: 28px;
+    margin-bottom: 26px;
+    background: var(--surface-translucent);
+    border: 1px solid var(--shadow-card);
+    border-radius: 20px;
+    box-shadow: 0 12px 34px var(--shadow-soft);
+  }
+
+  .trip-card h3 {
+    margin: 0 0 4px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+
+  .trip-card .hint {
+    margin: 0 0 6px;
+    font-size: 13px;
+  }
+
+  .trip-card .chip-group {
+    margin-top: 0;
+  }
+
+  .trip-card .chip {
+    margin: 0;
+  }
+
+  .friends-field {
+    display: none;
+  }
+
+  .friends-field.visible {
+    display: block;
+  }
+
+  .trip-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .trip-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 16px 18px;
+    border: 1px solid var(--surface-subtle-border);
+    border-radius: 14px;
+    text-decoration: none;
+    color: var(--text);
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .trip-link:hover {
+    border-color: var(--border-strong);
+    background: var(--surface-subtle);
+  }
+
+  .trip-name {
+    font-size: 15px;
+    font-weight: 700;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .trip-meta {
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--muted-2);
+  }
+
+  .trip-total {
+    flex-shrink: 0;
+    font-size: 15px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .empty-trips {
+    padding: 26px 0 6px;
+    text-align: center;
+    color: var(--muted-2);
+    font-size: 13px;
+  }
+
+  @media (max-width: 600px) {
+    .trip-card { padding: 22px 18px; }
+    .trips-header h2 { font-size: 25px; }
+  }
+</style>
+
+<div class="trips-wrapper">
+
+  <div class="trips-header">
+    <h2>Trips</h2>
+    <p>Split shared costs with friends, or keep a running total for a solo trip.</p>
+  </div>
+
+  <div class="trip-card">
+    <h3>New trip</h3>
+
+    <form method="post">
+
+      <label for="trip-name">Trip name</label>
+      <input type="text" id="trip-name" name="name" placeholder="e.g. Goa, October" required maxlength="80">
+
+      <label>Who is it for?</label>
+      <div class="chip-group">
+        <label class="chip">
+          <input type="radio" name="trip_type" value="group" checked onclick="toggleFriendsField()">
+          With friends
+        </label>
+        <label class="chip">
+          <input type="radio" name="trip_type" value="solo" onclick="toggleFriendsField()">
+          Just me
+        </label>
+      </div>
+
+      <div id="friends-field" class="friends-field visible">
+        <label for="friends">Friends on this trip</label>
+        <input type="text" id="friends" name="friends" placeholder="Names separated by commas, e.g. Rohan, Priya, Aman">
+        <p class="hint" style="margin-top: 8px; font-size: 12px; color: var(--muted-2);">
+          You are always included. You can add more people later.
+        </p>
+      </div>
+
+      <button type="submit">Create trip</button>
+
+    </form>
+  </div>
+
+  <div class="trip-card">
+    <h3>Your trips</h3>
+
+    {% if trips %}
+    <ul class="trip-list" style="margin-top: 14px;">
+      {% for t in trips %}
+      <li>
+        <a class="trip-link" href="{{ url_for('trip_detail', trip_id=t.id) }}">
+          <div style="min-width: 0;">
+            <div class="trip-name">{{ t.name }}</div>
+            <div class="trip-meta">
+              {% if t.is_group %}
+              You and {{ t.friend_count }} friend{{ "s" if t.friend_count != 1 else "" }}
+              {% else %}
+              Solo
+              {% endif %}
+            </div>
+          </div>
+          <div class="trip-total">₹{{ "%.2f"|format(t.total) }}</div>
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-trips">No trips yet. Create one above to start recording expenses.</div>
+    {% endif %}
+  </div>
+
+</div>
+
+<script>
+function toggleFriendsField() {
+  const isGroup = document.querySelector('input[name="trip_type"]:checked').value === "group";
+  document.getElementById("friends-field").classList.toggle("visible", isGroup);
+}
+document.addEventListener("DOMContentLoaded", toggleFriendsField);
+</script>
+
+{% endblock %}
