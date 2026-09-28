@@ -529,6 +529,445 @@ def delete_transaction(entry_id):
     return redirect(request.referrer or url_for("dashboard"))
 
 
+# ---------------------------------------------------------------------------
+# Trips: a shared-expense splitter, separate from sources/balances on purpose.
+# All money math below is done in whole paise (integers) so splits always add
+# up to exactly the expense total, with no float drift like 33.33 x 3 = 99.99.
+# ---------------------------------------------------------------------------
+
+def _to_paise(value):
+    return int(round(float(value) * 100))
+
+
+def split_equally_paise(total_paise, names):
+    """Divides total_paise among names as evenly as whole paise allow. When it
+    doesn't divide cleanly, the leftover paise go one each to the first names
+    in the list, so the shares always sum to exactly the total."""
+    base, remainder = divmod(total_paise, len(names))
+    return {name: base + (1 if i < remainder else 0) for i, name in enumerate(names)}
+
+
+def compute_trip_summary(names, expenses, splits):
+    """Per person: what they paid out of pocket, what their share of all the
+    expenses came to, and the difference (net). Positive net means the group
+    owes them; negative means they owe the group."""
+    paid = {n: 0 for n in names}
+    owed = {n: 0 for n in names}
+    for e in expenses:
+        if e["paid_by"] in paid:
+            paid[e["paid_by"]] += _to_paise(e["amount"])
+    for s in splits:
+        if s["participant_name"] in owed:
+            owed[s["participant_name"]] += _to_paise(s["share_amount"])
+    net = {n: paid[n] - owed[n] for n in names}
+    return paid, owed, net
+
+
+def simplify_settlements(net_paise):
+    """Turns each person's net position into the fewest payments that settle
+    everyone: the biggest debtor pays the biggest creditor as much as either
+    can cover, and so on down the line. For N people that's at most N-1
+    payments, instead of everyone paying everyone they individually owe."""
+    creditors = sorted(([n, v] for n, v in net_paise.items() if v > 0), key=lambda x: -x[1])
+    debtors = sorted(([n, -v] for n, v in net_paise.items() if v < 0), key=lambda x: -x[1])
+    payments = []
+    i = j = 0
+    while i < len(creditors) and j < len(debtors):
+        amount = min(creditors[i][1], debtors[j][1])
+        payments.append({"from": debtors[j][0], "to": creditors[i][0], "amount": amount / 100})
+        creditors[i][1] -= amount
+        debtors[j][1] -= amount
+        if creditors[i][1] == 0:
+            i += 1
+        if debtors[j][1] == 0:
+            j += 1
+    return payments
+
+
+def parse_friend_names(raw):
+    """'Rohan, Priya\\nAman' -> ['Rohan', 'Priya', 'Aman']. Drops blanks and
+    duplicates (case-insensitive), and any name that would clash with the
+    implicit 'You' member every trip already has."""
+    names, seen = [], {"you"}
+    for part in raw.replace("\n", ",").split(","):
+        name = part.strip()
+        if name and name.lower() not in seen:
+            seen.add(name.lower())
+            names.append(name)
+    return names
+
+
+def get_trip_or_none(client, user_id, trip_id):
+    rows = (
+        client.table("trips")
+        .select("*")
+        .eq("id", trip_id)
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+    return rows[0] if rows else None
+
+
+@app.route("/trips", methods=["GET", "POST"])
+@login_required
+def trips():
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        is_group = request.form.get("trip_type") == "group"
+        if not name:
+            flash("Give the trip a name.")
+            return redirect(url_for("trips"))
+
+        created = client.table("trips").insert({
+            "user_id": user_id,
+            "name": name,
+            "is_group": is_group,
+        }).execute()
+        trip_id = created.data[0]["id"]
+
+        if is_group:
+            friend_names = parse_friend_names(request.form.get("friends") or "")
+            if friend_names:
+                try:
+                    client.table("trip_participants").insert([
+                        {"trip_id": trip_id, "user_id": user_id, "name": n}
+                        for n in friend_names
+                    ]).execute()
+                except Exception:
+                    flash("The trip was created, but the friends list couldn't be saved. Add them below.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+
+    trip_rows = (
+        client.table("trips")
+        .select("*")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
+    expense_rows = (
+        client.table("trip_expenses")
+        .select("trip_id, amount")
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+    friend_rows = (
+        client.table("trip_participants")
+        .select("trip_id")
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+    totals = defaultdict(int)
+    for e in expense_rows:
+        totals[e["trip_id"]] += _to_paise(e["amount"])
+    friend_counts = defaultdict(int)
+    for f in friend_rows:
+        friend_counts[f["trip_id"]] += 1
+    for t in trip_rows:
+        t["total"] = totals[t["id"]] / 100
+        t["friend_count"] = friend_counts[t["id"]]
+
+    return render_template("trips.html", trips=trip_rows)
+
+
+@app.route("/trips/<int:trip_id>")
+@login_required
+def trip_detail(trip_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip:
+        flash("That trip wasn't found.")
+        return redirect(url_for("trips"))
+
+    friends = (
+        client.table("trip_participants")
+        .select("*")
+        .eq("trip_id", trip_id)
+        .eq("user_id", user_id)
+        .order("id")
+        .execute()
+        .data
+    )
+    expenses = (
+        client.table("trip_expenses")
+        .select("*")
+        .eq("trip_id", trip_id)
+        .eq("user_id", user_id)
+        .order("expense_date", desc=True)
+        .order("id", desc=True)
+        .execute()
+        .data
+    )
+    expense_ids = [e["id"] for e in expenses]
+    splits = []
+    if expense_ids:
+        splits = (
+            client.table("trip_expense_splits")
+            .select("*")
+            .eq("user_id", user_id)
+            .in_("trip_expense_id", expense_ids)
+            .execute()
+            .data
+        )
+
+    splits_by_expense = defaultdict(list)
+    for s in splits:
+        splits_by_expense[s["trip_expense_id"]].append(s)
+    for e in expenses:
+        e["splits"] = splits_by_expense[e["id"]]
+
+    total_paise = sum(_to_paise(e["amount"]) for e in expenses)
+
+    people_rows, settlements, your_share = [], [], None
+    if trip["is_group"]:
+        names = ["You"] + [f["name"] for f in friends]
+        paid, owed, net = compute_trip_summary(names, expenses, splits)
+        people_rows = [
+            {"name": n, "paid": paid[n] / 100, "owed": owed[n] / 100, "net": net[n] / 100}
+            for n in names
+        ]
+        settlements = simplify_settlements(net)
+        your_share = owed["You"] / 100
+
+    return render_template(
+        "trip_detail.html",
+        trip=trip,
+        friends=friends,
+        expenses=expenses,
+        total=total_paise / 100,
+        people_rows=people_rows,
+        settlements=settlements,
+        your_share=your_share,
+        today=datetime.now(timezone.utc).date().isoformat(),
+    )
+
+
+@app.route("/trips/<int:trip_id>/friends", methods=["POST"])
+@login_required
+def add_trip_friends(trip_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip or not trip["is_group"]:
+        flash("That trip wasn't found, or it's a solo trip.")
+        return redirect(url_for("trips"))
+
+    existing = {
+        f["name"].lower()
+        for f in client.table("trip_participants")
+        .select("name")
+        .eq("trip_id", trip_id)
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    }
+    new_names = [
+        n for n in parse_friend_names(request.form.get("friends") or "")
+        if n.lower() not in existing
+    ]
+    if not new_names:
+        flash("Enter at least one new name.")
+    else:
+        client.table("trip_participants").insert([
+            {"trip_id": trip_id, "user_id": user_id, "name": n} for n in new_names
+        ]).execute()
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/friends/<int:friend_id>/delete", methods=["POST"])
+@login_required
+def remove_trip_friend(trip_id, friend_id):
+    """Only allowed while that friend hasn't paid for or been split into any
+    expense. Removing someone who's already part of the math would quietly
+    change what everyone else owes."""
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    friend_rows = (
+        client.table("trip_participants")
+        .select("*")
+        .eq("id", friend_id)
+        .eq("trip_id", trip_id)
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+    if not friend_rows:
+        flash("That friend wasn't found.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    name = friend_rows[0]["name"]
+
+    trip_expenses = (
+        client.table("trip_expenses")
+        .select("id, paid_by")
+        .eq("trip_id", trip_id)
+        .eq("user_id", user_id)
+        .execute()
+        .data
+    )
+    in_use = any(e["paid_by"] == name for e in trip_expenses)
+    if not in_use and trip_expenses:
+        in_use = bool(
+            client.table("trip_expense_splits")
+            .select("id")
+            .eq("user_id", user_id)
+            .eq("participant_name", name)
+            .in_("trip_expense_id", [e["id"] for e in trip_expenses])
+            .execute()
+            .data
+        )
+    if in_use:
+        flash(f"{name} is part of existing expenses. Delete those first to remove them.")
+    else:
+        client.table("trip_participants").delete().eq("id", friend_id).eq("user_id", user_id).execute()
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/expenses", methods=["POST"])
+@login_required
+def add_trip_expense(trip_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    back = redirect(url_for("trip_detail", trip_id=trip_id))
+
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip:
+        flash("That trip wasn't found.")
+        return redirect(url_for("trips"))
+
+    description = (request.form.get("description") or "").strip()
+    try:
+        total_paise = _to_paise(request.form.get("amount"))
+    except (TypeError, ValueError):
+        total_paise = 0
+    if not description or total_paise <= 0:
+        flash("An expense needs a description and an amount above zero.")
+        return back
+
+    payer_name = "You"
+    shares = None  # {name: paise}; stays None for solo trips (nothing to split)
+
+    if trip["is_group"]:
+        friends = (
+            client.table("trip_participants")
+            .select("*")
+            .eq("trip_id", trip_id)
+            .eq("user_id", user_id)
+            .order("id")
+            .execute()
+            .data
+        )
+        # Form values use "you" or the friend's id, so a name that contains
+        # odd characters (or a friend added in another tab) can't misroute a share.
+        people = {"you": "You"}
+        people.update({str(f["id"]): f["name"] for f in friends})
+
+        payer_name = people.get(request.form.get("paid_by"))
+        if not payer_name:
+            flash("Pick who paid.")
+            return back
+
+        split_type = request.form.get("split_type", "equal")
+        if split_type == "equal":
+            shares = split_equally_paise(total_paise, list(people.values()))
+        elif split_type == "subset":
+            chosen = [people[k] for k in request.form.getlist("split_with") if k in people]
+            if not chosen:
+                flash("Pick at least one person to split this between.")
+                return back
+            shares = split_equally_paise(total_paise, chosen)
+        elif split_type == "custom":
+            shares = {}
+            for key, name in people.items():
+                raw = (request.form.get(f"share_{key}") or "").strip()
+                if not raw:
+                    continue
+                try:
+                    paise = _to_paise(raw)
+                except ValueError:
+                    flash(f"'{raw}' isn't a valid amount.")
+                    return back
+                if paise < 0:
+                    flash("Custom amounts can't be negative.")
+                    return back
+                if paise > 0:
+                    shares[name] = paise
+            if sum(shares.values()) != total_paise:
+                flash(
+                    f"The custom amounts add up to {sum(shares.values()) / 100:.2f}, "
+                    f"but the expense is {total_paise / 100:.2f}. They need to match."
+                )
+                return back
+        else:
+            flash("Pick how to split this expense.")
+            return back
+
+    expense_row = {
+        "trip_id": trip_id,
+        "user_id": user_id,
+        "description": description,
+        "amount": total_paise / 100,
+        "paid_by": payer_name,
+    }
+    expense_date = request.form.get("expense_date")
+    if expense_date:
+        expense_row["expense_date"] = expense_date
+
+    created = client.table("trip_expenses").insert(expense_row).execute()
+    expense_id = created.data[0]["id"]
+
+    if shares:
+        try:
+            client.table("trip_expense_splits").insert([
+                {
+                    "trip_expense_id": expense_id,
+                    "user_id": user_id,
+                    "participant_name": name,
+                    "share_amount": paise / 100,
+                }
+                for name, paise in shares.items()
+            ]).execute()
+        except Exception as e:
+            # An expense without its splits would silently skew everyone's
+            # balance, so undo it rather than leave it half-recorded.
+            client.table("trip_expenses").delete().eq("id", expense_id).eq("user_id", user_id).execute()
+            flash(f"Couldn't save that expense, please try again. ({e})")
+            return back
+
+    flash("Expense added.")
+    return back
+
+
+@app.route("/trips/<int:trip_id>/expenses/<int:expense_id>/delete", methods=["POST"])
+@login_required
+def delete_trip_expense(trip_id, expense_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    # Deleting the expense cascades to its split rows.
+    client.table("trip_expenses").delete().eq("id", expense_id).eq("trip_id", trip_id).eq("user_id", user_id).execute()
+    flash("Expense deleted.")
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/delete", methods=["POST"])
+@login_required
+def delete_trip(trip_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    client.table("trips").delete().eq("id", trip_id).eq("user_id", user_id).execute()
+    flash("Trip deleted.")
+    return redirect(url_for("trips"))
+
+
 @app.route("/withdraw-cash", methods=["GET", "POST"])
 @login_required
 def withdraw_cash():
