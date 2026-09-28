@@ -285,7 +285,7 @@
     }
 
     .nav-link {
-      padding: 9px 13px;
+      padding: 9px 11px;
 
       border-radius: 999px;
 
@@ -358,6 +358,16 @@
 
     .theme-toggle svg {
       display: block;
+    }
+
+    .about-icon {
+      display: none;
+      text-decoration: none;
+    }
+
+    .about-icon.active {
+      color: var(--positive);
+      border-color: var(--positive);
     }
 
     [data-theme="light"] .theme-toggle .icon-moon {
@@ -580,7 +590,7 @@
       font-feature-settings: "tnum" 1;
     }
 
-    @media (max-width: 820px) {
+    @media (max-width: 940px) {
 
       .app-container {
         padding: 0 16px 96px;
@@ -605,6 +615,10 @@
          small screens instead of squeezing into the top row. */
       .nav-links {
         display: none;
+      }
+
+      .about-icon {
+        display: flex;
       }
 
       .tab-bar {
@@ -700,10 +714,11 @@
     <div class="nav-links">
 
       <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add Transaction</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add Entry</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Sources</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Settle Card Bill</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Pay CC Bill</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Withdraw Cash</a>
+      <a class="nav-link {{ 'active' if request.endpoint in ('trips', 'trip_detail') else '' }}" href="{{ url_for('trips') }}">Trips</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About</a>
 
     </div>
@@ -713,6 +728,21 @@
   </div>
 
   <div class="nav-right">
+
+    {% if session.get('user_id') %}
+    <a
+      class="theme-toggle about-icon {{ 'active' if request.endpoint == 'info' else '' }}"
+      href="{{ url_for('info') }}"
+      aria-label="About Minto"
+      title="About"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+    </a>
+    {% endif %}
 
     <button
       type="button"
@@ -810,7 +840,16 @@
         <line x1="12" y1="8" x2="12" y2="16"></line>
         <line x1="8" y1="12" x2="16" y2="12"></line>
       </svg>
-      Add Transaction
+      Add Entry
+    </a>
+
+    <a class="tab-link {{ 'active' if request.endpoint in ('trips', 'trip_detail') else '' }}" href="{{ url_for('trips') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+        <line x1="8" y1="2" x2="8" y2="18"></line>
+        <line x1="16" y1="6" x2="16" y2="22"></line>
+      </svg>
+      Trips
     </a>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
@@ -828,16 +867,7 @@
         <polyline points="7 23 3 19 7 15"></polyline>
         <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
       </svg>
-      Settle Card Bill
-    </a>
-
-    <a class="tab-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
-      About
+      Pay CC Bill
     </a>
 
   </nav>
