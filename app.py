@@ -4,7 +4,7 @@ from functools import wraps
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, redirect, url_for, session, flash
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
@@ -45,6 +45,7 @@ TRIP_MODE_ENDPOINTS = {
     "trips", "trip_detail", "trip_home", "add_trip_friends", "remove_trip_friend",
     "add_trip_expense", "delete_trip_expense", "delete_trip", "set_mode",
     "logout", "login", "signup", "favicon", "health", "static",
+    "service_worker", "web_manifest",
 }
 
 
@@ -1424,6 +1425,23 @@ def dashboard():
         wealth=wealth,
         outstanding_loans=outstanding_loans,
     )
+
+
+@app.route("/sw.js")
+def service_worker():
+    # Served from the site root (not /static/) so the service worker's scope
+    # covers the whole app, which installing to a home screen requires.
+    response = send_from_directory(app.static_folder, "sw.js", mimetype="application/javascript")
+    response.headers["Service-Worker-Allowed"] = "/"
+    response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
+@app.route("/manifest.json")
+def web_manifest():
+    response = send_from_directory(app.static_folder, "manifest.json", mimetype="application/manifest+json")
+    response.headers["Cache-Control"] = "no-cache"
+    return response
 
 
 @app.route("/favicon.ico")
