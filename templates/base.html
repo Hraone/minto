@@ -6,6 +6,20 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
+  <!-- If the last click was the Personal/Trip switch, mark the page so its
+       content slides in from the matching side (see .shift-to-* in the CSS). -->
+  <script>
+    (function () {
+      try {
+        var d = sessionStorage.getItem("minto-mode-shift");
+        if (d === "trip" || d === "personal") {
+          sessionStorage.removeItem("minto-mode-shift");
+          document.documentElement.classList.add("shift-to-" + d);
+        }
+      } catch (e) {}
+    })();
+  </script>
+
   <!-- Applies the saved/system theme before first paint, so there's no
        flash of the wrong theme while the page loads. -->
   <script>
@@ -690,6 +704,21 @@
         display: none;
       }
 
+      .user-chip {
+        display: none;
+      }
+
+      .greeting-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: -8px 0 12px;
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
       .tab-bar {
         align-items: stretch;
       }
@@ -822,6 +851,107 @@
     }
 
 
+    /* Name in the top bar (desktop) and greeting row (mobile) */
+    .user-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 170px;
+      padding: 4px 12px 4px 4px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .user-chip.active {
+      background: var(--surface-alt);
+    }
+
+    .user-avatar {
+      flex: none;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--positive);
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 700;
+    }
+
+    .user-name {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .greeting-row {
+      display: none;
+    }
+
+    /* Personal <-> Trip: the page slides out, and the next one slides in
+       from the matching side. Plain CSS, no scroll or cursor effects. */
+    body {
+      overflow-x: clip;
+    }
+
+    .page-content {
+      transition: opacity 0.16s ease, transform 0.16s ease;
+    }
+
+    .page-content.leaving-to-trip {
+      opacity: 0;
+      transform: translateX(-18px);
+    }
+
+    .page-content.leaving-to-personal {
+      opacity: 0;
+      transform: translateX(18px);
+    }
+
+    @keyframes page-in-from-right {
+      from { opacity: 0; transform: translateX(22px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes page-in-from-left {
+      from { opacity: 0; transform: translateX(-22px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    @keyframes mode-pop {
+      from { transform: scale(0.9); }
+      to { transform: none; }
+    }
+
+    .shift-to-trip .page-content {
+      animation: page-in-from-right 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+    }
+
+    .shift-to-personal .page-content {
+      animation: page-in-from-left 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+    }
+
+    .shift-to-trip .mode-option.active,
+    .shift-to-personal .mode-option.active {
+      animation: mode-pop 0.25s ease-out backwards;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .page-content { transition: none; }
+      .shift-to-trip .page-content,
+      .shift-to-personal .page-content,
+      .shift-to-trip .mode-option.active,
+      .shift-to-personal .mode-option.active { animation: none; }
+    }
+
     /* Loader: shown while a form is saving or a page is loading */
     .minto-loader {
       position: fixed;
@@ -949,12 +1079,14 @@
     <div class="mode-toggle" role="group" aria-label="App mode">
       <a
         class="mode-option {{ 'active' if app_mode != 'trip' else '' }}"
+        data-mode="personal"
         href="{{ url_for('set_mode', mode='personal') }}"
       >
         Personal
       </a>
       <a
         class="mode-option {{ 'active' if app_mode == 'trip' else '' }}"
+        data-mode="trip"
         href="{{ url_for('set_mode', mode='trip') }}"
       >
         Trip
@@ -965,16 +1097,21 @@
 
     {% if session.get('user_id') and app_mode != 'trip' %}
     <a
-      class="theme-toggle {{ 'active' if request.endpoint == 'profile' else '' }}"
+      class="user-chip {{ 'active' if request.endpoint == 'profile' else '' }}"
       href="{{ url_for('profile') }}"
       aria-label="Profile"
       title="Profile"
     >
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-        <circle cx="12" cy="7" r="4"></circle>
-      </svg>
+      <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
+      <span class="user-name">{{ nav_name }}</span>
     </a>
+    {% endif %}
+
+    {% if session.get('user_id') and app_mode == 'trip' %}
+    <span class="user-chip static">
+      <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
+      <span class="user-name">{{ nav_name }}</span>
+    </span>
     {% endif %}
 
     {% if session.get('user_id') and app_mode != 'trip' %}
@@ -1068,6 +1205,22 @@
 </nav>
 
 
+{% if session.get('user_id') %}
+  {% if app_mode == 'trip' %}
+  <div class="greeting-row static">
+    <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
+    <span class="user-name">{{ nav_name }}</span>
+  </div>
+  {% else %}
+  <a class="greeting-row" href="{{ url_for('profile') }}">
+    <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
+    <span class="user-name">{{ nav_name }}</span>
+  </a>
+  {% endif %}
+{% endif %}
+
+<div class="page-content" id="page-content">
+
 {% with messages = get_flashed_messages() %}
 
   {% if messages %}
@@ -1086,6 +1239,8 @@
 
 
 {% block content %}{% endblock %}
+
+</div>
 
   <div class="minto-progress" id="minto-progress"></div>
   <div class="minto-loader" id="minto-loader" role="status" aria-live="polite">
@@ -1183,6 +1338,35 @@
         sheet.setAttribute("hidden", "");
         var b = menu.querySelector(".tab-link");
         if (b) b.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    // Personal <-> Trip: slide the page out, then go. The next page reads the
+    // flag set here (see the script in <head>) and slides in.
+    document.querySelectorAll(".mode-option").forEach(function (a) {
+      a.addEventListener("click", function (e) {
+        if (e.defaultPrevented || e.button !== 0) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        if (a.classList.contains("active")) return;
+        var target = a.getAttribute("data-mode");
+        var pc = document.getElementById("page-content");
+        if (!target || !pc) return;
+        e.preventDefault();
+        pc.classList.add("leaving-to-" + target);
+        var bar = document.getElementById("minto-progress");
+        if (bar) bar.classList.add("run");
+        setTimeout(function () {
+          try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
+          window.location.href = a.href;
+        }, 170);
+      });
+    });
+
+    window.addEventListener("pageshow", function (e) {
+      var pc = document.getElementById("page-content");
+      if (pc) pc.classList.remove("leaving-to-trip", "leaving-to-personal");
+      if (e.persisted) {
+        try { sessionStorage.removeItem("minto-mode-shift"); } catch (err) {}
       }
     });
 
