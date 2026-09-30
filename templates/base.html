@@ -6,8 +6,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-  <!-- If the last click was the Personal/Trip switch, mark the page so its
-       content slides in from the matching side (see .shift-to-* in the CSS). -->
+  <!-- If the last click was the Personal/Trip switch, mark the page so the
+       curtain (.mode-veil) lifts off it (see .shift-to-* in the CSS). -->
   <script>
     (function () {
       try {
@@ -15,6 +15,7 @@
         if (d === "trip" || d === "personal") {
           sessionStorage.removeItem("minto-mode-shift");
           document.documentElement.classList.add("shift-to-" + d);
+          document.documentElement.setAttribute("data-veil", d);
         }
       } catch (e) {}
     })();
@@ -704,19 +705,19 @@
         display: none;
       }
 
-      .user-chip {
+      /* The avatar takes the logout icon's place on small screens (Log Out
+         is on the Profile page), so the top bar doesn't get any wider. */
+      .user-avatar {
+        width: 34px;
+        height: 34px;
+      }
+
+      .user-avatar.static {
         display: none;
       }
 
-      .greeting-row {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        margin: -8px 0 12px;
-        color: var(--text);
-        text-decoration: none;
-        font-size: 14px;
-        font-weight: 600;
+      body.has-avatar .logout-icon {
+        display: none;
       }
 
       .tab-bar {
@@ -851,105 +852,100 @@
     }
 
 
-    /* Name in the top bar (desktop) and greeting row (mobile) */
-    .user-chip {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      max-width: 170px;
-      padding: 4px 12px 4px 4px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--surface);
-      color: var(--text);
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
-    .user-chip.active {
-      background: var(--surface-alt);
-    }
-
+    /* Profile avatar in the top bar: just the initial, the name lives on the
+       Overview and Profile pages so the bar stays compact. */
     .user-avatar {
-      flex: none;
-      width: 26px;
-      height: 26px;
       display: flex;
       align-items: center;
       justify-content: center;
+      width: 36px;
+      height: 36px;
       border-radius: 50%;
       background: var(--positive);
       color: #fff;
-      font-size: 12.5px;
+      text-decoration: none;
+      font-size: 14px;
       font-weight: 700;
     }
 
-    .user-name {
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+    .user-avatar.static {
+      opacity: 0.85;
     }
 
-    .greeting-row {
+    /* Personal <-> Trip: a curtain slides up over the page, the next page
+       loads behind it, then the curtain slides away. It doubles as the
+       loading indicator while the new mode loads. */
+    .mode-veil {
+      position: fixed;
+      inset: 0;
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--background);
+      transform: translateY(100%);
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .mode-veil.cover {
+      visibility: visible;
+      transform: none;
+      pointer-events: auto;
+      transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+    }
+
+    .mode-veil-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      color: var(--text);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .mode-veil-card .brand-icon {
+      width: 46px;
+      height: 46px;
+    }
+
+    .veil-trip,
+    .veil-personal {
       display: none;
     }
 
-    /* Personal <-> Trip: the page slides out, and the next one slides in
-       from the matching side. Plain CSS, no scroll or cursor effects. */
-    body {
-      overflow-x: clip;
+    html[data-veil="trip"] .veil-trip,
+    html[data-veil="personal"] .veil-personal {
+      display: inline;
     }
 
-    .page-content {
-      transition: opacity 0.16s ease, transform 0.16s ease;
+    /* On the new page the curtain starts closed, holds a beat, then lifts. */
+    .shift-to-trip .mode-veil,
+    .shift-to-personal .mode-veil {
+      visibility: visible;
+      transform: none;
+      animation: veil-lift 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
     }
 
-    .page-content.leaving-to-trip {
-      opacity: 0;
-      transform: translateX(-18px);
+    @keyframes veil-lift {
+      from { transform: none; visibility: visible; }
+      to { transform: translateY(-100%); visibility: hidden; }
     }
 
-    .page-content.leaving-to-personal {
-      opacity: 0;
-      transform: translateX(18px);
-    }
-
-    @keyframes page-in-from-right {
-      from { opacity: 0; transform: translateX(22px); }
-      to { opacity: 1; transform: none; }
-    }
-
-    @keyframes page-in-from-left {
-      from { opacity: 0; transform: translateX(-22px); }
-      to { opacity: 1; transform: none; }
-    }
-
-    @keyframes mode-pop {
-      from { transform: scale(0.9); }
-      to { transform: none; }
-    }
-
-    .shift-to-trip .page-content {
-      animation: page-in-from-right 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-    }
-
-    .shift-to-personal .page-content {
-      animation: page-in-from-left 0.28s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
-    }
-
-    .shift-to-trip .mode-option.active,
-    .shift-to-personal .mode-option.active {
-      animation: mode-pop 0.25s ease-out backwards;
+    @keyframes veil-fade {
+      from { opacity: 1; visibility: visible; }
+      to { opacity: 0; visibility: hidden; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .page-content { transition: none; }
-      .shift-to-trip .page-content,
-      .shift-to-personal .page-content,
-      .shift-to-trip .mode-option.active,
-      .shift-to-personal .mode-option.active { animation: none; }
+      .mode-veil { transform: none; opacity: 0; }
+      .mode-veil.cover { opacity: 1; transition: opacity 0.2s ease; }
+      .shift-to-trip .mode-veil,
+      .shift-to-personal .mode-veil {
+        opacity: 1;
+        animation: veil-fade 0.3s ease 0.3s forwards;
+      }
     }
 
     /* Loader: shown while a form is saving or a page is loading */
@@ -1024,7 +1020,7 @@
 
 </head>
 
-<body>
+<body class="{% if session.get('user_id') and app_mode != 'trip' %}has-avatar{% endif %}">
 
   <div class="app-container">
 
@@ -1097,21 +1093,15 @@
 
     {% if session.get('user_id') and app_mode != 'trip' %}
     <a
-      class="user-chip {{ 'active' if request.endpoint == 'profile' else '' }}"
+      class="user-avatar"
       href="{{ url_for('profile') }}"
-      aria-label="Profile"
-      title="Profile"
-    >
-      <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
-      <span class="user-name">{{ nav_name }}</span>
-    </a>
+      aria-label="Profile: {{ nav_name }}"
+      title="{{ nav_name }}"
+    >{{ nav_name[:1]|upper }}</a>
     {% endif %}
 
     {% if session.get('user_id') and app_mode == 'trip' %}
-    <span class="user-chip static">
-      <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
-      <span class="user-name">{{ nav_name }}</span>
-    </span>
+    <span class="user-avatar static" title="{{ nav_name }}">{{ nav_name[:1]|upper }}</span>
     {% endif %}
 
     {% if session.get('user_id') and app_mode != 'trip' %}
@@ -1205,20 +1195,6 @@
 </nav>
 
 
-{% if session.get('user_id') %}
-  {% if app_mode == 'trip' %}
-  <div class="greeting-row static">
-    <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
-    <span class="user-name">{{ nav_name }}</span>
-  </div>
-  {% else %}
-  <a class="greeting-row" href="{{ url_for('profile') }}">
-    <span class="user-avatar">{{ nav_name[:1]|upper }}</span>
-    <span class="user-name">{{ nav_name }}</span>
-  </a>
-  {% endif %}
-{% endif %}
-
 <div class="page-content" id="page-content">
 
 {% with messages = get_flashed_messages() %}
@@ -1241,6 +1217,14 @@
 {% block content %}{% endblock %}
 
 </div>
+
+  <div class="mode-veil" id="mode-veil" aria-hidden="true">
+    <div class="mode-veil-card">
+      <img class="brand-icon brand-icon-light" src="{{ url_for('static', filename='logo-light.svg') }}?v={{ asset_version }}" alt="">
+      <img class="brand-icon brand-icon-dark" src="{{ url_for('static', filename='logo-dark.svg') }}?v={{ asset_version }}" alt="">
+      <span><span class="veil-trip">Switching to Trip mode</span><span class="veil-personal">Switching to Personal mode</span></span>
+    </div>
+  </div>
 
   <div class="minto-progress" id="minto-progress"></div>
   <div class="minto-loader" id="minto-loader" role="status" aria-live="polite">
@@ -1341,30 +1325,29 @@
       }
     });
 
-    // Personal <-> Trip: slide the page out, then go. The next page reads the
-    // flag set here (see the script in <head>) and slides in.
+    // Personal <-> Trip: the curtain slides up, then we go. The next page
+    // reads the flag set here (see the script in <head>) and lifts it.
     document.querySelectorAll(".mode-option").forEach(function (a) {
       a.addEventListener("click", function (e) {
         if (e.defaultPrevented || e.button !== 0) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         if (a.classList.contains("active")) return;
         var target = a.getAttribute("data-mode");
-        var pc = document.getElementById("page-content");
-        if (!target || !pc) return;
+        var veil = document.getElementById("mode-veil");
+        if (!target || !veil) return;
         e.preventDefault();
-        pc.classList.add("leaving-to-" + target);
-        var bar = document.getElementById("minto-progress");
-        if (bar) bar.classList.add("run");
+        document.documentElement.setAttribute("data-veil", target);
+        veil.classList.add("cover");
         setTimeout(function () {
           try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
           window.location.href = a.href;
-        }, 170);
+        }, 320);
       });
     });
 
     window.addEventListener("pageshow", function (e) {
-      var pc = document.getElementById("page-content");
-      if (pc) pc.classList.remove("leaving-to-trip", "leaving-to-personal");
+      var veil = document.getElementById("mode-veil");
+      if (veil) veil.classList.remove("cover");
       if (e.persisted) {
         try { sessionStorage.removeItem("minto-mode-shift"); } catch (err) {}
       }
