@@ -1,10 +1,13 @@
 import os
 import uuid
+import json
+import time
+import base64
 from functools import wraps
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
@@ -96,7 +99,14 @@ def inject_template_globals():
     changes. app_mode tells every page (mainly the nav) whether the user is
     in Personal or Trip mode."""
     mode = session.get("mode", "personal") if session.get("user_id") else "personal"
-    return {"asset_version": "1", "app_mode": mode}
+    # The anon key is public by design (it ships to every browser); passkey
+    # sign-in and enrolment run in the browser and need it.
+    return {
+        "asset_version": "1",
+        "app_mode": mode,
+        "supabase_url": SUPABASE_URL,
+        "supabase_anon_key": SUPABASE_ANON_KEY,
+    }
 
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -318,6 +328,68 @@ def login():
         return redirect(home_url())
 
     return render_template("login.html")
+
+
+def _jwt_exp(token):
+    """The expiry baked into an access token (unix seconds)."""
+    try:
+        payload = token.split(".")[1]
+        payload += "=" * (-len(payload) % 4)
+        return int(json.loads(base64.urlsafe_b64decode(payload))["exp"])
+    except Exception:
+        return int(time.time()) + 3300
+
+
+@app.route("/auth/passkey-login", methods=["POST"])
+def passkey_login():
+    """Finishes a Face ID / fingerprint sign-in. The browser runs the passkey
+    ceremony with Supabase Auth, then hands us the session it got back. We
+    don't trust it blindly: Supabase is asked whether the token is genuine
+    before a Flask session is created for that user."""
+    data = request.get_json(silent=True) or {}
+    access_token = data.get("access_token")
+    refresh_token = data.get("refresh_token")
+    if not access_token or not refresh_token:
+        return jsonify(error="Missing session."), 400
+
+    try:
+        user = get_client().auth.get_user(access_token).user
+    except Exception:
+        return jsonify(error="Could not verify that sign-in."), 401
+    if not user:
+        return jsonify(error="Could not verify that sign-in."), 401
+
+    session.clear()
+    session.permanent = True
+    session["user_id"] = user.id
+    session["email"] = user.email
+    session["access_token"] = access_token
+    session["refresh_token"] = refresh_token
+    session["expires_at"] = _jwt_exp(access_token)
+    session["verified_at"] = time.time()
+    session["mode"] = load_saved_mode(get_user_client(), user.id)
+    return jsonify(ok=True, redirect=home_url())
+
+
+@app.route("/auth/passkey-token", methods=["POST"])
+@login_required
+def passkey_token():
+    """Hands the logged-in user's fresh tokens to the page so it can enrol a
+    passkey. The session is refreshed first and the new tokens saved, so the
+    page's copy never needs to refresh (which would rotate the refresh token
+    and knock this Flask session out)."""
+    try:
+        result = get_client().auth.refresh_session(session["refresh_token"])
+    except Exception:
+        session.clear()
+        return jsonify(error="Please log in again."), 401
+    session["access_token"] = result.session.access_token
+    session["refresh_token"] = result.session.refresh_token
+    session["expires_at"] = result.session.expires_at
+    return jsonify(
+        access_token=result.session.access_token,
+        refresh_token=result.session.refresh_token,
+    )
 
 
 @app.route("/info")
