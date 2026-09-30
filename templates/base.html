@@ -821,6 +821,75 @@
 
     }
 
+
+    /* Loader: shown while a form is saving or a page is loading */
+    .minto-loader {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.35);
+      -webkit-backdrop-filter: blur(2px);
+      backdrop-filter: blur(2px);
+    }
+
+    .minto-loader.show {
+      display: flex;
+    }
+
+    .minto-loader-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 22px 28px;
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .minto-spinner {
+      width: 30px;
+      height: 30px;
+      border: 3px solid var(--border);
+      border-top-color: var(--positive);
+      border-radius: 50%;
+      animation: minto-spin 0.8s linear infinite;
+    }
+
+    .minto-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 10000;
+      height: 3px;
+      width: 0;
+      background: var(--positive);
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .minto-progress.run {
+      opacity: 1;
+      animation: minto-progress 8s cubic-bezier(0.1, 0.6, 0.2, 1) forwards;
+    }
+
+    @keyframes minto-spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes minto-progress {
+      to { width: 90%; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .minto-spinner { animation-duration: 2s; }
+    }
   </style>
 
 </head>
@@ -1003,6 +1072,15 @@
 
 {% block content %}{% endblock %}
 
+  <div class="minto-progress" id="minto-progress"></div>
+  <div class="minto-loader" id="minto-loader" role="status" aria-live="polite">
+    <div class="minto-loader-card">
+      <div class="minto-spinner"></div>
+      <span id="minto-loader-text">Saving...</span>
+    </div>
+  </div>
+
+
 
   </div>
 
@@ -1092,6 +1170,55 @@
         if (b) b.setAttribute("aria-expanded", "false");
       }
     });
+
+    // Loader: a spinner while a form saves, a thin bar while a page loads.
+    (function () {
+      var loader = document.getElementById("minto-loader");
+      var loaderText = document.getElementById("minto-loader-text");
+      var bar = document.getElementById("minto-progress");
+      var timer = null;
+
+      function showLoader(text) {
+        if (timer) return;
+        // Small delay so very fast responses don't flash the spinner.
+        timer = setTimeout(function () {
+          loaderText.textContent = text;
+          loader.classList.add("show");
+        }, 120);
+      }
+
+      function hideAll() {
+        if (timer) { clearTimeout(timer); timer = null; }
+        loader.classList.remove("show");
+        bar.classList.remove("run");
+      }
+
+      document.addEventListener("submit", function (e) {
+        // A cancelled confirm() (e.g. delete) stops the submit: show nothing.
+        if (e.defaultPrevented) return;
+        var form = e.target;
+        if (form.target && form.target !== "_self") return;
+        var isPost = (form.method || "get").toLowerCase() === "post";
+        showLoader(isPost ? "Saving..." : "Loading...");
+      });
+
+      document.addEventListener("click", function (e) {
+        if (e.defaultPrevented || e.button !== 0) return;
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+        var a = e.target.closest && e.target.closest("a[href]");
+        if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+        var url;
+        try { url = new URL(a.href, location.href); } catch (err) { return; }
+        if (url.origin !== location.origin) return;
+        if (url.pathname === location.pathname && url.search === location.search) return;
+        bar.classList.remove("run");
+        void bar.offsetWidth;
+        bar.classList.add("run");
+      });
+
+      // Coming back with the Back button can restore the page mid-load.
+      window.addEventListener("pageshow", hideAll);
+    })();
 
     // Register the service worker and keep the browser's install prompt
     // so the About page can offer an "Install app" button.
