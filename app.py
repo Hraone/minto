@@ -2,6 +2,7 @@ import os
 import uuid
 from functools import wraps
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from supabase import create_client, Client
@@ -774,31 +775,39 @@ def trip_detail(trip_id):
     client = get_user_client()
     user_id = session["user_id"]
 
-    trip = get_trip_or_none(client, user_id, trip_id)
+    # The trip, its members and its expenses don't depend on each other, so
+    # they're fetched at the same time instead of one after another. Each
+    # Supabase call is a network round trip, and that's where the time goes.
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        trip_f = pool.submit(get_trip_or_none, client, user_id, trip_id)
+        friends_f = pool.submit(
+            lambda: client.table("trip_participants")
+            .select("*")
+            .eq("trip_id", trip_id)
+            .eq("user_id", user_id)
+            .order("id")
+            .execute()
+            .data
+        )
+        expenses_f = pool.submit(
+            lambda: client.table("trip_expenses")
+            .select("*")
+            .eq("trip_id", trip_id)
+            .eq("user_id", user_id)
+            .order("expense_date", desc=True)
+            .order("id", desc=True)
+            .execute()
+            .data
+        )
+        trip = trip_f.result()
+        friends = friends_f.result()
+        expenses = expenses_f.result()
+
     if not trip:
         flash("That trip wasn't found.")
         return redirect(url_for("trips"))
     session["active_trip"] = trip_id
 
-    friends = (
-        client.table("trip_participants")
-        .select("*")
-        .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
-        .order("id")
-        .execute()
-        .data
-    )
-    expenses = (
-        client.table("trip_expenses")
-        .select("*")
-        .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
-        .order("expense_date", desc=True)
-        .order("id", desc=True)
-        .execute()
-        .data
-    )
     expense_ids = [e["id"] for e in expenses]
     splits = []
     if expense_ids:
