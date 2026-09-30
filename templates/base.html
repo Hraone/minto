@@ -883,9 +883,16 @@
       align-items: center;
       justify-content: center;
       background: var(--background);
-      transform: translateY(100%);
+      /* Waits off-screen on the side it will arrive from: the right when
+         going to Trip, the left when going back to Personal. */
+      --veil-from: 100%;
+      transform: translateX(var(--veil-from));
       visibility: hidden;
       pointer-events: none;
+    }
+
+    html[data-veil="personal"] .mode-veil {
+      --veil-from: -100%;
     }
 
     .mode-veil.cover {
@@ -920,17 +927,29 @@
       display: inline;
     }
 
-    /* On the new page the curtain starts closed, holds a beat, then lifts. */
-    .shift-to-trip .mode-veil,
+    /* On the new page the curtain starts closed, holds a beat, then keeps
+       moving the way it came: off to the left for Trip, to the right for
+       Personal. */
+    .shift-to-trip .mode-veil {
+      visibility: visible;
+      transform: none;
+      animation: veil-exit-left 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
+    }
+
     .shift-to-personal .mode-veil {
       visibility: visible;
       transform: none;
-      animation: veil-lift 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
+      animation: veil-exit-right 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
     }
 
-    @keyframes veil-lift {
+    @keyframes veil-exit-left {
       from { transform: none; visibility: visible; }
-      to { transform: translateY(-100%); visibility: hidden; }
+      to { transform: translateX(-100%); visibility: hidden; }
+    }
+
+    @keyframes veil-exit-right {
+      from { transform: none; visibility: visible; }
+      to { transform: translateX(100%); visibility: hidden; }
     }
 
     @keyframes veil-fade {
@@ -939,7 +958,8 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .mode-veil { transform: none; opacity: 0; }
+      .mode-veil,
+      html[data-veil="personal"] .mode-veil { transform: none; opacity: 0; }
       .mode-veil.cover { opacity: 1; transition: opacity 0.2s ease; }
       .shift-to-trip .mode-veil,
       .shift-to-personal .mode-veil {
@@ -1336,7 +1356,13 @@
         var veil = document.getElementById("mode-veil");
         if (!target || !veil) return;
         e.preventDefault();
-        document.documentElement.setAttribute("data-veil", target);
+        var root = document.documentElement;
+        // Drop what the last switch left behind (its animation would
+        // otherwise keep overriding the curtain), then start from the
+        // correct side before sliding in.
+        root.classList.remove("shift-to-trip", "shift-to-personal");
+        root.setAttribute("data-veil", target);
+        void veil.offsetWidth;
         veil.classList.add("cover");
         setTimeout(function () {
           try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
@@ -1345,10 +1371,22 @@
       });
     });
 
+    // Once the curtain has lifted, clear the flags so the next switch (in
+    // either direction) starts from a clean slate.
+    (function () {
+      var veil = document.getElementById("mode-veil");
+      if (!veil) return;
+      veil.addEventListener("animationend", function () {
+        document.documentElement.classList.remove("shift-to-trip", "shift-to-personal");
+      });
+    })();
+
     window.addEventListener("pageshow", function (e) {
       var veil = document.getElementById("mode-veil");
       if (veil) veil.classList.remove("cover");
       if (e.persisted) {
+        // Back button restored an old snapshot: reset it fully.
+        document.documentElement.classList.remove("shift-to-trip", "shift-to-personal");
         try { sessionStorage.removeItem("minto-mode-shift"); } catch (err) {}
       }
     });
