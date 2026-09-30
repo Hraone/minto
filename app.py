@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Flask, render_template, request, redirect, url_for, session, flash
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from werkzeug.exceptions import HTTPException
 
 load_dotenv()
 
@@ -188,6 +189,19 @@ def get_user_client() -> Client:
 
 @app.errorhandler(Exception)
 def handle_unexpected_error(e):
+    # Ordinary web errors (unknown address, wrong method) used to fall through
+    # to `raise e` below and turn into "Internal Server Error". Visitors who
+    # aren't logged in get the public info page instead; everyone else gets
+    # the normal error page.
+    if isinstance(e, HTTPException):
+        if (
+            not session.get("user_id")
+            and e.code in (404, 405)
+            and not request.path.startswith("/static/")
+        ):
+            return redirect(url_for("info"))
+        return e
+
     message = str(e).lower()
     session_is_dead = (
         # Access/refresh token itself is bad or expired.
@@ -210,7 +224,7 @@ def login_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):
         if "user_id" not in session:
-            return redirect(url_for("login"))
+            return redirect(url_for("info"))
 
         now = datetime.now(timezone.utc).timestamp()
         last_verified = session.get("verified_at", 0)
