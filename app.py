@@ -1,4 +1,6 @@
 import os
+import io
+import csv
 import uuid
 import json
 import time
@@ -6,8 +8,8 @@ import base64
 from functools import wraps
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
+from datetime import datetime, timedelta, timezone, date
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, Response
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
@@ -472,6 +474,168 @@ def update_profile_name():
     except Exception:
         flash("Couldn't save your name. Please try again.")
     return redirect(url_for("profile"))
+
+
+# ---------------------------------------------------------------------------
+# Reports: the file is built on the fly and sent straight to the user's device.
+# Only a small history row (range, row count, time) is saved, never the report.
+# ---------------------------------------------------------------------------
+
+REPORT_TYPE_LABELS = {"lending": "Lent"}
+REPORT_ACCOUNT_LABELS = {"savings": "Bank", "credit_card": "Card", "cash": "Cash"}
+
+
+def _csv_text(value):
+    """Plain text for a CSV cell. A leading = + - @ would be run as a formula
+    by Excel or Sheets, so such values get a leading apostrophe."""
+    if value is None:
+        return ""
+    text = str(value).strip()
+    if text[:1] in ("=", "+", "-", "@"):
+        return "'" + text
+    return text
+
+
+def _parse_report_dates(args):
+    try:
+        d_from = date.fromisoformat(args.get("from", ""))
+        d_to = date.fromisoformat(args.get("to", ""))
+    except ValueError:
+        return None, None, "Pick a start date and an end date."
+    if d_from > d_to:
+        return None, None, "The start date must be on or before the end date."
+    return d_from, d_to, None
+
+
+def _fetch_report_history(client, user_id):
+    try:
+        return (
+            client.table("report_history")
+            .select("id, date_from, date_to, row_count, file_format, created_at")
+            .eq("user_id", user_id)
+            .order("created_at", desc=True)
+            .limit(10)
+            .execute()
+            .data
+        )
+    except Exception:
+        return []  # history table not created yet: the page still works
+
+
+@app.route("/reports")
+@login_required
+def reports():
+    client = get_user_client()
+    today = datetime.now(timezone.utc).date()
+    return render_template(
+        "reports.html",
+        default_from=today.replace(day=1).isoformat(),
+        default_to=today.isoformat(),
+        history=_fetch_report_history(client, session["user_id"]),
+    )
+
+
+@app.route("/reports/history")
+@login_required
+def reports_history():
+    client = get_user_client()
+    return jsonify(_fetch_report_history(client, session["user_id"]))
+
+
+@app.route("/reports/download")
+@login_required
+def download_report():
+    d_from, d_to, error = _parse_report_dates(request.args)
+    if error:
+        flash(error)
+        return redirect(url_for("reports"))
+
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    # Supabase returns at most 1000 rows per request, so page through them.
+    rows, start = [], 0
+    while True:
+        batch = (
+            client.table("transactions")
+            .select("*, user_sources(name, source_type)")
+            .eq("user_id", user_id)
+            .gte("transaction_date", d_from.isoformat())
+            .lte("transaction_date", d_to.isoformat())
+            .order("transaction_date")
+            .order("id")
+            .range(start, start + 999)
+            .execute()
+            .data
+        )
+        rows.extend(batch)
+        if len(batch) < 1000:
+            break
+        start += 1000
+
+    if not rows:
+        flash("No transactions between those dates.")
+        return redirect(url_for("reports"))
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Date", "Type", "Category", "In or Out", "Account", "Account type", "Person", "Amount", "Description"])
+
+    total_in = total_out = 0.0
+    for t in rows:
+        source = t.get("user_sources") or {}
+        category = t.get("category") or ""
+        amount = float(t["amount"]) if t.get("amount") is not None else 0.0
+        direction = t.get("direction") or ""
+        if category not in ("transfer", "lending"):
+            if direction == "in":
+                total_in += amount
+            elif direction == "out":
+                total_out += amount
+        detail = t.get("expense_category") or t.get("investment_category") or ""
+        writer.writerow([
+            t.get("transaction_date") or "",
+            REPORT_TYPE_LABELS.get(category, category.capitalize()),
+            _csv_text(detail.replace("_", " ").title()),
+            direction.capitalize(),
+            _csv_text(source.get("name")),
+            REPORT_ACCOUNT_LABELS.get(source.get("source_type"), ""),
+            _csv_text(t.get("counterparty")),
+            f"{amount:.2f}",
+            _csv_text(t.get("description")),
+        ])
+
+    writer.writerow([])
+    summary = [
+        ("Transactions", str(len(rows))),
+        ("Total in (excludes transfers and lent)", f"{total_in:.2f}"),
+        ("Total out (excludes transfers and lent)", f"{total_out:.2f}"),
+        ("Net", f"{total_in - total_out:.2f}"),
+    ]
+    for label, value in summary:
+        writer.writerow([label, "", "", "", "", "", "", value, ""])
+
+    # Log that a report was made (range and size only). Never blocks the download.
+    try:
+        client.table("report_history").insert({
+            "user_id": user_id,
+            "date_from": d_from.isoformat(),
+            "date_to": d_to.isoformat(),
+            "row_count": len(rows),
+            "file_format": "csv",
+        }).execute()
+    except Exception:
+        pass
+
+    filename = f"minto-report-{d_from.isoformat()}-to-{d_to.isoformat()}.csv"
+    return Response(
+        buffer.getvalue().encode("utf-8-sig"),  # BOM so Excel reads the rupee sign and accents
+        mimetype="text/csv",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @app.route("/info")
