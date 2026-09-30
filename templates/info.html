@@ -136,6 +136,17 @@
     background: var(--surface);
   }
 
+  .install-btn {
+    margin-top: 14px;
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .install-btn:active {
+    opacity: 0.85;
+  }
+
   @media (max-width: 680px) {
     .info-page { padding-top: 24px; }
     .info-grid { grid-template-columns: 1fr; }
@@ -192,6 +203,15 @@
     </p>
   </div>
 
+  <div class="info-note" id="install-box">
+    <strong>Install Minto on your phone</strong>
+    <p id="install-text">
+      On Android, open your browser menu and choose Install app or Add to Home Screen.
+      On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen.
+    </p>
+    <button type="button" class="info-primary install-btn" id="install-btn" hidden>Install App</button>
+  </div>
+
   <div class="info-actions">
     {% if session.get('user_id') %}
     <a class="info-primary" href="{{ url_for('entry') }}">Start using Minto</a>
@@ -202,4 +222,45 @@
     {% endif %}
   </div>
 </div>
+
+<script>
+(function () {
+  var box = document.getElementById("install-box");
+  var text = document.getElementById("install-text");
+  var btn = document.getElementById("install-btn");
+
+  var standalone =
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+    window.navigator.standalone === true;
+  if (standalone) { box.hidden = true; return; }
+
+  var ua = navigator.userAgent || "";
+  var isIOS = /iPhone|iPad|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+  if (isIOS) {
+    text.textContent = "Open this page in Safari, tap the Share button, then choose Add to Home Screen.";
+  }
+
+  function showButton() {
+    if (!window.mintoInstallPrompt) return;
+    text.textContent = "Add Minto to your home screen to open it like an app.";
+    btn.hidden = false;
+  }
+
+  btn.addEventListener("click", function () {
+    var p = window.mintoInstallPrompt;
+    if (!p) return;
+    p.prompt();
+    p.userChoice.then(function () {
+      window.mintoInstallPrompt = null;
+      btn.hidden = true;
+    });
+  });
+
+  document.addEventListener("minto-install-ready", showButton);
+  document.addEventListener("minto-installed", function () { box.hidden = true; });
+  showButton();
+})();
+</script>
 {% endblock %}

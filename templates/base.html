@@ -49,6 +49,15 @@
     })();
   </script>
 
+  <!-- Installable app (Add to Home Screen) -->
+  <link rel="manifest" href="{{ url_for('web_manifest') }}">
+  <meta name="theme-color" content="#1F6F50">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Minto">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/apple-touch-icon.png') }}">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1075,6 +1084,25 @@
         var b = menu.querySelector("button");
         if (b) b.setAttribute("aria-expanded", "false");
       }
+    });
+
+    // Register the service worker and keep the browser's install prompt
+    // so the About page can offer an "Install app" button.
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {});
+      });
+    }
+
+    window.addEventListener("beforeinstallprompt", function (e) {
+      e.preventDefault();
+      window.mintoInstallPrompt = e;
+      document.dispatchEvent(new Event("minto-install-ready"));
+    });
+
+    window.addEventListener("appinstalled", function () {
+      window.mintoInstallPrompt = null;
+      document.dispatchEvent(new Event("minto-installed"));
     });
 
     function setMintoFavicon(theme) {
