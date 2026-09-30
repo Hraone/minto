@@ -322,6 +322,34 @@
       color: var(--primary-contrast);
     }
 
+    .mode-toggle {
+      display: flex;
+      padding: 3px;
+
+      border-radius: 999px;
+      background: var(--surface-alt);
+    }
+
+    .mode-option {
+      padding: 7px 13px;
+
+      border-radius: 999px;
+
+      color: var(--muted);
+      text-decoration: none;
+
+      font-size: 12.5px;
+      font-weight: 700;
+
+      transition: background 0.15s ease, color 0.15s ease;
+    }
+
+    .mode-option.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 2px 8px var(--shadow-card);
+    }
+
     .theme-toggle {
       display: flex;
       align-items: center;
@@ -361,6 +389,11 @@
     }
 
     .about-icon {
+      display: none;
+      text-decoration: none;
+    }
+
+    .logout-icon {
       display: none;
       text-decoration: none;
     }
@@ -460,6 +493,29 @@
         border-color 0.2s ease,
         box-shadow 0.2s ease,
         background 0.2s ease;
+    }
+
+    /* The native up/down spinner on number inputs looks out of place next
+       to a custom ₹ symbol positioned over the field — every amount field
+       in the app has one, so this is global rather than per-page. */
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    input[type="number"] {
+      -moz-appearance: textfield;
+    }
+
+    /* The native calendar icon on date inputs renders dark by default in
+       every browser — invisible against a dark-mode input without this. */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
+    }
+
+    [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
     }
 
     input::placeholder,
@@ -590,7 +646,7 @@
       font-feature-settings: "tnum" 1;
     }
 
-    @media (max-width: 940px) {
+    @media (max-width: 880px) {
 
       .app-container {
         padding: 0 16px 96px;
@@ -619,6 +675,23 @@
 
       .about-icon {
         display: flex;
+      }
+
+      .logout-text {
+        display: none;
+      }
+
+      .logout-icon {
+        display: flex;
+      }
+
+      .mode-toggle {
+        padding: 2px;
+      }
+
+      .mode-option {
+        padding: 6px 9px;
+        font-size: 11.5px;
       }
 
       .tab-bar {
@@ -694,7 +767,7 @@
 
     <a
       class="brand"
-      href="{% if session.get('user_id') %}{{ url_for('entry') }}{% else %}{{ url_for('login') }}{% endif %}"
+      href="{% if session.get('user_id') %}{% if app_mode == 'trip' %}{{ url_for('trip_home') }}{% else %}{{ url_for('entry') }}{% endif %}{% else %}{{ url_for('login') }}{% endif %}"
     >
       <img
         class="brand-icon brand-icon-light"
@@ -709,7 +782,7 @@
       Minto
     </a>
 
-    {% if session.get('user_id') %}
+    {% if session.get('user_id') and app_mode != 'trip' %}
 
     <div class="nav-links">
 
@@ -718,7 +791,6 @@
       <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Sources</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Pay CC Bill</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Withdraw Cash</a>
-      <a class="nav-link {{ 'active' if request.endpoint in ('trips', 'trip_detail') else '' }}" href="{{ url_for('trips') }}">Trips</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About</a>
 
     </div>
@@ -730,6 +802,29 @@
   <div class="nav-right">
 
     {% if session.get('user_id') %}
+
+    <!-- Trip mode is a separate context, not just another page: turning it
+         on hides the rest of the app (see keep_trip_mode_trip_only in
+         app.py) so a screen passed around a group only ever shows trip
+         details, never personal balances. -->
+    <div class="mode-toggle" role="group" aria-label="App mode">
+      <a
+        class="mode-option {{ 'active' if app_mode != 'trip' else '' }}"
+        href="{{ url_for('set_mode', mode='personal') }}"
+      >
+        Personal
+      </a>
+      <a
+        class="mode-option {{ 'active' if app_mode == 'trip' else '' }}"
+        href="{{ url_for('set_mode', mode='trip') }}"
+      >
+        Trip
+      </a>
+    </div>
+
+    {% endif %}
+
+    {% if session.get('user_id') and app_mode != 'trip' %}
     <a
       class="theme-toggle about-icon {{ 'active' if request.endpoint == 'info' else '' }}"
       href="{{ url_for('info') }}"
@@ -771,10 +866,23 @@
     {% if session.get('user_id') %}
 
     <a
-      class="nav-link logout-link"
+      class="nav-link logout-link logout-text"
       href="{{ url_for('logout') }}"
     >
       Log out
+    </a>
+
+    <a
+      class="theme-toggle logout-icon"
+      href="{{ url_for('logout') }}"
+      aria-label="Log out"
+      title="Log out"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
     </a>
 
     {% else %}
@@ -822,7 +930,7 @@
 
   </div>
 
-  {% if session.get('user_id') %}
+  {% if session.get('user_id') and app_mode != 'trip' %}
   <nav class="tab-bar">
 
     <a class="tab-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">
@@ -841,15 +949,6 @@
         <line x1="8" y1="12" x2="16" y2="12"></line>
       </svg>
       Add Entry
-    </a>
-
-    <a class="tab-link {{ 'active' if request.endpoint in ('trips', 'trip_detail') else '' }}" href="{{ url_for('trips') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-        <line x1="8" y1="2" x2="8" y2="18"></line>
-        <line x1="16" y1="6" x2="16" y2="22"></line>
-      </svg>
-      Trips
     </a>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
