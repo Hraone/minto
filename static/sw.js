@@ -2,7 +2,7 @@
 // Caches static files only (icons, logos). It never touches pages, forms,
 // login or logout, so what you see always comes from the server and
 // your login state can never be out of sync.
-const CACHE = "minto-static-v1";
+const CACHE = "minto-static-v2";
 
 self.addEventListener("install", () => self.skipWaiting());
 
