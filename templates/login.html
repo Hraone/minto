@@ -122,6 +122,37 @@
     transform: translateY(0);
   }
 
+  .bio-divider {
+    margin: 18px 0 14px;
+    text-align: center;
+    color: var(--muted-2);
+    font-size: 12px;
+  }
+
+  .bio-button {
+    width: 100%;
+    padding: 13px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .bio-button:active {
+    opacity: 0.85;
+  }
+
+  .bio-error {
+    margin: 10px 0 0;
+    text-align: center;
+    color: var(--negative);
+    font-size: 13px;
+  }
+
   .signup-text {
     text-align: center;
     margin: 25px 0 0;
@@ -196,6 +227,64 @@
   </button>
 
 </form>
+
+<div id="bio-login" hidden>
+  <div class="bio-divider">or</div>
+  <button type="button" class="bio-button" id="bio-login-btn">Log in with Face ID or fingerprint</button>
+  <p class="bio-error" id="bio-login-error" hidden></p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var wrap = document.getElementById("bio-login");
+  var btn = document.getElementById("bio-login-btn");
+  var err = document.getElementById("bio-login-error");
+  if (!window.PublicKeyCredential || !window.supabase) return;
+  wrap.hidden = false;
+
+  function fail(msg) { err.textContent = msg; err.hidden = false; }
+
+  btn.addEventListener("click", async function () {
+    err.hidden = true;
+    btn.disabled = true;
+    try {
+      var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          experimental: { passkey: true }
+        }
+      });
+      var res = await sb.auth.signInWithPasskey();
+      if (res.error || !res.data || !res.data.session) {
+        var code = res.error && (res.error.code || "");
+        if (code === "passkey_disabled") fail("Face ID login is not available yet.");
+        else if (code === "webauthn_credential_not_found") fail("No passkey found. Log in with your password, then enable Face ID on the About page.");
+        else fail("Face ID login was cancelled or failed. Use your password instead.");
+        btn.disabled = false;
+        return;
+      }
+      var r = await fetch("{{ url_for('passkey_login') }}", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          access_token: res.data.session.access_token,
+          refresh_token: res.data.session.refresh_token
+        })
+      });
+      var out = await r.json();
+      if (r.ok && out.redirect) { window.location.href = out.redirect; return; }
+      fail(out.error || "Could not log in. Use your password instead.");
+    } catch (e) {
+      fail("Face ID login failed. Use your password instead.");
+    }
+    btn.disabled = false;
+  });
+})();
+</script>
 
 <p class="signup-text">
   Don't have an account?

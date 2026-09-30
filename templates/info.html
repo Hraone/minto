@@ -143,6 +143,10 @@
     font-family: inherit;
   }
 
+  .install-btn[hidden] {
+    display: none;
+  }
+
   .install-btn:active {
     opacity: 0.85;
   }
@@ -203,6 +207,14 @@
     </p>
   </div>
 
+  {% if session.get('user_id') %}
+  <div class="info-note" id="bio-box" hidden>
+    <strong>Log in with Face ID or fingerprint</strong>
+    <p id="bio-text">Skip typing your password on this device. Your password still works.</p>
+    <button type="button" class="info-primary install-btn" id="bio-btn">Enable</button>
+  </div>
+  {% endif %}
+
   <div class="info-note" id="install-box">
     <strong>Install Minto on your phone</strong>
     <p id="install-text">
@@ -222,6 +234,57 @@
     {% endif %}
   </div>
 </div>
+
+{% if session.get('user_id') %}
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var box = document.getElementById("bio-box");
+  var text = document.getElementById("bio-text");
+  var btn = document.getElementById("bio-btn");
+  if (!box || !window.PublicKeyCredential || !window.supabase) return;
+  box.hidden = false;
+
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    try {
+      var r = await fetch("{{ url_for('passkey_token') }}", { method: "POST", credentials: "same-origin" });
+      var t = await r.json();
+      if (!r.ok) { text.textContent = t.error || "Please log in again."; btn.disabled = false; return; }
+
+      var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          experimental: { passkey: true }
+        }
+      });
+      await sb.auth.setSession({ access_token: t.access_token, refresh_token: t.refresh_token });
+      var res = await sb.auth.registerPasskey();
+
+      if (!res.error) {
+        text.textContent = "Done. Next time, tap Log in with Face ID or fingerprint on the login page.";
+        btn.hidden = true;
+        return;
+      }
+      var code = res.error.code || "";
+      if (code === "webauthn_credential_exists") {
+        text.textContent = "Already enabled on this device.";
+        btn.hidden = true;
+        return;
+      }
+      if (code === "passkey_disabled") text.textContent = "Face ID login is not available yet.";
+      else if (code === "too_many_passkeys") text.textContent = "You have reached the passkey limit for this account.";
+      else text.textContent = "That was cancelled or did not work. Try again.";
+    } catch (e) {
+      text.textContent = "That did not work. Try again.";
+    }
+    btn.disabled = false;
+  });
+})();
+</script>
+{% endif %}
 
 <script>
 (function () {
