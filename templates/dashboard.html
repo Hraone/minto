@@ -490,7 +490,7 @@
     ? ['#3fa980', '#e2857a', '#e0b25c', '#6fa0d8', '#c9c6bc', '#9c9a8e', '#6e6c63', '#adaa9f', '#f3f1ea']
     : ['#1f6f50', '#a83b32', '#b8862f', '#3b6ea5', '#43454c', '#6f7180', '#9a9ba6', '#d8d4c8', '#17181d'];
 
-  var barColor = isDarkTheme ? '#f3f1ea' : '#17181d';
+  var barColor = isDarkTheme ? '#3fa980' : '#1f6f50';
 
   {% if expense_labels %}
   new Chart(document.getElementById('categoryChart'), {
@@ -516,7 +516,9 @@
       datasets: [{
         data: {{ source_values|tojson }},
         backgroundColor: barColor,
-        borderRadius: 6
+        borderRadius: 6,
+        maxBarThickness: 28,
+        categoryPercentage: 0.6
       }]
     },
     options: {
@@ -524,7 +526,7 @@
       plugins: { legend: { display: false } },
       scales: {
         x: { beginAtZero: true, ticks: { color: chartTextColor }, grid: { color: chartGridColor } },
-        y: { ticks: { color: chartTextColor }, grid: { color: chartGridColor } }
+        y: { ticks: { color: chartTextColor }, grid: { display: false } }
       }
     }
   });
