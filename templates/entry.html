@@ -173,8 +173,8 @@
 
 
 <div class="entry-header">
-  <h2>New entry</h2>
-  <p>Record an income, expense, investment, loan or transfer.</p>
+  <h2>Add</h2>
+  <p>Record income, an expense, an investment, money lent, or a transfer.</p>
 </div>
 
 
@@ -285,7 +285,7 @@
           {% if c == "expense" %}checked{% endif %}
         >
 
-        {{ c|capitalize }}
+        {{ 'Lent' if c == 'lending' else c|capitalize }}
 
       </label>
 
@@ -378,7 +378,7 @@
       <label class="form-label" for="counterparty">
         Who
         <span style="font-weight:400; color:var(--muted-2);">
-          (friend's name — use the same spelling each time so it adds up correctly)
+          (friend's name, spelled the same each time so it adds up correctly)
         </span>
       </label>
 
@@ -399,7 +399,7 @@
 
       <p style="margin: 10px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
         Out = you gave them money. In = they paid you back. Neither counts as
-        an expense or income — it shows up as money owed to you until repaid.
+        an expense or income. It shows up as money owed to you until repaid.
       </p>
 
       {% if outstanding_loans %}
@@ -432,7 +432,7 @@
   <div class="form-section">
 
     <label class="form-label">
-      Source
+      Account
     </label>
 
     {% if savings_sources or cc_sources %}
@@ -440,11 +440,11 @@
     <div class="chip-group">
       <label class="chip">
         <input type="radio" name="source_type_filter" value="savings" checked onclick="toggleSourceType()">
-        Cash / savings
+        Cash / Bank
       </label>
       <label class="chip">
         <input type="radio" name="source_type_filter" value="credit_card" onclick="toggleSourceType()">
-        Credit card
+        Card
       </label>
     </div>
 
@@ -461,8 +461,8 @@
       </div>
       {% else %}
       <p class="empty-source">
-        No cash or savings sources yet —
-        <a href="{{ url_for('sources') }}">add one</a>.
+        No cash or bank accounts yet.
+        <a href="{{ url_for('sources') }}">Add one</a>
       </p>
       {% endif %}
 
@@ -481,8 +481,8 @@
       </div>
       {% else %}
       <p class="empty-source">
-        No credit cards yet —
-        <a href="{{ url_for('sources') }}">add one</a>.
+        No cards yet.
+        <a href="{{ url_for('sources') }}">Add one</a>
       </p>
       {% endif %}
 
@@ -492,10 +492,10 @@
 
     <p class="empty-source">
 
-      No sources yet —
+      No accounts yet.
       <a href="{{ url_for('sources') }}">
-        add your banks/cards first
-      </a>.
+        Add your banks and cards first
+      </a>
 
     </p>
 
@@ -703,7 +703,7 @@ function addCategory(kind) {
       container.insertBefore(label, addButton);
     })
     .catch(() => {
-      alert("Couldn't add that category — please try again.");
+      alert("Couldn't add that category. Please try again.");
     });
 
 }

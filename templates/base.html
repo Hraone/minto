@@ -417,6 +417,10 @@
       display: none;
     }
 
+    .tab-menu {
+      display: none;
+    }
+
     /* ---------- Flash messages ---------- */
 
     .flash {
@@ -667,14 +671,65 @@
         height: 28px;
       }
 
-      /* The 4 primary destinations move down into the bottom tab bar on
+      /* The primary destinations move down into the bottom tab bar on
          small screens instead of squeezing into the top row. */
       .nav-links {
         display: none;
       }
 
       .about-icon {
+        display: none;
+      }
+
+      .tab-menu {
+        flex: 1;
         display: flex;
+        position: relative;
+      }
+
+      button.tab-link {
+        background: none;
+        border: 0;
+        font-family: inherit;
+        cursor: pointer;
+      }
+
+      .tab-sheet {
+        position: absolute;
+        bottom: calc(100% + 12px);
+        left: 50%;
+        transform: translateX(-50%);
+        min-width: 160px;
+
+        display: flex;
+        flex-direction: column;
+        padding: 6px;
+
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 8px 24px var(--shadow-lift);
+      }
+
+      .tab-sheet[hidden] {
+        display: none;
+      }
+
+      .tab-sheet a {
+        padding: 12px 14px;
+        border-radius: var(--radius-sm);
+        color: var(--text);
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .tab-sheet a.active {
+        color: var(--positive);
+      }
+
+      .tab-sheet a:active {
+        background: var(--nav-hover-bg);
       }
 
       .logout-text {
@@ -786,11 +841,11 @@
 
     <div class="nav-links">
 
-      <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add Entry</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Sources</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Pay CC Bill</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Withdraw Cash</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Overview</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About</a>
 
     </div>
@@ -828,7 +883,7 @@
     <a
       class="theme-toggle about-icon {{ 'active' if request.endpoint == 'info' else '' }}"
       href="{{ url_for('info') }}"
-      aria-label="About Minto"
+      aria-label="About"
       title="About"
     >
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -869,14 +924,14 @@
       class="nav-link logout-link logout-text"
       href="{{ url_for('logout') }}"
     >
-      Log out
+      Log Out
     </a>
 
     <a
       class="theme-toggle logout-icon"
       href="{{ url_for('logout') }}"
-      aria-label="Log out"
-      title="Log out"
+      aria-label="Log Out"
+      title="Log Out"
     >
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -939,7 +994,7 @@
         <line x1="12" y1="20" x2="12" y2="4"></line>
         <line x1="6" y1="20" x2="6" y2="14"></line>
       </svg>
-      Dashboard
+      Overview
     </a>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">
@@ -948,7 +1003,7 @@
         <line x1="12" y1="8" x2="12" y2="16"></line>
         <line x1="8" y1="12" x2="16" y2="12"></line>
       </svg>
-      Add Entry
+      Add
     </a>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
@@ -956,23 +1011,65 @@
         <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
         <line x1="1" y1="10" x2="23" y2="10"></line>
       </svg>
-      Sources
+      Accounts
     </a>
 
-    <a class="tab-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">
+    <div class="tab-menu" id="transfersMenu">
+      <div class="tab-sheet" id="transfersSheet" role="menu" hidden>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
+      </div>
+      <button
+        type="button"
+        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash'] else '' }}"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="transfersSheet"
+        onclick="toggleTransfersMenu(event)"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="17 1 21 5 17 9"></polyline>
+          <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+          <polyline points="7 23 3 19 7 15"></polyline>
+          <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+        </svg>
+        Transfers
+      </button>
+    </div>
+
+    <a class="tab-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="17 1 21 5 17 9"></polyline>
-        <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-        <polyline points="7 23 3 19 7 15"></polyline>
-        <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
       </svg>
-      Pay CC Bill
+      About
     </a>
 
   </nav>
   {% endif %}
 
   <script>
+    function toggleTransfersMenu(event) {
+      event.stopPropagation();
+      var sheet = document.getElementById("transfersSheet");
+      var btn = event.currentTarget;
+      var open = sheet.hasAttribute("hidden");
+      if (open) { sheet.removeAttribute("hidden"); } else { sheet.setAttribute("hidden", ""); }
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    document.addEventListener("click", function (e) {
+      var menu = document.getElementById("transfersMenu");
+      var sheet = document.getElementById("transfersSheet");
+      if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
+      if (!menu.contains(e.target)) {
+        sheet.setAttribute("hidden", "");
+        var b = menu.querySelector("button");
+        if (b) b.setAttribute("aria-expanded", "false");
+      }
+    });
+
     function setMintoFavicon(theme) {
       var favicon = document.getElementById("minto-favicon");
       if (!favicon) return;

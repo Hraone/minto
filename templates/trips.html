@@ -124,7 +124,7 @@
 
   <div class="trips-header">
     <h2>Trips</h2>
-    <p>Split shared costs with friends, or keep a running total for a solo trip.</p>
+    <p>Split shared costs with members, or keep a running total for a solo trip.</p>
   </div>
 
   <div class="trip-card">
@@ -139,7 +139,7 @@
       <div class="chip-group">
         <label class="chip">
           <input type="radio" name="trip_type" value="group" checked onclick="toggleFriendsField()">
-          With friends
+          With members
         </label>
         <label class="chip">
           <input type="radio" name="trip_type" value="solo" onclick="toggleFriendsField()">
@@ -148,7 +148,7 @@
       </div>
 
       <div id="friends-field" class="friends-field visible">
-        <label for="friends">Friends on this trip</label>
+        <label for="friends">Members</label>
         <input type="text" id="friends" name="friends" placeholder="Names separated by commas, e.g. Rohan, Priya, Aman">
         <p class="hint" style="margin-top: 8px; font-size: 12px; color: var(--muted-2);">
           You are always included. You can add more people later.
@@ -172,7 +172,7 @@
             <div class="trip-name">{{ t.name }}</div>
             <div class="trip-meta">
               {% if t.is_group %}
-              You and {{ t.friend_count }} friend{{ "s" if t.friend_count != 1 else "" }}
+              You and {{ t.friend_count }} member{{ "s" if t.friend_count != 1 else "" }}
               {% else %}
               Solo
               {% endif %}

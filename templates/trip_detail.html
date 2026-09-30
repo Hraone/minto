@@ -511,7 +511,7 @@
       <h2>{{ trip.name }}</h2>
       <p>
         {% if trip.is_group %}
-        Group trip with {{ friends|length }} friend{{ "s" if friends|length != 1 else "" }}
+        Group trip with {{ friends|length }} member{{ "s" if friends|length != 1 else "" }}
         {% else %}
         Solo trip
         {% endif %}
@@ -546,9 +546,9 @@
   </div>
 
   {% if trip.is_group %}
-  <!-- Friends -->
+  <!-- Members -->
   <div class="section-card">
-    <h3>Friends on this trip</h3>
+    <h3>Members</h3>
     <p class="sub">Add everyone who shares costs before recording expenses.</p>
 
     <div class="people-list">
@@ -569,15 +569,15 @@
     </div>
 
     <form method="post" action="{{ url_for('add_trip_friends', trip_id=trip.id) }}" class="inline-form">
-      <input type="text" name="friends" placeholder="Add names, separated by commas" aria-label="Add friends">
+      <input type="text" name="friends" placeholder="Add names, separated by commas" aria-label="Add members">
       <button type="submit">Add</button>
     </form>
   </div>
   {% endif %}
 
-  <!-- Add expense -->
+  <!-- Add Expense -->
   <div class="section-card">
-    <h3>Add an expense</h3>
+    <h3>Add Expense</h3>
     <p class="sub">
       {% if trip.is_group %}Record what was spent, who paid, and how it is split.{% else %}Record what you spent on this trip.{% endif %}
     </p>
@@ -664,15 +664,15 @@
 
       {% endif %}
 
-      <button type="submit">Add expense</button>
+      <button type="submit">Add Expense</button>
 
     </form>
   </div>
 
   {% if trip.is_group %}
-  <!-- Settle up -->
+  <!-- Settle Up -->
   <div class="section-card">
-    <h3>Settle up</h3>
+    <h3>Settle Up</h3>
     <p class="sub">The fewest payments that clear every balance.</p>
 
     {% if expenses %}

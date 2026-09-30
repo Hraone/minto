@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Sources · Minto{% endblock %}
+{% block title %}Accounts · Minto{% endblock %}
 
 {% block content %}
 
@@ -267,15 +267,15 @@
 <div class="sources-wrapper">
 
   <div class="sources-header">
-    <h2>Your sources</h2>
+    <h2>Accounts</h2>
     <p>Add the banks and cards you use to track your money.</p>
   </div>
 
-  <!-- Add Source -->
+  <!-- Add Account -->
   <div class="source-card">
 
     <div class="source-card-title">
-      <h3>Add a source</h3>
+      <h3>Add an account</h3>
       <p>Keep your transactions organized by account.</p>
     </div>
 
@@ -288,7 +288,7 @@
       <div class="source-type-group">
         <label class="chip">
           <input type="radio" name="source_type" value="savings" checked onclick="toggleSourceFields()">
-          Savings
+          Bank
         </label>
         <label class="chip">
           <input type="radio" name="source_type" value="cash" onclick="toggleSourceFields()">
@@ -296,7 +296,7 @@
         </label>
         <label class="chip">
           <input type="radio" name="source_type" value="credit_card" onclick="toggleSourceFields()">
-          Credit card
+          Card
         </label>
       </div>
 
@@ -312,7 +312,7 @@
         <label for="cash_balance">Cash on hand right now <span style="font-weight:400; color:var(--muted-2);">(starting point only)</span></label>
         <input type="number" step="0.01" id="cash_balance" name="cash_opening_balance" placeholder="0.00">
         <p style="margin: 8px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
-          This is just what you're carrying right now, to get the tracker started. Going forward, add more cash from a bank account on the <a href="{{ url_for('withdraw_cash') }}">Withdraw Cash</a> page — that's the only way cash should increase from here, so your bank balance drops by the same amount it adds to cash.
+          This is just what you're carrying right now, to get the tracker started. Going forward, add more cash from a bank account on the <a href="{{ url_for('withdraw_cash') }}">Cash Out</a> page. That's the only way cash should increase from here, so your bank balance drops by the same amount it adds to cash.
         </p>
       </div>
 
@@ -324,7 +324,7 @@
         <input type="number" step="0.01" id="outstanding" name="outstanding" placeholder="0.00">
       </div>
 
-      <button type="submit">Add source</button>
+      <button type="submit">Add Account</button>
 
     </form>
 
@@ -360,7 +360,7 @@
     {% else %}
     <div class="empty-state">
       <div class="empty-icon">₹</div>
-      <p>No cash sources added yet.</p>
+      <p>No cash accounts added yet.</p>
     </div>
     {% endif %}
   </div>
@@ -368,7 +368,7 @@
   <!-- Savings -->
   <div class="existing-section">
     <div class="existing-header">
-      <h3>Savings accounts</h3>
+      <h3>Bank</h3>
       {% if savings %}<span class="source-count">{{ savings|length }}</span>{% endif %}
     </div>
 
@@ -381,7 +381,7 @@
             <div class="source-icon">₹</div>
             <div>
               <div class="source-name">{{ s.name }}</div>
-              <div class="source-type">savings</div>
+              <div class="source-type">bank</div>
             </div>
           </div>
           <div class="source-figure">
@@ -398,7 +398,7 @@
     {% else %}
     <div class="empty-state">
       <div class="empty-icon">₹</div>
-      <p>No savings accounts added yet.</p>
+      <p>No bank accounts added yet.</p>
     </div>
     {% endif %}
   </div>
@@ -406,7 +406,7 @@
   <!-- Credit cards -->
   <div class="existing-section">
     <div class="existing-header">
-      <h3>Credit cards</h3>
+      <h3>Card</h3>
       {% if credit_cards %}<span class="source-count">{{ credit_cards|length }}</span>{% endif %}
     </div>
 
@@ -419,7 +419,7 @@
             <div class="source-icon">CC</div>
             <div>
               <div class="source-name">{{ s.name }}</div>
-              <div class="source-type">credit card</div>
+              <div class="source-type">card</div>
             </div>
           </div>
           <div class="source-figure">
@@ -448,7 +448,7 @@
     {% else %}
     <div class="empty-state">
       <div class="empty-icon">CC</div>
-      <p>No credit cards added yet.</p>
+      <p>No cards added yet.</p>
     </div>
     {% endif %}
   </div>

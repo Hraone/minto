@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Settle Card Bill · Minto{% endblock %}
+{% block title %}Card Payment · Minto{% endblock %}
 
 {% block content %}
 
@@ -133,21 +133,21 @@
   <div class="entry-card">
 
     <div class="entry-header">
-      <h2>Pay a credit card bill</h2>
-      <p>Records both sides at once: money out of savings, and the card's outstanding paid down.</p>
+      <h2>Card Payment</h2>
+      <p>Records both sides at once: money out of your bank, and the card's outstanding paid down.</p>
     </div>
 
     <div class="flow-note">
-      This creates two linked entries — an <strong>out / transfer</strong> from the cash/savings source below,
-      and an <strong>in / transfer</strong> against the card — so your savings balance and the card's
+      This creates two linked entries, an <strong>out / transfer</strong> from the cash or bank account below
+      and an <strong>in / transfer</strong> against the card, so your bank balance and the card's
       outstanding both update together. It won't show up as a fresh expense.
     </div>
 
     {% if not savings_sources or not cc_sources %}
 
     <p class="empty-source">
-      You need at least one cash or savings source and one credit card set up first —
-      <a href="{{ url_for('sources') }}">add them here</a>.
+      You need at least one cash or bank account and one card set up first.
+      <a href="{{ url_for('sources') }}">Add them here</a>.
     </p>
 
     {% else %}
@@ -171,7 +171,7 @@
       </div>
 
       <div class="form-section">
-        <label class="form-label">Pay from (cash / savings)</label>
+        <label class="form-label">Pay from (cash / bank)</label>
         <div class="chip-group">
           {% for s in savings_sources %}
           <label class="chip">
@@ -183,7 +183,7 @@
       </div>
 
       <div class="form-section">
-        <label class="form-label">Pay off (credit card)</label>
+        <label class="form-label">Pay off (card)</label>
         <div class="chip-group">
           {% for s in cc_sources %}
           <label class="chip">
@@ -208,7 +208,11 @@
         >
       </div>
 
-      <button type="submit" class="save-button">Record payment</button>
+      <button type="submit" class="save-button">Save</button>
+
+      <p style="margin: 10px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
+        Records a payment you already made.
+      </p>
 
     </form>
 
