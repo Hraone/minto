@@ -929,6 +929,7 @@
       <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
+      <a class="nav-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">Reports</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About</a>
 
     </div>
@@ -1211,6 +1212,7 @@
         // A cancelled confirm() (e.g. delete) stops the submit: show nothing.
         if (e.defaultPrevented) return;
         var form = e.target;
+        if (form.hasAttribute("data-no-loader")) return;
         if (form.target && form.target !== "_self") return;
         var isPost = (form.method || "get").toLowerCase() === "post";
         showLoader(isPost ? "Saving..." : "Loading...");
@@ -1220,7 +1222,7 @@
         if (e.defaultPrevented || e.button !== 0) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         var a = e.target.closest && e.target.closest("a[href]");
-        if (!a || a.target === "_blank" || a.hasAttribute("download")) return;
+        if (!a || a.target === "_blank" || a.hasAttribute("download") || a.hasAttribute("data-no-loader")) return;
         var url;
         try { url = new URL(a.href, location.href); } catch (err) { return; }
         if (url.origin !== location.origin) return;
