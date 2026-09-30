@@ -134,3 +134,76 @@ alter table public.transactions add column if not exists transaction_date date;
 update public.transactions set transaction_date = created_at::date where transaction_date is null;
 alter table public.transactions alter column transaction_date set default current_date;
 alter table public.transactions alter column transaction_date set not null;
+
+-- Trip expense splitter (like a mini Splitwise) — deliberately its own
+-- ledger, separate from user_sources/transactions. Paying for a group trip
+-- and getting reimbursed isn't a bank transaction in the normal sense (only
+-- part of what you paid was really "your" spending), so this tracks who
+-- owes whom without touching your real balances or net worth.
+create table if not exists public.trips (
+    id serial primary key,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    name text not null,
+    is_group boolean not null default false,
+    active boolean not null default true,
+    created_at timestamp with time zone default now()
+);
+
+-- Friends on a group trip. Just names, the same lightweight way lending
+-- tracks a counterparty — no real account needed for them to be "in" a trip.
+-- "You" (the trip owner) is implicit and never stored as a row here.
+create table if not exists public.trip_participants (
+    id serial primary key,
+    trip_id integer not null references public.trips(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    name text not null,
+    created_at timestamp with time zone default now(),
+    unique (trip_id, name)
+);
+
+create table if not exists public.trip_expenses (
+    id serial primary key,
+    trip_id integer not null references public.trips(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    description text not null,
+    amount numeric not null,
+    paid_by text not null default 'You',
+    expense_date date not null default current_date,
+    created_at timestamp with time zone default now()
+);
+
+-- One row per participant per expense: how much of that expense is theirs.
+-- Equal-split, equal-among-a-subset, and fully custom amounts all reduce to
+-- the same shape here — only how these rows get generated differs.
+create table if not exists public.trip_expense_splits (
+    id serial primary key,
+    trip_expense_id integer not null references public.trip_expenses(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    participant_name text not null,
+    share_amount numeric not null
+);
+
+alter table public.trips enable row level security;
+alter table public.trip_participants enable row level security;
+alter table public.trip_expenses enable row level security;
+alter table public.trip_expense_splits enable row level security;
+
+drop policy if exists "own trips" on public.trips;
+create policy "own trips" on public.trips
+    for all using (auth.uid() = user_id);
+
+drop policy if exists "own trip participants" on public.trip_participants;
+create policy "own trip participants" on public.trip_participants
+    for all using (auth.uid() = user_id);
+
+drop policy if exists "own trip expenses" on public.trip_expenses;
+create policy "own trip expenses" on public.trip_expenses
+    for all using (auth.uid() = user_id);
+
+drop policy if exists "own trip expense splits" on public.trip_expense_splits;
+create policy "own trip expense splits" on public.trip_expense_splits
+    for all using (auth.uid() = user_id);
+
+-- Which mode the user was last in (Personal or Trip), so logging back in
+-- during a trip lands them straight back in Trip mode.
+alter table public.profiles add column if not exists app_mode text not null default 'personal' check (app_mode in ('personal', 'trip'));
