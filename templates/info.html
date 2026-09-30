@@ -193,8 +193,13 @@
   </div>
 
   <div class="info-actions">
+    {% if session.get('user_id') %}
     <a class="info-primary" href="{{ url_for('entry') }}">Start using Minto</a>
     <a class="info-secondary" href="{{ url_for('dashboard') }}">View Overview</a>
+    {% else %}
+    <a class="info-primary" href="{{ url_for('signup') }}">Sign up</a>
+    <a class="info-secondary" href="{{ url_for('login') }}">Log in</a>
+    {% endif %}
   </div>
 </div>
 {% endblock %}
