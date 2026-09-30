@@ -450,6 +450,55 @@
     .stat-row.two { grid-template-columns: 1fr 1fr; }
     .field-row { grid-template-columns: 1fr; }
     .custom-row input { width: 110px; }
+
+    .inline-form {
+      flex-direction: column;
+    }
+
+    .inline-form button {
+      padding: 13px 16px;
+    }
+
+    /* A wide 4-column table doesn't fit a phone screen — turn each row into
+       its own small card instead of letting the columns overlap or squeeze. */
+    .balance-table thead {
+      display: none;
+    }
+
+    .balance-table, .balance-table tbody, .balance-table tr, .balance-table td {
+      display: block;
+      width: 100%;
+    }
+
+    .balance-table tr {
+      padding: 10px 0;
+      border-top: 1px solid var(--surface-subtle-border);
+    }
+
+    .balance-table tr:first-child {
+      border-top: 0;
+    }
+
+    .balance-table td {
+      padding: 3px 0;
+      border-top: 0;
+    }
+
+    .balance-table td:first-child {
+      font-size: 15px;
+      padding-bottom: 4px;
+    }
+
+    .balance-table td:not(:first-child) {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .balance-table td:not(:first-child)::before {
+      content: attr(data-label);
+      color: var(--muted-2);
+      font-weight: 650;
+    }
   }
 </style>
 
@@ -641,9 +690,9 @@
         {% for p in people_rows %}
         <tr>
           <td>{{ p.name }}</td>
-          <td>₹{{ "%.2f"|format(p.paid) }}</td>
-          <td>₹{{ "%.2f"|format(p.owed) }}</td>
-          <td>
+          <td data-label="Paid">₹{{ "%.2f"|format(p.paid) }}</td>
+          <td data-label="Share">₹{{ "%.2f"|format(p.owed) }}</td>
+          <td data-label="Balance">
             {% if p.net > 0 %}
             <span class="net-positive">gets back ₹{{ "%.2f"|format(p.net) }}</span>
             {% elif p.net < 0 %}
