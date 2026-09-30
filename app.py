@@ -200,7 +200,7 @@ def handle_unexpected_error(e):
     )
     if session_is_dead:
         session.clear()
-        flash("Your session is no longer valid — please log in again.")
+        flash("Your session is no longer valid. Please log in again.")
         return redirect(url_for("login"))
     raise e
 
@@ -224,7 +224,7 @@ def login_required(view):
                 session["verified_at"] = now
             except Exception:
                 session.clear()
-                flash("Your account is no longer valid — please log in again.")
+                flash("Your account is no longer valid. Please log in again.")
                 return redirect(url_for("login"))
 
         return view(*args, **kwargs)
@@ -450,7 +450,7 @@ def pay_cc_bill():
         notes = request.form.get("notes") or None
 
         if not amount or not from_source_id or not to_source_id:
-            flash("Pick an amount, a savings source to pay from, and a card to pay off.")
+            flash("Pick an amount, a bank or cash account to pay from, and a card to pay off.")
             return render_template(
                 "pay_cc_bill.html",
                 savings_sources=savings_sources,
@@ -494,14 +494,14 @@ def pay_cc_bill():
                     client.table("entries").delete().eq("id", out_entry_id).execute()
                 except Exception:
                     pass
-            flash(f"Couldn't record the payment — please try again. ({e})")
+            flash(f"Couldn't record the payment. Please try again. ({e})")
             return render_template(
                 "pay_cc_bill.html",
                 savings_sources=savings_sources,
                 cc_sources=cc_sources,
             )
 
-        flash("Payment recorded — savings and card balances both updated.")
+        flash("Payment recorded. Bank and card balances both updated.")
         return redirect(url_for("sources"))
 
     return render_template(
@@ -730,7 +730,7 @@ def trips():
                         for n in friend_names
                     ]).execute()
                 except Exception:
-                    flash("The trip was created, but the friends list couldn't be saved. Add them below.")
+                    flash("The trip was created, but the members list couldn't be saved. Add them below.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
 
     trip_rows = (
@@ -895,7 +895,7 @@ def remove_trip_friend(trip_id, friend_id):
         .data
     )
     if not friend_rows:
-        flash("That friend wasn't found.")
+        flash("That member wasn't found.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
     name = friend_rows[0]["name"]
 
@@ -1098,7 +1098,7 @@ def withdraw_cash():
         notes = request.form.get("notes") or None
 
         if not amount or not from_source_id or not to_source_id:
-            flash("Pick an amount, a bank account to withdraw from, and which cash source it's going into.")
+            flash("Pick an amount, a bank account to take it from, and which cash account it goes into.")
             return render_template(
                 "withdraw_cash.html",
                 bank_sources=bank_sources,
@@ -1142,14 +1142,14 @@ def withdraw_cash():
                     client.table("entries").delete().eq("id", out_entry_id).execute()
                 except Exception:
                     pass
-            flash(f"Couldn't record the withdrawal — please try again. ({e})")
+            flash(f"Couldn't record the cash out. Please try again. ({e})")
             return render_template(
                 "withdraw_cash.html",
                 bank_sources=bank_sources,
                 cash_sources=cash_sources,
             )
 
-        flash("Withdrawal recorded — bank and cash balances both updated.")
+        flash("Cash out recorded. Bank and cash balances both updated.")
         return redirect(url_for("sources"))
 
     return render_template(
@@ -1290,9 +1290,9 @@ def sources():
                 client.table("user_sources").insert(row).execute()
             except Exception as e:
                 if "duplicate key" in str(e).lower():
-                    flash(f"You already have a source named '{name}'.")
+                    flash(f"You already have an account named '{name}'.")
                 else:
-                    flash("Couldn't add that source — please try again.")
+                    flash("Couldn't add that account. Please try again.")
         return redirect(url_for("sources"))
 
     savings, credit_cards, _ = compute_source_balances(client, user_id)
