@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Profile · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .profile-page {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 28px 16px 60px;
+  }
+
+  .profile-card {
+    padding: 22px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+
+  .profile-head {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .profile-avatar {
+    flex: none;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--positive);
+    color: #fff;
+    font-size: 26px;
+    font-weight: 700;
+  }
+
+  .profile-name {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  .profile-email {
+    margin: 3px 0 0;
+    font-size: 13.5px;
+    color: var(--muted);
+    overflow-wrap: anywhere;
+  }
+
+  .profile-since {
+    margin: 14px 0 0;
+    font-size: 13px;
+    color: var(--muted-2);
+  }
+
+  .profile-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .profile-stat {
+    padding: 16px 10px;
+    text-align: center;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+  }
+
+  .profile-stat strong {
+    display: block;
+    font-size: 22px;
+    color: var(--text);
+  }
+
+  .profile-stat span {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .profile-card h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .profile-card label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .profile-card input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 15px;
+  }
+
+  .profile-save {
+    margin-top: 12px;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--positive);
+    color: #fff;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .profile-links {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .profile-links a {
+    padding: 12px 4px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14.5px;
+    font-weight: 600;
+  }
+
+  .profile-links a + a {
+    border-top: 1px solid var(--border);
+  }
+</style>
+
+<div class="profile-page">
+
+  <div class="profile-card">
+    <div class="profile-head">
+      <div class="profile-avatar">{{ display_name[:1]|upper }}</div>
+      <div>
+        <h2 class="profile-name">{{ display_name }}</h2>
+        <p class="profile-email">{{ email }}</p>
+      </div>
+    </div>
+    {% if member_since %}
+    <p class="profile-since">Member since {{ member_since }}</p>
+    {% endif %}
+  </div>
+
+  <div class="profile-stats">
+    <div class="profile-stat">
+      <strong>{{ accounts if accounts is not none else '-' }}</strong>
+      <span>Accounts</span>
+    </div>
+    <div class="profile-stat">
+      <strong>{{ transactions if transactions is not none else '-' }}</strong>
+      <span>Transactions</span>
+    </div>
+    <div class="profile-stat">
+      <strong>{{ trips if trips is not none else '-' }}</strong>
+      <span>Trips</span>
+    </div>
+  </div>
+
+  <div class="profile-card">
+    <h3>Your name</h3>
+    <form method="post" action="{{ url_for('update_profile_name') }}">
+      <label for="display_name">Display name</label>
+      <input
+        type="text"
+        id="display_name"
+        name="display_name"
+        maxlength="40"
+        value="{{ display_name if has_custom_name else '' }}"
+        placeholder="{{ display_name }}"
+        autocomplete="name"
+      >
+      <button type="submit" class="profile-save">Save</button>
+    </form>
+  </div>
+
+  <div class="profile-card">
+    <div class="profile-links">
+      <a href="{{ url_for('info') }}">Face ID, fingerprint and install app</a>
+      <a href="{{ url_for('logout') }}">Log Out</a>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
