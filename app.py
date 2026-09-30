@@ -33,14 +33,67 @@ def add_no_cache_headers(response):
     return response
 
 
+MODES = ("personal", "trip")
+
+# In Trip mode the app shows trip pages and nothing else. This is an allow
+# list rather than a block list on purpose: any page added later is hidden in
+# Trip mode by default instead of leaking personal finances onto a screen
+# that's being shared around a group.
+TRIP_MODE_ENDPOINTS = {
+    "trips", "trip_detail", "trip_home", "add_trip_friends", "remove_trip_friend",
+    "add_trip_expense", "delete_trip_expense", "delete_trip", "set_mode",
+    "logout", "login", "signup", "favicon", "health", "static",
+}
+
+
+def home_url():
+    """Where 'home' is depends on the mode: the entry form for Personal, the
+    current trip for Trip mode."""
+    if session.get("mode") == "trip":
+        return url_for("trip_home")
+    return url_for("entry")
+
+
+def load_saved_mode(client, user_id):
+    """The mode this user left the app in last time, so logging back in during
+    a trip puts them straight back into it. Falls back to Personal if it
+    can't be read (no profile row yet, or the app_mode column isn't there)."""
+    try:
+        rows = client.table("profiles").select("app_mode").eq("id", user_id).execute().data
+        if rows and rows[0].get("app_mode") in MODES:
+            return rows[0]["app_mode"]
+    except Exception:
+        pass
+    return "personal"
+
+
+def save_mode(client, user_id, mode):
+    try:
+        client.table("profiles").upsert({"id": user_id, "app_mode": mode}).execute()
+    except Exception:
+        # The session already holds the mode for this visit; remembering it
+        # across logins is a convenience, so a failure here is not worth an error page.
+        pass
+
+
+@app.before_request
+def keep_trip_mode_trip_only():
+    if (
+        session.get("user_id")
+        and session.get("mode") == "trip"
+        and request.endpoint
+        and request.endpoint not in TRIP_MODE_ENDPOINTS
+    ):
+        return redirect(url_for("trip_home"))
+
+
 @app.context_processor
-def inject_asset_version():
-    """Cache-busting query string for static assets like the favicon.
-    Browsers cache favicons unusually aggressively — bump this constant any
-    time you replace static/favicon.svg with a new design, and every page
-    will pick up the change immediately instead of showing the old icon
-    until someone happens to hard-refresh."""
-    return {"asset_version": "1"}
+def inject_template_globals():
+    """asset_version busts the browser's favicon/logo cache when the image
+    changes. app_mode tells every page (mainly the nav) whether the user is
+    in Personal or Trip mode."""
+    mode = session.get("mode", "personal") if session.get("user_id") else "personal"
+    return {"asset_version": "1", "app_mode": mode}
 
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
@@ -181,7 +234,7 @@ def login_required(view):
 @app.route("/signup", methods=["GET", "POST"])
 def signup():
     if request.method == "GET" and session.get("user_id"):
-        return redirect(url_for("entry"))
+        return redirect(home_url())
 
     if request.method == "POST":
         email = request.form["email"].strip()
@@ -220,7 +273,7 @@ def login():
     # nav bar that still (correctly) shows "Log out", making it look like
     # the two are out of sync.
     if request.method == "GET" and session.get("user_id"):
-        return redirect(url_for("entry"))
+        return redirect(home_url())
 
     if request.method == "POST":
         email = request.form["email"].strip()
@@ -239,11 +292,14 @@ def login():
         session["refresh_token"] = result.session.refresh_token
         session["expires_at"] = result.session.expires_at
 
+        # Resume whichever mode they were last in (Trip mode survives a re-login).
+        session["mode"] = load_saved_mode(get_user_client(), result.user.id)
+
         # New users see Minto's short introduction once before entering the app.
         if session.pop("show_info", False):
             return redirect(url_for("info"))
 
-        return redirect(url_for("entry"))
+        return redirect(home_url())
 
     return render_template("login.html")
 
@@ -609,6 +665,42 @@ def get_trip_or_none(client, user_id, trip_id):
     return rows[0] if rows else None
 
 
+@app.route("/mode", methods=["GET", "POST"])
+@login_required
+def set_mode():
+    mode = request.values.get("mode")
+    if mode in MODES:
+        session["mode"] = mode
+        save_mode(get_user_client(), session["user_id"], mode)
+    return redirect(home_url())
+
+
+@app.route("/trip-home")
+@login_required
+def trip_home():
+    """Lands on trip details directly: the trip you last had open, else your
+    most recent one, else the trips page so you can create the first."""
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    active = session.get("active_trip")
+    if active and get_trip_or_none(client, user_id, active):
+        return redirect(url_for("trip_detail", trip_id=active))
+    session.pop("active_trip", None)
+
+    latest = (
+        client.table("trips")
+        .select("id")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+        .data
+    )
+    if latest:
+        return redirect(url_for("trip_detail", trip_id=latest[0]["id"]))
+    return redirect(url_for("trips"))
+
+
 @app.route("/trips", methods=["GET", "POST"])
 @login_required
 def trips():
@@ -686,6 +778,7 @@ def trip_detail(trip_id):
     if not trip:
         flash("That trip wasn't found.")
         return redirect(url_for("trips"))
+    session["active_trip"] = trip_id
 
     friends = (
         client.table("trip_participants")
@@ -964,6 +1057,8 @@ def delete_trip(trip_id):
     client = get_user_client()
     user_id = session["user_id"]
     client.table("trips").delete().eq("id", trip_id).eq("user_id", user_id).execute()
+    if session.get("active_trip") == trip_id:
+        session.pop("active_trip", None)
     flash("Trip deleted.")
     return redirect(url_for("trips"))
 
