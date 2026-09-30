@@ -964,6 +964,20 @@
 
     {% if session.get('user_id') and app_mode != 'trip' %}
     <a
+      class="theme-toggle {{ 'active' if request.endpoint == 'profile' else '' }}"
+      href="{{ url_for('profile') }}"
+      aria-label="Profile"
+      title="Profile"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+        <circle cx="12" cy="7" r="4"></circle>
+      </svg>
+    </a>
+    {% endif %}
+
+    {% if session.get('user_id') and app_mode != 'trip' %}
+    <a
       class="theme-toggle about-icon {{ 'active' if request.endpoint == 'info' else '' }}"
       href="{{ url_for('info') }}"
       aria-label="About"
