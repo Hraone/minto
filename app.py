@@ -75,6 +75,16 @@ def load_saved_mode(client, user_id):
     return "personal"
 
 
+def load_display_name(client, user_id):
+    """The name shown in the top bar. Empty when none is saved yet (or the
+    display_name column isn't there), in which case the email name is used."""
+    try:
+        rows = client.table("profiles").select("display_name").eq("id", user_id).execute().data
+        return (rows[0].get("display_name") or "") if rows else ""
+    except Exception:
+        return ""
+
+
 def save_mode(client, user_id, mode):
     try:
         client.table("profiles").upsert({"id": user_id, "app_mode": mode}).execute()
@@ -103,9 +113,13 @@ def inject_template_globals():
     mode = session.get("mode", "personal") if session.get("user_id") else "personal"
     # The anon key is public by design (it ships to every browser); passkey
     # sign-in and enrolment run in the browser and need it.
+    name = (session.get("display_name") or "").strip()
+    if not name:
+        name = (session.get("email") or "").split("@")[0]
     return {
         "asset_version": "1",
         "app_mode": mode,
+        "nav_name": name,
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
     }
@@ -322,6 +336,7 @@ def login():
 
         # Resume whichever mode they were last in (Trip mode survives a re-login).
         session["mode"] = load_saved_mode(get_user_client(), result.user.id)
+        session["display_name"] = load_display_name(get_user_client(), result.user.id)
 
         # New users see Minto's short introduction once before entering the app.
         if session.pop("show_info", False):
@@ -370,6 +385,7 @@ def passkey_login():
     session["expires_at"] = _jwt_exp(access_token)
     session["verified_at"] = time.time()
     session["mode"] = load_saved_mode(get_user_client(), user.id)
+    session["display_name"] = load_display_name(get_user_client(), user.id)
     return jsonify(ok=True, redirect=home_url())
 
 
@@ -448,6 +464,7 @@ def profile():
         name = name_f.result()
         since = since_f.result()
 
+    session["display_name"] = name or ""  # keeps the top bar in step
     display_name = name or (email.split("@")[0] if email else "Minto user")
     return render_template(
         "profile.html",
@@ -470,6 +487,7 @@ def update_profile_name():
         client.table("profiles").upsert(
             {"id": session["user_id"], "display_name": name or None}
         ).execute()
+        session["display_name"] = name
         flash("Name updated.")
     except Exception:
         flash("Couldn't save your name. Please try again.")
