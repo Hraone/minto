@@ -392,6 +392,88 @@ def passkey_token():
     )
 
 
+def _format_member_since(created):
+    if not created:
+        return None
+    if hasattr(created, "strftime"):
+        return created.strftime("%d %b %Y")
+    return str(created)[:10]
+
+
+@app.route("/profile")
+@login_required
+def profile():
+    client = get_user_client()
+    user_id = session["user_id"]
+    email = session.get("email") or ""
+    access_token = session.get("access_token")  # threads can't read the session
+
+    def count(table):
+        try:
+            return (
+                client.table(table)
+                .select("id", count="exact")
+                .eq("user_id", user_id)
+                .limit(1)
+                .execute()
+                .count
+            )
+        except Exception:
+            return None
+
+    def saved_name():
+        try:
+            rows = client.table("profiles").select("display_name").eq("id", user_id).execute().data
+            return rows[0].get("display_name") if rows else None
+        except Exception:
+            return None  # column not added yet: fall back to the email name
+
+    def member_since():
+        try:
+            return client.auth.get_user(access_token).user.created_at
+        except Exception:
+            return None
+
+    with ThreadPoolExecutor(max_workers=5) as pool:
+        accounts_f = pool.submit(count, "user_sources")
+        transactions_f = pool.submit(count, "transactions")
+        trips_f = pool.submit(count, "trips")
+        name_f = pool.submit(saved_name)
+        since_f = pool.submit(member_since)
+        accounts = accounts_f.result()
+        transactions = transactions_f.result()
+        trips = trips_f.result()
+        name = name_f.result()
+        since = since_f.result()
+
+    display_name = name or (email.split("@")[0] if email else "Minto user")
+    return render_template(
+        "profile.html",
+        display_name=display_name,
+        has_custom_name=bool(name),
+        email=email,
+        member_since=_format_member_since(since),
+        accounts=accounts,
+        transactions=transactions,
+        trips=trips,
+    )
+
+
+@app.route("/profile/name", methods=["POST"])
+@login_required
+def update_profile_name():
+    name = " ".join(request.form.get("display_name", "").split())[:40]
+    client = get_user_client()
+    try:
+        client.table("profiles").upsert(
+            {"id": session["user_id"], "display_name": name or None}
+        ).execute()
+        flash("Name updated.")
+    except Exception:
+        flash("Couldn't save your name. Please try again.")
+    return redirect(url_for("profile"))
+
+
 @app.route("/info")
 def info():
     return render_template("info.html")
