@@ -690,17 +690,20 @@
         display: none;
       }
 
+      .tab-bar {
+        align-items: stretch;
+      }
+
       .tab-menu {
         flex: 1;
         display: flex;
+        align-items: stretch;
         position: relative;
+        min-width: 0;
       }
 
-      button.tab-link {
-        background: none;
-        border: 0;
-        font-family: inherit;
-        cursor: pointer;
+      .tab-link {
+        min-width: 0;
       }
 
       .tab-sheet {
@@ -780,8 +783,10 @@
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: flex-start;
         gap: 3px;
 
+        margin: 0;
         padding: 7px 4px;
         border-radius: 12px;
 
@@ -1035,8 +1040,9 @@
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
       </div>
-      <button
-        type="button"
+      <a
+        href="{{ url_for('pay_cc_bill') }}"
+        role="button"
         class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash'] else '' }}"
         aria-haspopup="true"
         aria-expanded="false"
@@ -1050,7 +1056,7 @@
           <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
         </svg>
         Transfers
-      </button>
+      </a>
     </div>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
@@ -1067,6 +1073,7 @@
 
   <script>
     function toggleTransfersMenu(event) {
+      event.preventDefault();
       event.stopPropagation();
       var sheet = document.getElementById("transfersSheet");
       var btn = event.currentTarget;
@@ -1081,7 +1088,7 @@
       if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
       if (!menu.contains(e.target)) {
         sheet.setAttribute("hidden", "");
-        var b = menu.querySelector("button");
+        var b = menu.querySelector(".tab-link");
         if (b) b.setAttribute("aria-expanded", "false");
       }
     });
