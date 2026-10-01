@@ -1028,6 +1028,48 @@
     }
 
 
+    /* Final responsive navbar tuning */
+    @media (max-width: 700px) {
+      .navbar {
+        width: calc(100% + 32px);
+        box-sizing: border-box;
+        margin-left: -16px;
+        margin-right: -16px;
+        padding-left: 14px !important;
+        padding-right: 10px !important;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .nav-left {
+        min-width: 0;
+        flex: 0 1 auto;
+      }
+      .brand {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .nav-right {
+        min-width: 0;
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+      .mode-toggle {
+        flex: 0 0 auto;
+      }
+      .mode-option {
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 390px) {
+      .navbar { padding-left: 10px !important; padding-right: 8px !important; }
+      .brand { font-size: 15px !important; gap: 5px !important; }
+      .brand-icon { width: 25px !important; height: 25px !important; }
+      .mode-option { padding-left: 7px !important; padding-right: 7px !important; }
+      .nav-right { gap: 4px !important; }
+      .user-avatar, .about-icon, .theme-toggle { width: 34px !important; height: 34px !important; }
+    }
+
     /* Profile avatar in the top bar: just the initial, the name lives on the
        Overview and Profile pages so the bar stays compact. */
     .user-avatar {

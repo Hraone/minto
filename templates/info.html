@@ -89,6 +89,40 @@
   .install-btn[hidden] { display: none; }
   .install-btn:active { opacity: .85; }
 
+  .finance-quote {
+    width: min(680px, 100%);
+    margin: clamp(42px, 8vh, 78px) auto 0;
+    padding: 17px 20px;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-translucent);
+    box-shadow: 0 10px 30px var(--shadow-card);
+    color: var(--muted);
+  }
+  .finance-quote-mark {
+    color: var(--positive);
+    font-size: 28px;
+    line-height: .8;
+    font-weight: 900;
+    margin-bottom: 7px;
+  }
+  .finance-quote-text {
+    margin: 0;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.55;
+    font-weight: 650;
+  }
+  .finance-quote-label {
+    margin-top: 7px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .6px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
   .go-top {
     position: fixed;
     right: max(18px, calc((100vw - 1000px) / 2 + 18px));
@@ -160,6 +194,11 @@
       Minto is a simple personal finance workspace for recording everyday money,
       understanding your financial activity, generating reports, and keeping group-trip expenses organized.
     </p>
+    <div class="finance-quote" aria-live="polite">
+      <div class="finance-quote-mark">“</div>
+      <p class="finance-quote-text" id="financeQuoteText"></p>
+      <div class="finance-quote-label">Minto finance note</div>
+    </div>
   </section>
 
   <section class="about-section">
@@ -478,4 +517,43 @@
   showButton();
 })();
 </script>
+
+<script>
+  (function () {
+    const quotes = [
+      "Small savings today can create bigger choices tomorrow.",
+      "Spend with intention, not just by habit.",
+      "A budget is a plan for your money, not a restriction on your life.",
+      "Track the small expenses; they often tell the bigger story.",
+      "Save first, spend what remains, and review the difference.",
+      "Knowing where your money goes is the first step toward directing it.",
+      "Good money habits are built one ordinary day at a time.",
+      "A clear view of your spending makes better decisions easier.",
+      "Consistency matters more than a perfect financial month.",
+      "Every rupee has a job; give it one before it leaves your account.",
+      "Keep an emergency buffer so surprises stay manageable.",
+      "Saving is not about never spending; it is about spending with purpose.",
+      "Review yesterday's spending so tomorrow's choices become easier.",
+      "Financial progress is often quiet: fewer leaks, better habits, steady saving.",
+      "Separate needs, wants, and impulses before you open your wallet.",
+      "Your spending history is useful information, not a scorecard.",
+      "A little awareness today can prevent a lot of stress later.",
+      "Build financial habits you can repeat, not rules you cannot sustain.",
+      "When you track your money, your money becomes easier to manage.",
+      "Make room for tomorrow by keeping today's spending intentional."
+    ];
+    const el = document.getElementById("financeQuoteText");
+    if (!el) return;
+    let index = Math.floor(Math.random() * quotes.length);
+    try {
+      const previous = Number(sessionStorage.getItem("minto-quote-index"));
+      if (quotes.length > 1 && Number.isInteger(previous) && previous === index) {
+        index = (index + 1) % quotes.length;
+      }
+      sessionStorage.setItem("minto-quote-index", String(index));
+    } catch (e) {}
+    el.textContent = quotes[index];
+  })();
+</script>
+
 {% endblock %}
