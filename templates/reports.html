@@ -141,7 +141,7 @@
 
   <div class="reports-card">
     <h2>Reports</h2>
-    <p>Choose a date range and download your transactions as a spreadsheet file (CSV). It opens in Excel, Numbers and Google Sheets.</p>
+    <p>Choose a date range and download a PDF report with your spending stats, category breakdown and charts.</p>
 
     <div class="reports-presets">
       <button type="button" class="reports-preset" data-preset="month">This month</button>
@@ -161,7 +161,7 @@
           <input type="date" id="to" name="to" value="{{ default_to }}" max="{{ default_to }}" required>
         </div>
       </div>
-      <button type="submit" class="reports-download">Download Report</button>
+      <button type="submit" class="reports-download">Download PDF Report</button>
     </form>
   </div>
 
@@ -221,7 +221,7 @@
       info.textContent = niceDate(h.date_from) + " to " + niceDate(h.date_to);
       var small = document.createElement("small");
       var when = new Date(h.created_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-      small.textContent = h.row_count + " transactions, made " + when;
+      small.textContent = h.row_count + " transactions, " + (h.file_format || "pdf").toUpperCase() + ", made " + when;
       info.appendChild(small);
 
       var a = document.createElement("a");
