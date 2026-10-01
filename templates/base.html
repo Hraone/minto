@@ -489,6 +489,50 @@
       display: none;
     }
 
+
+    /* ---------- Secondary context navigation ---------- */
+    .context-nav {
+      position: sticky;
+      top: 64px;
+      z-index: 45;
+      display: flex;
+      justify-content: center;
+      margin: -20px -20px 24px;
+      padding: 8px 20px;
+      background: var(--surface-translucent);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .context-nav-inner {
+      width: 100%;
+      max-width: 420px;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .context-mode { margin: 0; }
+    .context-info {
+      width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--nav-text);
+      text-decoration: none;
+      transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .context-info.active, .context-info:hover {
+      color: var(--positive);
+      border-color: var(--positive);
+      background: var(--surface-subtle);
+    }
+
     /* ---------- Bottom tab bar (mobile only) ---------- */
 
     .tab-bar {
@@ -775,11 +819,22 @@
       }
     }
 
+    @media (max-width: 1200px) {
+      .context-nav { top: 56px; }
+    }
+
     @media (max-width: 880px) {
 
       .app-container {
         padding: 0 16px 96px;
       }
+
+      .context-nav {
+        margin: -14px -16px 18px;
+        padding: 5px 12px;
+      }
+      .context-nav-inner { min-height: 40px; }
+      .context-info { width: 38px; height: 38px; }
 
       .navbar {
         height: 60px;
@@ -1340,31 +1395,6 @@
 
   <div class="nav-right">
 
-    {% if session.get('user_id') %}
-
-    <!-- Trip mode is a separate context, not just another page: turning it
-         on hides the rest of the app (see keep_trip_mode_trip_only in
-         app.py) so a screen passed around a group only ever shows trip
-         details, never personal balances. -->
-    <div class="mode-toggle" role="group" aria-label="App mode">
-      <a
-        class="mode-option {{ 'active' if app_mode != 'trip' else '' }}"
-        data-mode="personal"
-        href="{{ url_for('set_mode', mode='personal') }}"
-      >
-        Personal
-      </a>
-      <a
-        class="mode-option {{ 'active' if app_mode == 'trip' else '' }}"
-        data-mode="trip"
-        href="{{ url_for('set_mode', mode='trip') }}"
-      >
-        Trip
-      </a>
-    </div>
-
-    {% endif %}
-
     {% if session.get('user_id') and app_mode != 'trip' %}
     <a
       class="user-avatar"
@@ -1376,21 +1406,6 @@
 
     {% if session.get('user_id') and app_mode == 'trip' %}
     <span class="user-avatar static" title="{{ nav_name }}">{{ nav_name[:1]|upper }}</span>
-    {% endif %}
-
-    {% if app_mode != 'trip' %}
-    <a
-      class="theme-toggle about-icon {{ 'active' if request.endpoint == 'info' else '' }}"
-      href="{{ url_for('info') }}"
-      aria-label="About"
-      title="About"
-    >
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
-    </a>
     {% endif %}
 
     <button
@@ -1441,12 +1456,6 @@
 
     {% else %}
 
-    <a
-      class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}"
-      href="{{ url_for('info') }}"
-    >
-      About
-    </a>
 
     <a
       class="nav-link"
@@ -1468,6 +1477,24 @@
 
 </nav>
 
+<div class="context-nav" role="navigation" aria-label="Minto context">
+  <div class="context-nav-inner">
+    {% if session.get('user_id') %}
+    <div class="mode-toggle context-mode" role="group" aria-label="App mode">
+      <a class="mode-option {{ 'active' if app_mode != 'trip' else '' }}" data-mode="personal" href="{{ url_for('set_mode', mode='personal') }}">Personal</a>
+      <a class="mode-option {{ 'active' if app_mode == 'trip' else '' }}" data-mode="trip" href="{{ url_for('set_mode', mode='trip') }}">Trip</a>
+    </div>
+    {% endif %}
+    <a class="context-info {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}" aria-label="About Minto" title="About Minto">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      <span>About</span>
+    </a>
+  </div>
+</div>
 
 <div class="page-content" id="page-content">
 
