@@ -327,6 +327,60 @@
       color: var(--text);
     }
 
+    /* Keep every top-bar label on one line */
+    .nav-link,
+    .mode-option,
+    .brand {
+      white-space: nowrap;
+    }
+
+    .nav-menu {
+      position: relative;
+    }
+
+    .nav-menu > .nav-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .nav-dropdown {
+      position: absolute;
+      top: calc(100% + 10px);
+      left: 0;
+      z-index: 30;
+      min-width: 170px;
+      display: flex;
+      flex-direction: column;
+      padding: 6px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      box-shadow: 0 10px 28px var(--shadow-lift);
+    }
+
+    .nav-dropdown[hidden] {
+      display: none;
+    }
+
+    .nav-dropdown a {
+      padding: 10px 12px;
+      border-radius: 10px;
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .nav-dropdown a:hover {
+      background: var(--nav-hover-bg);
+    }
+
+    .nav-dropdown a.active {
+      color: var(--positive);
+    }
+
     .nav-link.active {
       background: var(--surface-alt);
       color: var(--text);
@@ -968,6 +1022,28 @@
       }
     }
 
+    /* Mid-width screens (small laptops, tablets): tighter spacing, and Log Out
+       becomes an icon so nothing is pushed off the right edge. */
+    @media (min-width: 881px) and (max-width: 1060px) {
+      .nav-link {
+        padding: 8px 8px;
+        font-size: 13px;
+      }
+
+      .nav-links {
+        margin-left: 6px;
+        padding-left: 6px;
+      }
+
+      .logout-text {
+        display: none;
+      }
+
+      .logout-icon {
+        display: flex;
+      }
+    }
+
     /* Loader: shown while a form is saving or a page is loading */
     .minto-loader {
       position: fixed;
@@ -1073,8 +1149,24 @@
       <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Overview</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
+      <div class="nav-menu" id="navTransfers">
+        <a
+          class="nav-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash'] else '' }}"
+          href="{{ url_for('pay_cc_bill') }}"
+          role="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="navTransfersMenu"
+          onclick="toggleNavTransfers(event)"
+        >
+          Transfers
+          <svg class="nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </a>
+        <div class="nav-dropdown" id="navTransfersMenu" role="menu" hidden>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
+        </div>
+      </div>
       <a class="nav-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">Reports</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About</a>
 
@@ -1324,6 +1416,34 @@
   {% endif %}
 
   <script>
+    function toggleNavTransfers(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var menu = document.getElementById("navTransfersMenu");
+      var trigger = event.currentTarget;
+      var opening = menu.hasAttribute("hidden");
+      if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
+      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+    }
+
+    function closeNavTransfers() {
+      var wrap = document.getElementById("navTransfers");
+      var menu = document.getElementById("navTransfersMenu");
+      if (!wrap || !menu || menu.hasAttribute("hidden")) return;
+      menu.setAttribute("hidden", "");
+      var t = wrap.querySelector(".nav-link");
+      if (t) t.setAttribute("aria-expanded", "false");
+    }
+
+    document.addEventListener("click", function (e) {
+      var wrap = document.getElementById("navTransfers");
+      if (wrap && !wrap.contains(e.target)) closeNavTransfers();
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeNavTransfers();
+    });
+
     function toggleTransfersMenu(event) {
       event.preventDefault();
       event.stopPropagation();
