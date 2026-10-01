@@ -30,13 +30,37 @@
     font-size: 14px;
   }
 
+  .add-account-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    margin: 0;
+    padding: 11px 16px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .add-account-toggle:hover {
+    background: var(--primary-hover);
+  }
+
   .source-card {
     padding: 30px;
+    margin-top: 14px;
     background: var(--surface-translucent);
     border: 1px solid var(--shadow-card);
     border-radius: 22px;
     box-shadow: 0 18px 50px var(--shadow-card);
   }
+
+  .source-card[hidden] { display: none; }
 
   .source-card-title {
     margin-bottom: 20px;
@@ -272,7 +296,12 @@
   </div>
 
   <!-- Add Account -->
-  <div class="source-card">
+  <button type="button" class="add-account-toggle" id="add-account-toggle"
+          aria-expanded="false" aria-controls="add-account-card">
+    + Add New Account
+  </button>
+
+  <div class="source-card" id="add-account-card" hidden>
 
     <div class="source-card-title">
       <h3>Add an account</h3>
@@ -462,7 +491,21 @@ function toggleSourceFields() {
   document.getElementById("cash-fields").classList.toggle("visible", selected === "cash");
   document.getElementById("cc-fields").classList.toggle("visible", selected === "credit_card");
 }
-document.addEventListener("DOMContentLoaded", toggleSourceFields);
+document.addEventListener("DOMContentLoaded", function () {
+  toggleSourceFields();
+
+  const toggle = document.getElementById("add-account-toggle");
+  const card = document.getElementById("add-account-card");
+  toggle.addEventListener("click", function () {
+    const open = card.hidden;
+    card.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.textContent = open ? "− Close Add Account" : "+ Add New Account";
+    if (open) {
+      document.getElementById("source-name").focus();
+    }
+  });
+});
 </script>
 
 {% endblock %}
