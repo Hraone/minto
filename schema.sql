@@ -207,3 +207,20 @@ create policy "own trip expense splits" on public.trip_expense_splits
 -- Which mode the user was last in (Personal or Trip), so logging back in
 -- during a trip lands them straight back in Trip mode.
 alter table public.profiles add column if not exists app_mode text not null default 'personal' check (app_mode in ('personal', 'trip'));
+
+
+-- Idempotency log for the monthly report email job. One row means that
+-- a user's report for that calendar month was successfully emailed.
+create table if not exists public.monthly_report_sends (
+    id bigserial primary key,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    report_month date not null,
+    sent_at timestamp with time zone not null default now(),
+    unique (user_id, report_month)
+);
+
+alter table public.monthly_report_sends enable row level security;
+
+drop policy if exists "own monthly report sends" on public.monthly_report_sends;
+create policy "own monthly report sends" on public.monthly_report_sends
+    for select using (auth.uid() = user_id);
