@@ -1,6 +1,4 @@
 import os
-import io
-import csv
 import uuid
 import json
 import time
@@ -13,6 +11,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
+from report_pdf import build_report_pdf
 
 load_dotenv()
 
@@ -499,21 +498,6 @@ def update_profile_name():
 # Only a small history row (range, row count, time) is saved, never the report.
 # ---------------------------------------------------------------------------
 
-REPORT_TYPE_LABELS = {"lending": "Lent"}
-REPORT_ACCOUNT_LABELS = {"savings": "Bank", "credit_card": "Card", "cash": "Cash"}
-
-
-def _csv_text(value):
-    """Plain text for a CSV cell. A leading = + - @ would be run as a formula
-    by Excel or Sheets, so such values get a leading apostrophe."""
-    if value is None:
-        return ""
-    text = str(value).strip()
-    if text[:1] in ("=", "+", "-", "@"):
-        return "'" + text
-    return text
-
-
 def _parse_report_dates(args):
     try:
         d_from = date.fromisoformat(args.get("from", ""))
@@ -560,23 +544,14 @@ def reports_history():
     return jsonify(_fetch_report_history(client, session["user_id"]))
 
 
-@app.route("/reports/download")
-@login_required
-def download_report():
-    d_from, d_to, error = _parse_report_dates(request.args)
-    if error:
-        flash(error)
-        return redirect(url_for("reports"))
-
-    client = get_user_client()
-    user_id = session["user_id"]
-
-    # Supabase returns at most 1000 rows per request, so page through them.
+def _fetch_transactions(client, user_id, d_from, d_to, columns):
+    """Every transaction in the range. Supabase returns at most 1000 rows per
+    request, so this pages through them."""
     rows, start = [], 0
     while True:
         batch = (
             client.table("transactions")
-            .select("*, user_sources(name, source_type)")
+            .select(columns)
             .eq("user_id", user_id)
             .gte("transaction_date", d_from.isoformat())
             .lte("transaction_date", d_to.isoformat())
@@ -588,67 +563,59 @@ def download_report():
         )
         rows.extend(batch)
         if len(batch) < 1000:
-            break
+            return rows
         start += 1000
 
+
+@app.route("/reports/download")
+@login_required
+def download_report():
+    d_from, d_to, error = _parse_report_dates(request.args)
+    if error:
+        flash(error)
+        return redirect(url_for("reports"))
+
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    rows = _fetch_transactions(
+        client, user_id, d_from, d_to,
+        "*, user_sources(name, source_type)",
+    )
     if not rows:
         flash("No transactions between those dates.")
         return redirect(url_for("reports"))
 
-    buffer = io.StringIO()
-    writer = csv.writer(buffer)
-    writer.writerow(["Date", "Type", "Category", "In or Out", "Account", "Account type", "Person", "Amount", "Description"])
+    # The period right before this one (same length), for the "vs previous" stat.
+    span = (d_to - d_from).days + 1
+    prev_to = d_from - timedelta(days=1)
+    prev_from = prev_to - timedelta(days=span - 1)
+    try:
+        prev_rows = _fetch_transactions(client, user_id, prev_from, prev_to, "amount, category")
+        prev_spend = sum(float(r["amount"] or 0) for r in prev_rows if r.get("category") == "expense")
+    except Exception:
+        prev_spend = None
 
-    total_in = total_out = 0.0
-    for t in rows:
-        source = t.get("user_sources") or {}
-        category = t.get("category") or ""
-        amount = float(t["amount"]) if t.get("amount") is not None else 0.0
-        direction = t.get("direction") or ""
-        if category not in ("transfer", "lending"):
-            if direction == "in":
-                total_in += amount
-            elif direction == "out":
-                total_out += amount
-        detail = t.get("expense_category") or t.get("investment_category") or ""
-        writer.writerow([
-            t.get("transaction_date") or "",
-            REPORT_TYPE_LABELS.get(category, category.capitalize()),
-            _csv_text(detail.replace("_", " ").title()),
-            direction.capitalize(),
-            _csv_text(source.get("name")),
-            REPORT_ACCOUNT_LABELS.get(source.get("source_type"), ""),
-            _csv_text(t.get("counterparty")),
-            f"{amount:.2f}",
-            _csv_text(t.get("description")),
-        ])
+    name = (session.get("display_name") or "").strip() or (session.get("email") or "").split("@")[0] or "Minto user"
+    pdf = build_report_pdf(name, d_from, d_to, rows, prev_spend)
 
-    writer.writerow([])
-    summary = [
-        ("Transactions", str(len(rows))),
-        ("Total in (excludes transfers and lent)", f"{total_in:.2f}"),
-        ("Total out (excludes transfers and lent)", f"{total_out:.2f}"),
-        ("Net", f"{total_in - total_out:.2f}"),
-    ]
-    for label, value in summary:
-        writer.writerow([label, "", "", "", "", "", "", value, ""])
-
-    # Log that a report was made (range and size only). Never blocks the download.
+    # Log that a report was made (range and size only, never the report itself).
+    # Never blocks the download.
     try:
         client.table("report_history").insert({
             "user_id": user_id,
             "date_from": d_from.isoformat(),
             "date_to": d_to.isoformat(),
             "row_count": len(rows),
-            "file_format": "csv",
+            "file_format": "pdf",
         }).execute()
     except Exception:
         pass
 
-    filename = f"minto-report-{d_from.isoformat()}-to-{d_to.isoformat()}.csv"
+    filename = f"minto-report-{d_from.isoformat()}-to-{d_to.isoformat()}.pdf"
     return Response(
-        buffer.getvalue().encode("utf-8-sig"),  # BOM so Excel reads the rupee sign and accents
-        mimetype="text/csv",
+        pdf,
+        mimetype="application/pdf",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-store",
