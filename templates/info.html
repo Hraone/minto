@@ -2,235 +2,180 @@
 
 {% block content %}
 <style>
-  .info-page {
-    max-width: 920px;
-    margin: 0 auto;
-    padding: 42px 20px 70px;
-  }
+  .about-page { max-width: 1000px; margin: 0 auto; padding: 34px 20px 72px; }
+  .about-hero { text-align: center; padding: 30px 10px 42px; }
+  .about-logo { width: 76px; height: 76px; margin: 0 auto 22px; }
+  .about-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
+  .about-logo .dark-logo { display: none; }
+  [data-theme="dark"] .about-logo .light-logo { display: none; }
+  [data-theme="dark"] .about-logo .dark-logo { display: block; }
+  .about-hero h1 { margin: 0; color: var(--text); font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -1.8px; }
+  .about-hero .lead { max-width: 700px; margin: 16px auto 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
+  .about-kicker { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: var(--surface-subtle); border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 15px; }
 
-  .info-hero {
-    text-align: center;
-    padding: 28px 10px 34px;
-  }
+  .about-section { margin-top: 34px; }
+  .about-section-title { margin: 0 0 15px; color: var(--text); font-size: 22px; letter-spacing: -.4px; }
+  .about-section-subtitle { margin: -6px 0 18px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .about-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+  .about-card { padding: 22px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-translucent); box-shadow: 0 14px 40px var(--shadow-card); }
+  .about-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 11px; background: var(--primary); color: var(--primary-contrast); font-size: 13px; font-weight: 900; margin-bottom: 14px; }
+  .about-card h3 { margin: 0 0 7px; color: var(--text); font-size: 17px; }
+  .about-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
 
-  .info-logo {
-    width: 72px;
-    height: 72px;
-    margin: 0 auto 22px;
-  }
+  .about-wide { padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-subtle); }
+  .about-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 0; padding: 0; list-style: none; }
+  .about-list li { position: relative; padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 1.6; }
+  .about-list li::before { content: "✓"; position: absolute; left: 0; color: var(--text); font-weight: 900; }
 
-  .info-logo img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    display: block;
-  }
+  .about-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
+  .mode-card { padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-translucent); }
+  .mode-label { display: inline-block; margin-bottom: 11px; padding: 5px 9px; border-radius: 8px; background: var(--surface-subtle); color: var(--muted); font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .5px; }
+  .mode-card h3 { margin: 0 0 8px; color: var(--text); font-size: 18px; }
+  .mode-card p { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
 
-  .info-logo .dark-logo { display: none; }
-  [data-theme="dark"] .info-logo .light-logo { display: none; }
-  [data-theme="dark"] .info-logo .dark-logo { display: block; }
+  .about-note { margin-top: 15px; padding: 20px 22px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-subtle); }
+  .about-note strong { color: var(--text); }
+  .about-note p { margin: 7px 0 0; color: var(--muted); font-size: 14px; line-height: 1.65; }
 
-  .info-hero h1 {
-    margin: 0;
-    color: var(--text);
-    font-size: clamp(30px, 5vw, 44px);
-    line-height: 1.1;
-    letter-spacing: -1.2px;
-  }
-
-  .info-hero p {
-    max-width: 650px;
-    margin: 14px auto 0;
-    color: var(--muted);
-    font-size: 16px;
-    line-height: 1.7;
-  }
-
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 16px;
-  }
-
-  .info-card {
-    padding: 24px;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    background: var(--surface-translucent);
-    box-shadow: 0 14px 40px var(--shadow-card);
-  }
-
-  .info-number {
-    width: 34px;
-    height: 34px;
-    display: grid;
-    place-items: center;
-    border-radius: 10px;
-    background: var(--primary);
-    color: var(--primary-contrast);
-    font-size: 13px;
-    font-weight: 800;
-    margin-bottom: 16px;
-  }
-
-  .info-card h2 {
-    margin: 0 0 8px;
-    color: var(--text);
-    font-size: 18px;
-  }
-
-  .info-card p {
-    margin: 0;
-    color: var(--muted);
-    font-size: 14px;
-    line-height: 1.65;
-  }
-
-  .info-note {
-    margin-top: 18px;
-    padding: 20px 22px;
-    border: 1px solid var(--border);
-    border-radius: 18px;
-    background: var(--surface-subtle);
-  }
-
-  .info-note strong {
-    color: var(--text);
-  }
-
-  .info-note p {
-    margin: 7px 0 0;
-    color: var(--muted);
-    line-height: 1.6;
-    font-size: 14px;
-  }
-
-  .info-actions {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    margin-top: 30px;
-  }
-
-  .info-primary,
-  .info-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 46px;
-    padding: 0 22px;
-    border-radius: 12px;
-    text-decoration: none;
-    font-size: 14px;
-    font-weight: 700;
-  }
-
-  .info-primary {
-    background: var(--primary);
-    color: var(--primary-contrast);
-  }
-
-  .info-secondary {
-    border: 1px solid var(--border);
-    color: var(--text);
-    background: var(--surface);
-  }
-
-  .install-btn {
-    margin-top: 14px;
-    border: 0;
-    cursor: pointer;
-    font-family: inherit;
-  }
-
-  .install-btn[hidden] {
-    display: none;
-  }
-
-  .install-btn:active {
-    opacity: 0.85;
-  }
+  .about-actions { display: flex; justify-content: center; gap: 12px; margin-top: 32px; }
+  .about-primary, .about-secondary { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: 0 22px; border-radius: 12px; text-decoration: none; font-size: 14px; font-weight: 800; }
+  .about-primary { background: var(--primary); color: var(--primary-contrast); }
+  .about-secondary { border: 1px solid var(--border); color: var(--text); background: var(--surface); }
+  .install-btn { margin-top: 14px; border: 0; cursor: pointer; font-family: inherit; }
+  .install-btn[hidden] { display: none; }
+  .install-btn:active { opacity: .85; }
 
   @media (max-width: 680px) {
-    .info-page { padding-top: 24px; }
-    .info-grid { grid-template-columns: 1fr; }
-    .info-card { padding: 20px; }
-    .info-actions { flex-direction: column; }
-    .info-primary, .info-secondary { width: 100%; box-sizing: border-box; }
+    .about-page { padding: 20px 16px 55px; }
+    .about-hero { padding-top: 18px; }
+    .about-grid, .about-modes, .about-list { grid-template-columns: 1fr; }
+    .about-card, .mode-card, .about-wide { padding: 20px; }
+    .about-actions { flex-direction: column; }
+    .about-primary, .about-secondary { width: 100%; box-sizing: border-box; }
   }
 </style>
 
-<div class="info-page">
-  <section class="info-hero">
-    <div class="info-logo" aria-hidden="true">
+<div class="about-page">
+  <section class="about-hero">
+    <div class="about-logo" aria-hidden="true">
       <img class="light-logo" src="{{ url_for('static', filename='logo-light.svg') }}?v={{ asset_version }}" alt="">
       <img class="dark-logo" src="{{ url_for('static', filename='logo-dark.svg') }}?v={{ asset_version }}" alt="">
     </div>
+    <div class="about-kicker">PERSONAL FINANCE · TRIP EXPENSES</div>
     <h1>Welcome to Minto</h1>
-    <p>
-      A simple personal finance app designed to help you record your spending,
-      understand where your money goes, and keep your accounts organized.
+    <p class="lead">
+      Minto is a simple personal finance workspace for recording everyday money,
+      understanding your financial activity, generating reports, and keeping group-trip expenses organized.
     </p>
   </section>
 
-  <section class="info-grid" aria-label="How Minto works">
-    <article class="info-card">
-      <div class="info-number">01</div>
-      <h2>Track every expense</h2>
-      <p>Add income and expenses as you make them. Keep your daily money activity in one place instead of relying on memory or scattered notes.</p>
-    </article>
+  <section class="about-section">
+    <h2 class="about-section-title">Everything in one place</h2>
+    <p class="about-section-subtitle">Minto is more than an expense list. Each part is designed around a different piece of your financial life.</p>
 
-    <article class="info-card">
-      <div class="info-number">02</div>
-      <h2>Organize your accounts</h2>
-      <p>Create accounts such as Bank, Cash, or Card so your transactions stay organized.</p>
-    </article>
+    <div class="about-grid">
+      <article class="about-card">
+        <div class="about-icon">₹</div>
+        <h3>Income & expenses</h3>
+        <p>Record money coming in and going out, add notes, choose categories, and keep your day-to-day transactions together.</p>
+      </article>
 
-    <article class="info-card">
-      <div class="info-number">03</div>
-      <h2>Understand your money</h2>
-      <p>Use Overview to review spending, income, balances, and your overall financial picture for the selected period.</p>
-    </article>
+      <article class="about-card">
+        <div class="about-icon">01</div>
+        <h3>Accounts & cards</h3>
+        <p>Manage savings/bank accounts, cash, and credit cards separately so every transaction is connected to the right source.</p>
+      </article>
 
-    <article class="info-card">
-      <div class="info-number">04</div>
-      <h2>Keep card bills clear</h2>
-      <p>Record card payments separately so transfers and actual spending don't get mixed together in your financial records.</p>
-    </article>
+      <article class="about-card">
+        <div class="about-icon">02</div>
+        <h3>Investments & lending</h3>
+        <p>Track investment entries with investment categories and maintain lending records with the person or counterparty involved.</p>
+      </article>
+
+      <article class="about-card">
+        <div class="about-icon">03</div>
+        <h3>Transfers made correctly</h3>
+        <p>Credit-card bill payments and cash withdrawals are recorded as linked transfer entries so the movement of money is not mistaken for new income or spending.</p>
+      </article>
+
+      <article class="about-card">
+        <div class="about-icon">04</div>
+        <h3>Dashboard overview</h3>
+        <p>Review expenses by category, spending by account, recent transactions, and the financial activity for the period you're viewing.</p>
+      </article>
+
+      <article class="about-card">
+        <div class="about-icon">05</div>
+        <h3>Reports & PDF export</h3>
+        <p>Generate a date-range financial report as a PDF and keep a history of the reports you have generated.</p>
+      </article>
+    </div>
   </section>
 
-  <div class="info-note">
-    <strong>Your data, your account.</strong>
+  <section class="about-section">
+    <h2 class="about-section-title">Built for real-world tracking</h2>
+    <div class="about-wide">
+      <ul class="about-list">
+        <li>Create your own expense and investment categories.</li>
+        <li>Track spending across multiple accounts.</li>
+        <li>Handle credit-card payments separately from purchases.</li>
+        <li>Record cash withdrawals without losing the transfer trail.</li>
+        <li>Review recent transactions from the dashboard.</li>
+        <li>Generate reports for a selected date range.</li>
+        <li>Use the app comfortably on desktop or mobile.</li>
+        <li>Install Minto as a PWA on supported devices.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="about-section">
+    <h2 class="about-section-title">Two modes, two purposes</h2>
+    <div class="about-modes">
+      <article class="mode-card">
+        <span class="mode-label">Personal mode</span>
+        <h3>Your everyday finances</h3>
+        <p>Use Personal mode for your normal income, expenses, accounts, cards, investments, lending, dashboard, and financial reports.</p>
+      </article>
+      <article class="mode-card">
+        <span class="mode-label">Trip mode</span>
+        <h3>Shared travel expenses</h3>
+        <p>Create trips, add friends or participants, record shared expenses, define splits, and calculate who needs to pay whom at the end.</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="about-note">
+    <strong>Your data stays scoped to your account.</strong>
     <p>
-      Minto is built around your own account and your own financial records.
-      Review your entries regularly and use accurate amounts and accounts to keep your Overview meaningful.
+      Minto is designed around authenticated user accounts. Personal financial records are kept separate from other users,
+      while Trip mode keeps each trip's participants and expenses within that trip.
     </p>
   </div>
 
   {% if session.get('user_id') %}
-  <div class="info-note" id="bio-box" hidden>
-    <strong>Log in with Face ID or fingerprint</strong>
-    <p id="bio-text">Skip typing your password on this device. Your password still works.</p>
-    <button type="button" class="info-primary install-btn" id="bio-btn">Enable</button>
+  <div class="about-note" id="bio-box" hidden>
+    <strong>Use Face ID or fingerprint</strong>
+    <p id="bio-text">Enable a passkey on this device so you can sign in without typing your password every time.</p>
+    <button type="button" class="about-primary install-btn" id="bio-btn">Enable passkey</button>
   </div>
   {% endif %}
 
-  <div class="info-note" id="install-box">
+  <div class="about-note" id="install-box">
     <strong>Install Minto on your phone</strong>
     <p id="install-text">
-      On Android, open your browser menu and choose Install app or Add to Home Screen.
+      On Android, use your browser menu and choose Install app or Add to Home Screen.
       On iPhone or iPad, open this page in Safari, tap Share, then Add to Home Screen.
     </p>
-    <button type="button" class="info-primary install-btn" id="install-btn" hidden>Install App</button>
+    <button type="button" class="about-primary install-btn" id="install-btn" hidden>Install App</button>
   </div>
 
-  <div class="info-actions">
+  <div class="about-actions">
     {% if session.get('user_id') %}
-    <a class="info-primary" href="{{ url_for('entry') }}">Start using Minto</a>
-    <a class="info-secondary" href="{{ url_for('dashboard') }}">View Overview</a>
+    <a class="about-primary" href="{{ url_for('entry') }}">Add an entry</a>
+    <a class="about-secondary" href="{{ url_for('dashboard') }}">View Overview</a>
     {% else %}
-    <a class="info-primary" href="{{ url_for('signup') }}">Sign up</a>
-    <a class="info-secondary" href="{{ url_for('login') }}">Log in</a>
+    <a class="about-primary" href="{{ url_for('signup') }}">Create account</a>
+    <a class="about-secondary" href="{{ url_for('login') }}">Log in</a>
     {% endif %}
   </div>
 </div>
@@ -253,28 +198,23 @@
       if (!r.ok) { text.textContent = t.error || "Please log in again."; btn.disabled = false; return; }
 
       var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
-        auth: {
-          persistSession: false,
-          autoRefreshToken: false,
-          detectSessionInUrl: false,
-          experimental: { passkey: true }
-        }
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, experimental: { passkey: true } }
       });
       await sb.auth.setSession({ access_token: t.access_token, refresh_token: t.refresh_token });
       var res = await sb.auth.registerPasskey();
 
       if (!res.error) {
-        text.textContent = "Done. Next time, tap Log in with Face ID or fingerprint on the login page.";
+        text.textContent = "Done. Next time, use Face ID or fingerprint on the login page.";
         btn.hidden = true;
         return;
       }
       var code = res.error.code || "";
       if (code === "webauthn_credential_exists") {
-        text.textContent = "Already enabled on this device.";
+        text.textContent = "A passkey is already enabled on this device.";
         btn.hidden = true;
         return;
       }
-      if (code === "passkey_disabled") text.textContent = "Face ID login is not available yet.";
+      if (code === "passkey_disabled") text.textContent = "Passkey login is not available yet.";
       else if (code === "too_many_passkeys") text.textContent = "You have reached the passkey limit for this account.";
       else text.textContent = "That was cancelled or did not work. Try again.";
     } catch (e) {
