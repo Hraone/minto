@@ -42,6 +42,34 @@
   .about-primary { background: var(--primary); color: var(--primary-contrast); }
   .about-secondary { border: 1px solid var(--border); color: var(--text); background: var(--surface); }
   .install-btn { margin-top: 14px; border: 0; cursor: pointer; font-family: inherit; }
+
+  .bio-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    width: auto;
+    padding: 11px 15px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    cursor: pointer;
+  }
+
+  .bio-btn:hover { background: var(--nav-hover-bg); }
+  .bio-btn-icon {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--surface-alt);
+    color: var(--positive);
+  }
+  .bio-btn-icon svg { width: 17px; height: 17px; }
   .install-btn[hidden] { display: none; }
   .install-btn:active { opacity: .85; }
 
@@ -75,37 +103,37 @@
 
     <div class="about-grid">
       <article class="about-card">
-        <div class="about-icon">₹</div>
+        <div class="about-icon">01</div>
         <h3>Income & expenses</h3>
         <p>Record money coming in and going out, add notes, choose categories, and keep your day-to-day transactions together.</p>
       </article>
 
       <article class="about-card">
-        <div class="about-icon">01</div>
+        <div class="about-icon">02</div>
         <h3>Accounts & cards</h3>
         <p>Manage savings/bank accounts, cash, and credit cards separately so every transaction is connected to the right source.</p>
       </article>
 
       <article class="about-card">
-        <div class="about-icon">02</div>
+        <div class="about-icon">03</div>
         <h3>Investments & lending</h3>
         <p>Track investment entries with investment categories and maintain lending records with the person or counterparty involved.</p>
       </article>
 
       <article class="about-card">
-        <div class="about-icon">03</div>
+        <div class="about-icon">04</div>
         <h3>Transfers made correctly</h3>
         <p>Credit-card bill payments and cash withdrawals are recorded as linked transfer entries so the movement of money is not mistaken for new income or spending.</p>
       </article>
 
       <article class="about-card">
-        <div class="about-icon">04</div>
+        <div class="about-icon">05</div>
         <h3>Dashboard overview</h3>
         <p>Review expenses by category, spending by account, recent transactions, and the financial activity for the period you're viewing.</p>
       </article>
 
       <article class="about-card">
-        <div class="about-icon">05</div>
+        <div class="about-icon">06</div>
         <h3>Reports & PDF export</h3>
         <p>Generate a date-range financial report as a PDF and keep a history of the reports you have generated.</p>
       </article>
@@ -154,9 +182,21 @@
 
   {% if session.get('user_id') %}
   <div class="about-note" id="bio-box" hidden>
-    <strong>Use Face ID or fingerprint</strong>
-    <p id="bio-text">Enable a passkey on this device so you can sign in without typing your password every time.</p>
-    <button type="button" class="about-primary install-btn" id="bio-btn">Enable passkey</button>
+    <strong>Biometric login</strong>
+    <p id="bio-text">Enable Face ID, fingerprint or another device passkey for quicker sign-in.</p>
+    <button type="button" class="bio-btn" id="bio-btn">
+      <span class="bio-btn-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <path d="M7 4.5A7 7 0 0 1 19.5 9"></path>
+          <path d="M4.5 8A7 7 0 0 1 16 2.5"></path>
+          <path d="M4 12a8 8 0 0 1 8-8"></path>
+          <path d="M6 15a6 6 0 0 1 12 0"></path>
+          <path d="M9 19a3 3 0 0 1 6 0"></path>
+          <path d="M12 8v7"></path>
+        </svg>
+      </span>
+      <span id="bio-btn-label">Enable Biometric</span>
+    </button>
   </div>
   {% endif %}
 
@@ -182,6 +222,88 @@
 
 {% if session.get('user_id') %}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  var box = document.getElementById("bio-box");
+  var text = document.getElementById("bio-text");
+  var btn = document.getElementById("bio-btn");
+  var label = document.getElementById("bio-btn-label");
+  if (!box || !window.PublicKeyCredential || !window.supabase) return;
+  box.hidden = false;
+
+  var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, experimental: { passkey: true } }
+  });
+
+  function setEnabled(enabled) {
+    label.textContent = enabled ? "Disable Biometric" : "Enable Biometric";
+    text.textContent = enabled
+      ? "Biometric login is enabled. Disable it here to remove the passkeys registered for this account."
+      : "Enable Face ID, fingerprint or another device passkey for quicker sign-in.";
+  }
+
+  async function refreshStatus() {
+    try {
+      var r = await fetch("{{ url_for('passkey_status') }}", { credentials: "same-origin" });
+      var data = await r.json();
+      setEnabled(Boolean(data.enabled));
+    } catch (e) {
+      setEnabled(false);
+    }
+  }
+
+  btn.addEventListener("click", async function () {
+    btn.disabled = true;
+    try {
+      var status = await fetch("{{ url_for('passkey_status') }}", { credentials: "same-origin" });
+      var statusData = await status.json();
+
+      if (statusData.enabled) {
+        if (!window.confirm("Disable biometric login for Minto on all registered devices?")) {
+          btn.disabled = false;
+          return;
+        }
+        var off = await fetch("{{ url_for('passkey_disable') }}", {
+          method: "POST",
+          credentials: "same-origin"
+        });
+        var offData = await off.json();
+        if (!off.ok || !offData.ok) throw new Error("disable");
+        setEnabled(false);
+      } else {
+        var r = await fetch("{{ url_for('passkey_token') }}", { method: "POST", credentials: "same-origin" });
+        var t = await r.json();
+        if (!r.ok) { text.textContent = t.error || "Please log in again."; throw new Error("token"); }
+
+        await sb.auth.setSession({ access_token: t.access_token, refresh_token: t.refresh_token });
+        var res = await sb.auth.registerPasskey();
+
+        if (res.error) {
+          var code = res.error.code || "";
+          if (code === "webauthn_credential_exists") {
+            setEnabled(true);
+          } else if (code === "passkey_disabled") {
+            text.textContent = "Passkey login is not available yet.";
+          } else if (code === "too_many_passkeys") {
+            text.textContent = "You have reached the passkey limit for this account.";
+          } else {
+            text.textContent = "That was cancelled or did not work. Try again.";
+          }
+        } else {
+          setEnabled(true);
+        }
+      }
+    } catch (e) {
+      if (e.message === "disable") {
+        text.textContent = "Could not disable biometric login. Please try again.";
+      }
+    }
+    btn.disabled = false;
+  });
+
+  refreshStatus();
+})();
+</script>
 <script>
 (function () {
   var box = document.getElementById("bio-box");
