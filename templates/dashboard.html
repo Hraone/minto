@@ -33,6 +33,73 @@
     font-size: 13px;
   }
 
+  .dashboard-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .download-report-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 11px;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    text-decoration: none;
+    font-size: 12.5px;
+    font-weight: 750;
+    white-space: nowrap;
+  }
+
+  .download-report-btn:hover {
+    background: var(--primary-hover);
+  }
+
+  .dashboard-alerts {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+
+  .dashboard-alert {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 14px 16px;
+    border: 1px solid var(--danger-border);
+    border-radius: 15px;
+    background: var(--danger-bg-alt);
+  }
+
+  .dashboard-alert-icon {
+    flex: none;
+    width: 30px;
+    height: 30px;
+    display: grid;
+    place-items: center;
+    border-radius: 9px;
+    background: var(--danger-bg);
+    color: var(--negative);
+    font-weight: 900;
+  }
+
+  .dashboard-alert strong {
+    display: block;
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .dashboard-alert p {
+    margin: 3px 0 0;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
   .period-tabs {
     display: flex;
     flex-wrap: nowrap;
@@ -197,6 +264,20 @@
     .summary-grid { grid-template-columns: 1fr; }
   }
 
+  @media (max-width: 700px) {
+    .dashboard-actions {
+      width: 100%;
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .download-report-btn {
+      width: 100%;
+    }
+    .period-tabs {
+      width: 100%;
+    }
+  }
+
   /* Chart cards */
 
   .chart-grid {
@@ -346,12 +427,32 @@
       <p>{{ nav_name }} · {{ txn_count }} transaction{{ "s" if txn_count != 1 else "" }} this period</p>
     </div>
 
-    <div class="period-tabs">
-      {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
-      <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
-      {% endfor %}
+    <div class="dashboard-actions">
+      <a class="download-report-btn"
+         href="{{ url_for('download_report', **{'from': report_from, 'to': report_to}) }}">
+        Download Report
+      </a>
+      <div class="period-tabs">
+        {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
+        <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
+        {% endfor %}
+      </div>
     </div>
   </div>
+
+  {% if alerts %}
+  <div class="dashboard-alerts" aria-label="Account notices">
+    {% for alert in alerts %}
+    <div class="dashboard-alert">
+      <div class="dashboard-alert-icon" aria-hidden="true">!</div>
+      <div>
+        <strong>{{ alert.title }}</strong>
+        <p>{{ alert.message }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
   <div class="wealth-section">
 
