@@ -3,6 +3,9 @@ import uuid
 import json
 import time
 import base64
+import smtplib
+import secrets
+from email.message import EmailMessage
 from functools import wraps
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
@@ -126,6 +129,23 @@ def inject_template_globals():
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
+
+# Optional server-side Supabase key, used only by the monthly-report cron.
+# Never expose this key to the browser.
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+MONTHLY_REPORT_CRON_SECRET = os.environ.get("MONTHLY_REPORT_CRON_SECRET", "")
+
+# SMTP is intentionally environment-driven so Minto is not tied to one mail provider.
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME)
+
+# Credit-card dashboard warning defaults. These are deliberately transparent
+# thresholds rather than an opaque "AI" judgement.
+CC_SPEND_SHARE_WARNING = float(os.environ.get("CC_SPEND_SHARE_WARNING", "50"))
+CC_UTILIZATION_WARNING = float(os.environ.get("CC_UTILIZATION_WARNING", "70"))
 
 # How often login_required re-checks with Supabase's Auth service that the
 # session's user still actually exists. An access token stays valid (passes
@@ -388,6 +408,34 @@ def passkey_login():
     return jsonify(ok=True, redirect=home_url())
 
 
+@app.route("/auth/passkey-status")
+@login_required
+def passkey_status():
+    """Return whether the signed-in user has one or more passkeys."""
+    try:
+        result = get_user_client().auth.passkey.list()
+        passkeys = result.data if hasattr(result, "data") else result
+        return jsonify(enabled=bool(passkeys))
+    except Exception:
+        return jsonify(enabled=False)
+
+
+@app.route("/auth/passkey-disable", methods=["POST"])
+@login_required
+def passkey_disable():
+    """Remove all passkeys for the current user after explicit confirmation."""
+    try:
+        result = get_user_client().auth.passkey.list()
+        passkeys = result.data if hasattr(result, "data") else result
+        for passkey in (passkeys or []):
+            passkey_id = passkey.get("id") if isinstance(passkey, dict) else getattr(passkey, "id", None)
+            if passkey_id:
+                get_user_client().auth.passkey.delete({"passkeyId": passkey_id})
+        return jsonify(ok=True)
+    except Exception:
+        return jsonify(ok=False, error="Could not disable biometric login. Please try again."), 500
+
+
 @app.route("/auth/passkey-token", methods=["POST"])
 @login_required
 def passkey_token():
@@ -626,6 +674,122 @@ def download_report():
             "Cache-Control": "no-store",
         },
     )
+
+
+def _admin_client():
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured.")
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+
+def _send_report_email(to_email, user_name, report_month, pdf_bytes):
+    if not all((SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM)):
+        raise RuntimeError("SMTP settings are not configured.")
+
+    message = EmailMessage()
+    message["Subject"] = f"Minto monthly expense report — {report_month.strftime('%B %Y')}"
+    message["From"] = SMTP_FROM
+    message["To"] = to_email
+    message.set_content(
+        f"Hi {user_name},\n\n"
+        f"Attached is your Minto expense report for {report_month.strftime('%B %Y')}.\n\n"
+        "The report includes average daily expenses, category-wise spending, "
+        "account spending and other useful summaries.\n\n"
+        "— Minto"
+    )
+    message.add_attachment(
+        pdf_bytes,
+        maintype="application",
+        subtype="pdf",
+        filename=f"minto-report-{report_month.strftime('%Y-%m')}.pdf",
+    )
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        server.send_message(message)
+
+
+def _previous_month_range(today=None):
+    today = today or datetime.now(timezone.utc).date()
+    first_this = today.replace(day=1)
+    last_previous = first_this - timedelta(days=1)
+    return last_previous.replace(day=1), last_previous
+
+
+def send_monthly_reports():
+    """Generate and email last month's report to every confirmed user.
+    The DB log makes retries idempotent.
+    """
+    month_from, month_to = _previous_month_range()
+    admin = _admin_client()
+
+    users = []
+    page = 1
+    while True:
+        result = admin.auth.admin.list_users(page=page, per_page=1000)
+        batch = result.users if hasattr(result, "users") else getattr(result, "data", result)
+        batch = batch or []
+        users.extend(batch)
+        if len(batch) < 1000:
+            break
+        page += 1
+
+    sent = skipped = failed = 0
+    for user in users:
+        email = getattr(user, "email", None)
+        confirmed = getattr(user, "email_confirmed_at", None)
+        if not email or not confirmed:
+            skipped += 1
+            continue
+
+        user_id = str(getattr(user, "id", ""))
+        try:
+            existing = admin.table("monthly_report_sends").select("id").eq(
+                "user_id", user_id
+            ).eq("report_month", month_from.isoformat()).limit(1).execute().data
+            if existing:
+                skipped += 1
+                continue
+
+            rows = _fetch_transactions(
+                admin, user_id, month_from, month_to,
+                "*, user_sources(name, source_type)",
+            )
+            if not rows:
+                skipped += 1
+                continue
+
+            name = (getattr(user, "user_metadata", {}) or {}).get("display_name") or email.split("@")[0]
+            pdf = build_report_pdf(name, month_from, month_to, rows)
+
+            _send_report_email(email, name, month_from, pdf)
+            admin.table("monthly_report_sends").insert({
+                "user_id": user_id,
+                "report_month": month_from.isoformat(),
+                "sent_at": datetime.now(timezone.utc).isoformat(),
+            }).execute()
+            sent += 1
+        except Exception:
+            failed += 1
+
+    return {"sent": sent, "skipped": skipped, "failed": failed, "report_month": month_from.isoformat()}
+
+
+@app.route("/internal/monthly-reports", methods=["POST"])
+def monthly_reports_cron():
+    """Cron endpoint. Protect with a long random secret; never expose the service key."""
+    if not MONTHLY_REPORT_CRON_SECRET:
+        return jsonify(error="Cron endpoint is not configured."), 503
+
+    supplied = request.headers.get("X-Minto-Cron-Secret", "")
+    if not secrets.compare_digest(supplied, MONTHLY_REPORT_CRON_SECRET):
+        return jsonify(error="Unauthorized."), 401
+
+    try:
+        return jsonify(send_monthly_reports())
+    except Exception as exc:
+        return jsonify(error=str(exc)), 500
 
 
 @app.route("/info")
@@ -1589,6 +1753,66 @@ def compute_net_worth(all_txns, savings, credit_cards):
     }
 
 
+def get_dashboard_alerts(savings, credit_cards, txns):
+    """Build actionable account/card notices from explicit thresholds."""
+    alerts = []
+
+    for source in savings:
+        if source.get("source_type") == "savings" and source.get("below_minimum"):
+            alerts.append({
+                "kind": "warning",
+                "title": f"{source['name']} is below its minimum balance",
+                "message": (
+                    f"Current balance is ₹{source['balance']:.2f}. "
+                    f"Maintain at least ₹{source['minimum_balance']:.2f} in this account."
+                ),
+            })
+
+    period_expenses = sum(
+        float(t.get("amount") or 0)
+        for t in txns
+        if t.get("category") == "expense" and t.get("amount")
+    )
+    cc_by_source = defaultdict(float)
+    for t in txns:
+        source = t.get("user_sources") or {}
+        if (
+            t.get("category") == "expense"
+            and source.get("source_type") == "credit_card"
+            and t.get("amount")
+        ):
+            cc_by_source[source.get("name") or "Credit card"] += float(t["amount"])
+
+    cc_period_spend = sum(cc_by_source.values())
+    share = (cc_period_spend / period_expenses * 100) if period_expenses else 0
+
+    high_util_cards = [
+        c for c in credit_cards
+        if c.get("limit_pct") is not None and c["limit_pct"] >= CC_UTILIZATION_WARNING
+    ]
+    if cc_period_spend and (
+        share >= CC_SPEND_SHARE_WARNING or high_util_cards
+    ):
+        if high_util_cards:
+            names = ", ".join(c["name"] for c in high_util_cards[:3])
+            reason = f"{names} is at or above {CC_UTILIZATION_WARNING:.0f}% of its credit limit."
+        else:
+            reason = (
+                f"Credit-card purchases are {share:.0f}% of your expenses "
+                f"in this period."
+            )
+        alerts.append({
+            "kind": "warning",
+            "title": "High credit-card spending",
+            "message": (
+                f"{reason} Review your card expenses and make sure the balance "
+                "stays manageable."
+            ),
+        })
+
+    return alerts
+
+
 @app.route("/sources", methods=["GET", "POST"])
 @login_required
 def sources():
@@ -1717,6 +1941,7 @@ def dashboard():
     # the period tabs. Only people with a nonzero balance are shown; fully
     # repaid loans (out - in == 0) drop off automatically.
     _, outstanding_loans = get_lending_summary(client, user_id)
+    alerts = get_dashboard_alerts(savings, credit_cards, txns)
 
     return render_template(
         "dashboard.html",
@@ -1732,6 +1957,9 @@ def dashboard():
         recent=recent,
         wealth=wealth,
         outstanding_loans=outstanding_loans,
+        alerts=alerts,
+        report_from=(get_period_start("month").date().replace(day=1)).isoformat(),
+        report_to=datetime.now(timezone.utc).date().isoformat(),
     )
 
 
