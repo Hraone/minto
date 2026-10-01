@@ -917,6 +917,59 @@
 
     }
 
+    /* Compact top bar on small/tablet-width mobile viewports.
+       This also catches high-DPI phones/emulators whose CSS viewport can be
+       wider than 430px even though the physical screen is mobile-sized. */
+    @media (max-width: 600px) {
+      .navbar {
+        height: 56px;
+        margin-bottom: 16px;
+        padding: 0 10px 0 12px;
+        gap: 6px;
+      }
+
+      .brand {
+        font-size: 16px;
+        gap: 7px;
+      }
+
+      .brand-icon {
+        width: 27px;
+        height: 27px;
+      }
+
+      .nav-right {
+        gap: 5px;
+      }
+
+      .mode-toggle {
+        padding: 2px;
+      }
+
+      .mode-option {
+        padding: 6px 9px;
+        font-size: 11px;
+      }
+
+      .user-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+      }
+
+      .about-icon,
+      .theme-toggle {
+        width: 36px;
+        height: 36px;
+      }
+
+      .about-icon svg,
+      .theme-toggle svg {
+        width: 17px;
+        height: 17px;
+      }
+    }
+
     @media (max-width: 430px) {
       .navbar { padding-left: 12px; padding-right: 10px; }
       .brand { font-size: 16px; gap: 7px; }
