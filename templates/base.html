@@ -235,8 +235,8 @@
       top: 0;
       z-index: 50;
 
-      height: 72px;
-      margin: 0 -20px 25px;
+      height: 64px;
+      margin: 0 -20px 20px;
       padding: 0 20px;
 
       display: flex;
@@ -258,14 +258,14 @@
       color: var(--text);
       text-decoration: none;
 
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 800;
       letter-spacing: -0.4px;
     }
 
     .brand-icon {
-      width: 32px;
-      height: 32px;
+      width: 38px;
+      height: 38px;
 
       display: block;
       object-fit: contain;
@@ -433,8 +433,8 @@
       align-items: center;
       justify-content: center;
 
-      width: 36px;
-      height: 36px;
+      width: 42px;
+      height: 42px;
       margin: 0;
       padding: 0;
 
@@ -726,6 +726,53 @@
     .tnum {
       font-variant-numeric: tabular-nums;
       font-feature-settings: "tnum" 1;
+    }
+
+    /* Compact header for tablet / landscape phone layouts. Some mobile browsers
+       expose a wide CSS viewport even when the device is physically small, so
+       this breakpoint intentionally starts above the normal phone breakpoint. */
+    @media (max-width: 1200px) {
+      .navbar {
+        height: 56px !important;
+        margin-bottom: 14px !important;
+        padding: 0 12px !important;
+      }
+
+      .brand {
+        font-size: 17px !important;
+        gap: 7px !important;
+      }
+
+      .brand-icon {
+        width: 30px !important;
+        height: 30px !important;
+      }
+
+      .nav-right {
+        gap: 6px !important;
+      }
+
+      .mode-toggle {
+        padding: 2px !important;
+      }
+
+      .mode-option {
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+      }
+
+      .user-avatar,
+      .about-icon,
+      .theme-toggle {
+        width: 38px !important;
+        height: 38px !important;
+      }
+
+      .about-icon svg,
+      .theme-toggle svg {
+        width: 18px !important;
+        height: 18px !important;
+      }
     }
 
     @media (max-width: 880px) {
