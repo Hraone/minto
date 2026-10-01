@@ -12,21 +12,22 @@
      the navbar and uses the available viewport instead of looking like a
      small block at the top of a long document. */
   .about-hero {
-    min-height: calc(100svh - 118px);
+    min-height: calc(100svh - 126px);
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     text-align: center;
-    padding: 34px 10px 44px;
+    box-sizing: border-box;
+    padding: clamp(42px, 8vh, 78px) 10px 48px;
   }
-  .about-logo { width: 76px; height: 76px; margin: 0 auto 18px; }
+  .about-logo { width: 76px; height: 76px; margin: 0 auto 16px; }
   .about-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .about-logo .dark-logo { display: none; }
   [data-theme="dark"] .about-logo .light-logo { display: none; }
   [data-theme="dark"] .about-logo .dark-logo { display: block; }
   .about-hero h1 { margin: 0; color: var(--text); font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -1.8px; }
-  .about-hero .lead { max-width: 700px; margin: 16px auto 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
+  .about-hero .lead { max-width: 700px; margin: 15px auto 0; color: var(--muted); font-size: 17px; line-height: 1.65; }
   .about-kicker { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: var(--surface-subtle); border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 15px; }
 
   .about-section { margin-top: 54px; scroll-margin-top: 90px; }
@@ -161,8 +162,8 @@
   @media (max-width: 880px) {
     .about-page { padding: 0 16px calc(130px + env(safe-area-inset-bottom, 0px)); }
     .about-hero {
-      min-height: calc(100svh - 104px);
-      padding: 24px 8px 38px;
+      min-height: calc(100svh - 124px);
+      padding: 34px 8px 40px;
     }
     .about-hero h1 { font-size: clamp(36px, 10vw, 48px); }
     .about-hero .lead { max-width: 620px; font-size: 16px; }
@@ -175,7 +176,7 @@
   }
 
   @media (max-width: 420px) {
-    .about-hero { padding-left: 2px; padding-right: 2px; padding-top: 18px; padding-bottom: 30px; }
+    .about-hero { padding-left: 2px; padding-right: 2px; padding-top: 30px; padding-bottom: 34px; }
     .about-hero h1 { font-size: 38px; letter-spacing: -1.5px; }
     .about-hero .lead { font-size: 15px; line-height: 1.7; }
     .about-kicker { font-size: 10px; }

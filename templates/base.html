@@ -506,15 +506,17 @@
     }
     .context-nav-inner {
       width: 100%;
-      max-width: 420px;
+      max-width: 1000px;
       min-height: 42px;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
+      position: relative;
     }
     .context-mode { margin: 0; }
     .context-info {
+      position: absolute;
+      right: 0;
       width: 40px;
       height: 40px;
       display: inline-flex;
@@ -834,7 +836,7 @@
         padding: 5px 12px;
       }
       .context-nav-inner { min-height: 40px; }
-      .context-info { width: 38px; height: 38px; }
+      .context-info { width: 38px; height: 38px; right: 4px; }
 
       .navbar {
         height: 60px;
@@ -1123,6 +1125,23 @@
       .mode-option { padding-left: 7px !important; padding-right: 7px !important; }
       .nav-right { gap: 4px !important; }
       .user-avatar, .about-icon, .theme-toggle { width: 34px !important; height: 34px !important; }
+    }
+
+    /* Secondary navigation: Personal/Trip stays centered; About is an icon-only
+       action on the right so the row remains clean on small screens. */
+    .context-info span { display: none !important; }
+    .context-info svg { width: 18px; height: 18px; }
+
+    @media (max-width: 430px) {
+      .context-nav {
+        margin-top: -14px;
+        margin-bottom: 16px;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      .context-nav-inner { min-height: 44px; }
+      .context-info { right: 2px; width: 38px; height: 38px; }
+      .context-info svg { width: 18px; height: 18px; }
     }
 
     /* Profile avatar in the top bar: just the initial, the name lives on the
@@ -1491,7 +1510,6 @@
         <line x1="12" y1="16" x2="12" y2="12"></line>
         <line x1="12" y1="8" x2="12.01" y2="8"></line>
       </svg>
-      <span>About</span>
     </a>
   </div>
 </div>
