@@ -29,13 +29,41 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FONT_DIR = os.path.join(HERE, "static", "fonts")
 LOGO = os.path.join(HERE, "static", "icons", "icon-192.png")
 
-# DejaVu Sans is bundled because the built-in PDF fonts have no rupee sign.
-pdfmetrics.registerFont(TTFont("MintoSans", os.path.join(FONT_DIR, "DejaVuSans.ttf")))
-pdfmetrics.registerFont(TTFont("MintoSans-Bold", os.path.join(FONT_DIR, "DejaVuSans-Bold.ttf")))
-pdfmetrics.registerFontFamily(
-    "MintoSans", normal="MintoSans", bold="MintoSans-Bold",
-    italic="MintoSans", boldItalic="MintoSans-Bold",
-)
+def _register_fonts():
+    """Use DejaVu Sans (it has the rupee sign). Looks in the bundled
+    static/fonts folder first, then common system locations. If neither has
+    it, the report still builds with Helvetica and writes "Rs" for the rupee,
+    so a missing font file can never stop the app from starting."""
+    candidates = [
+        FONT_DIR,
+        "/usr/share/fonts/truetype/dejavu",
+        "/usr/share/fonts/dejavu",
+        "/usr/share/fonts/TTF",
+    ]
+    for folder in candidates:
+        regular = os.path.join(folder, "DejaVuSans.ttf")
+        bold = os.path.join(folder, "DejaVuSans-Bold.ttf")
+        if os.path.exists(regular) and os.path.exists(bold):
+            try:
+                pdfmetrics.registerFont(TTFont("MintoSans", regular))
+                pdfmetrics.registerFont(TTFont("MintoSans-Bold", bold))
+                pdfmetrics.registerFontFamily(
+                    "MintoSans", normal="MintoSans", bold="MintoSans-Bold",
+                    italic="MintoSans", boldItalic="MintoSans-Bold",
+                )
+                return "\u20b9"
+            except Exception:
+                pass
+    pdfmetrics.registerFont(pdfmetrics.Font("MintoSans", "Helvetica", "WinAnsiEncoding"))
+    pdfmetrics.registerFont(pdfmetrics.Font("MintoSans-Bold", "Helvetica-Bold", "WinAnsiEncoding"))
+    pdfmetrics.registerFontFamily(
+        "MintoSans", normal="MintoSans", bold="MintoSans-Bold",
+        italic="MintoSans", boldItalic="MintoSans-Bold",
+    )
+    return "Rs "
+
+
+CUR = _register_fonts()
 
 INK = colors.HexColor("#17181D")
 MUTED = colors.HexColor("#6B6E76")
@@ -77,13 +105,13 @@ def _group(whole):
 
 def inr0(x):
     x = round(float(x))
-    return ("-" if x < 0 else "") + "₹" + _group(abs(x))
+    return ("-" if x < 0 else "") + CUR + _group(abs(x))
 
 
 def inr2(x):
     x = round(float(x), 2)
     whole, frac = f"{abs(x):.2f}".split(".")
-    return ("-" if x < 0 else "") + "₹" + _group(whole) + "." + frac
+    return ("-" if x < 0 else "") + CUR + _group(whole) + "." + frac
 
 
 def compact(v):

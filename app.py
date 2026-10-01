@@ -597,7 +597,12 @@ def download_report():
         prev_spend = None
 
     name = (session.get("display_name") or "").strip() or (session.get("email") or "").split("@")[0] or "Minto user"
-    pdf = build_report_pdf(name, d_from, d_to, rows, prev_spend)
+    try:
+        pdf = build_report_pdf(name, d_from, d_to, rows, prev_spend)
+    except Exception as e:
+        app.logger.exception("Report PDF failed")
+        flash("Couldn't build the report. Please try again.")
+        return redirect(url_for("reports"))
 
     # Log that a report was made (range and size only, never the report itself).
     # Never blocks the download.
