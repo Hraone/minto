@@ -2,35 +2,18 @@
 
 {% block content %}
 <style>
-  .about-page {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 0 20px 120px;
-  }
-
-  /* The introduction is a true first-screen hero. It starts directly below
-     the navbar and uses the available viewport instead of looking like a
-     small block at the top of a long document. */
-  .about-hero {
-    min-height: calc(100svh - 126px);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: flex-start;
-    text-align: center;
-    box-sizing: border-box;
-    padding: clamp(42px, 8vh, 78px) 10px 48px;
-  }
-  .about-logo { width: 76px; height: 76px; margin: 0 auto 16px; }
+  .about-page { max-width: 1000px; margin: 0 auto; padding: 34px 20px 72px; }
+  .about-hero { text-align: center; padding: 30px 10px 42px; }
+  .about-logo { width: 76px; height: 76px; margin: 0 auto 22px; }
   .about-logo img { width: 100%; height: 100%; object-fit: contain; display: block; }
   .about-logo .dark-logo { display: none; }
   [data-theme="dark"] .about-logo .light-logo { display: none; }
   [data-theme="dark"] .about-logo .dark-logo { display: block; }
   .about-hero h1 { margin: 0; color: var(--text); font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -1.8px; }
-  .about-hero .lead { max-width: 700px; margin: 15px auto 0; color: var(--muted); font-size: 17px; line-height: 1.65; }
+  .about-hero .lead { max-width: 700px; margin: 16px auto 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
   .about-kicker { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: var(--surface-subtle); border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 15px; }
 
-  .about-section { margin-top: 54px; scroll-margin-top: 90px; }
+  .about-section { margin-top: 34px; }
   .about-section-title { margin: 0 0 15px; color: var(--text); font-size: 22px; letter-spacing: -.4px; }
   .about-section-subtitle { margin: -6px 0 18px; color: var(--muted); font-size: 14px; line-height: 1.6; }
   .about-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
@@ -90,96 +73,13 @@
   .install-btn[hidden] { display: none; }
   .install-btn:active { opacity: .85; }
 
-  .finance-quote {
-    width: min(680px, 100%);
-    margin: clamp(28px, 4vh, 46px) auto 0;
-    padding: 17px 20px;
-    box-sizing: border-box;
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    background: var(--surface-translucent);
-    box-shadow: 0 10px 30px var(--shadow-card);
-    color: var(--muted);
-  }
-  .finance-quote-mark {
-    color: var(--positive);
-    font-size: 28px;
-    line-height: .8;
-    font-weight: 900;
-    margin-bottom: 7px;
-  }
-  .finance-quote-text {
-    margin: 0;
-    color: var(--text);
-    font-size: 14px;
-    line-height: 1.55;
-    font-weight: 650;
-  }
-  .finance-quote-label {
-    margin-top: 7px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .6px;
-    text-transform: uppercase;
-    color: var(--muted);
-  }
-
-  .go-top {
-    position: fixed;
-    right: max(18px, calc((100vw - 1000px) / 2 + 18px));
-    bottom: calc(22px + env(safe-area-inset-bottom, 0px));
-    z-index: 35;
-    width: 46px;
-    height: 46px;
-    margin: 0;
-    padding: 0;
-    display: grid;
-    place-items: center;
-    border: 1px solid var(--border);
-    border-radius: 50%;
-    background: var(--surface-translucent);
-    color: var(--text);
-    box-shadow: 0 10px 28px var(--shadow-lift);
-    -webkit-backdrop-filter: blur(14px);
-    backdrop-filter: blur(14px);
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-    transform: translateY(8px);
-    transition: opacity .2s ease, transform .2s ease, visibility .2s ease;
-  }
-
-  .go-top.visible {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-
-  .go-top:hover { background: var(--nav-hover-bg); }
-  .go-top svg { width: 19px; height: 19px; }
-
-  @media (max-width: 880px) {
-    .about-page { padding: 0 16px calc(130px + env(safe-area-inset-bottom, 0px)); }
-    .about-hero {
-      min-height: calc(100svh - 124px);
-      padding: 34px 8px 40px;
-    }
-    .about-hero h1 { font-size: clamp(36px, 10vw, 48px); }
-    .about-hero .lead { max-width: 620px; font-size: 16px; }
-    .about-logo { width: 72px; height: 72px; }
+  @media (max-width: 680px) {
+    .about-page { padding: 20px 16px 55px; }
+    .about-hero { padding-top: 18px; }
     .about-grid, .about-modes, .about-list { grid-template-columns: 1fr; }
     .about-card, .mode-card, .about-wide { padding: 20px; }
     .about-actions { flex-direction: column; }
     .about-primary, .about-secondary { width: 100%; box-sizing: border-box; }
-    .go-top { right: 16px; bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
-  }
-
-  @media (max-width: 420px) {
-    .about-hero { padding-left: 2px; padding-right: 2px; padding-top: 30px; padding-bottom: 34px; }
-    .about-hero h1 { font-size: 38px; letter-spacing: -1.5px; }
-    .about-hero .lead { font-size: 15px; line-height: 1.7; }
-    .about-kicker { font-size: 10px; }
   }
 </style>
 
@@ -195,11 +95,6 @@
       Minto is a simple personal finance workspace for recording everyday money,
       understanding your financial activity, generating reports, and keeping group-trip expenses organized.
     </p>
-    <div class="finance-quote" aria-live="polite">
-      <div class="finance-quote-mark">“</div>
-      <p class="finance-quote-text" id="financeQuoteText"></p>
-      <div class="finance-quote-label">Minto finance note</div>
-    </div>
   </section>
 
   <section class="about-section">
@@ -324,31 +219,6 @@
     {% endif %}
   </div>
 </div>
-
-<button type="button" class="go-top" id="goTop" aria-label="Go to top" title="Go to top">
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-    <path d="M12 19V5"></path>
-    <path d="m6 11 6-6 6 6"></path>
-  </svg>
-</button>
-
-<script>
-(function () {
-  var button = document.getElementById('goTop');
-  if (!button) return;
-
-  function update() {
-    button.classList.toggle('visible', window.scrollY > 420);
-  }
-
-  window.addEventListener('scroll', update, { passive: true });
-  update();
-
-  button.addEventListener('click', function () {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-})();
-</script>
 
 {% if session.get('user_id') %}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.0/dist/umd/supabase.js"></script>
@@ -518,43 +388,4 @@
   showButton();
 })();
 </script>
-
-<script>
-  (function () {
-    const quotes = [
-      "Small savings today can create bigger choices tomorrow.",
-      "Spend with intention, not just by habit.",
-      "A budget is a plan for your money, not a restriction on your life.",
-      "Track the small expenses; they often tell the bigger story.",
-      "Save first, spend what remains, and review the difference.",
-      "Knowing where your money goes is the first step toward directing it.",
-      "Good money habits are built one ordinary day at a time.",
-      "A clear view of your spending makes better decisions easier.",
-      "Consistency matters more than a perfect financial month.",
-      "Every rupee has a job; give it one before it leaves your account.",
-      "Keep an emergency buffer so surprises stay manageable.",
-      "Saving is not about never spending; it is about spending with purpose.",
-      "Review yesterday's spending so tomorrow's choices become easier.",
-      "Financial progress is often quiet: fewer leaks, better habits, steady saving.",
-      "Separate needs, wants, and impulses before you open your wallet.",
-      "Your spending history is useful information, not a scorecard.",
-      "A little awareness today can prevent a lot of stress later.",
-      "Build financial habits you can repeat, not rules you cannot sustain.",
-      "When you track your money, your money becomes easier to manage.",
-      "Make room for tomorrow by keeping today's spending intentional."
-    ];
-    const el = document.getElementById("financeQuoteText");
-    if (!el) return;
-    let index = Math.floor(Math.random() * quotes.length);
-    try {
-      const previous = Number(sessionStorage.getItem("minto-quote-index"));
-      if (quotes.length > 1 && Number.isInteger(previous) && previous === index) {
-        index = (index + 1) % quotes.length;
-      }
-      sessionStorage.setItem("minto-quote-index", String(index));
-    } catch (e) {}
-    el.textContent = quotes[index];
-  })();
-</script>
-
 {% endblock %}
