@@ -127,6 +127,34 @@ def save_profile_emoji(client, user_id, emoji):
         return False
 
 
+def load_credit_card_setup_completed(client, user_id):
+    """Return whether this user has completed the one-time first credit-card
+    payment setup. Older profiles safely fall back to False if the column has
+    not been added yet."""
+    try:
+        rows = (
+            client.table("profiles")
+            .select("credit_card_setup_completed")
+            .eq("id", user_id)
+            .execute()
+            .data
+        )
+        return bool(rows and rows[0].get("credit_card_setup_completed"))
+    except Exception:
+        return False
+
+
+def save_credit_card_setup_completed(client, user_id):
+    try:
+        client.table("profiles").upsert({
+            "id": user_id,
+            "credit_card_setup_completed": True,
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
 def load_display_name(client, user_id):
     """The name shown in the top bar. Empty when none is saved yet (or the
     display_name column isn't there), in which case the email name is used."""
@@ -877,6 +905,22 @@ def pay_cc_bill():
         from_source_id = request.form.get("from_source_id")
         to_source_id = request.form.get("to_source_id")
         notes = request.form.get("notes") or None
+        previous_card_bill = request.form.get("previous_card_bill")
+        setup_completed = load_credit_card_setup_completed(client, user_id)
+
+        # On a user's first credit-card bill payment, require an explicit
+        # choice about whether the bill belongs to spending from before Minto
+        # was started. The choice is remembered only as setup completion; the
+        # individual transaction keeps its own previous-bill flag.
+        if not setup_completed and previous_card_bill not in ("yes", "no"):
+            return render_template(
+                "pay_cc_bill.html",
+                savings_sources=savings_sources,
+                cc_sources=cc_sources,
+                first_card_payment=True,
+            )
+
+        is_previous_card_bill = (previous_card_bill == "yes") if not setup_completed else False
 
         if not amount or not from_source_id or not to_source_id:
             flash("Pick an amount, a bank or cash account to pay from, and a card to pay off.")
@@ -908,6 +952,7 @@ def pay_cc_bill():
                 "description": description,
                 "raw_text": description,
                 "transfer_group": transfer_group,
+                "is_previous_card_bill": is_previous_card_bill,
             }).execute()
             return entry_id
 
@@ -930,7 +975,15 @@ def pay_cc_bill():
                 cc_sources=cc_sources,
             )
 
-        flash("Payment recorded. Bank and card balances both updated.")
+        if not setup_completed:
+            # Do not fail the payment if the preference write is unavailable;
+            # the transaction itself has already been recorded correctly.
+            save_credit_card_setup_completed(client, user_id)
+
+        if is_previous_card_bill:
+            flash("Previous card bill recorded. It reduces your bank and card balances but is not counted as current spending.")
+        else:
+            flash("Payment recorded. Bank and card balances both updated.")
         return redirect(url_for("sources"))
 
     return render_template(
@@ -1540,6 +1593,22 @@ def withdraw_cash():
         from_source_id = request.form.get("from_source_id")
         to_source_id = request.form.get("to_source_id")
         notes = request.form.get("notes") or None
+        previous_card_bill = request.form.get("previous_card_bill")
+        setup_completed = load_credit_card_setup_completed(client, user_id)
+
+        # On a user's first credit-card bill payment, require an explicit
+        # choice about whether the bill belongs to spending from before Minto
+        # was started. The choice is remembered only as setup completion; the
+        # individual transaction keeps its own previous-bill flag.
+        if not setup_completed and previous_card_bill not in ("yes", "no"):
+            return render_template(
+                "pay_cc_bill.html",
+                savings_sources=savings_sources,
+                cc_sources=cc_sources,
+                first_card_payment=True,
+            )
+
+        is_previous_card_bill = (previous_card_bill == "yes") if not setup_completed else False
 
         if not amount or not from_source_id or not to_source_id:
             flash("Pick an amount, a bank account to take it from, and which cash account it goes into.")
