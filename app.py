@@ -3,13 +3,11 @@ import uuid
 import json
 import time
 import base64
-import smtplib
-import secrets
-from email.message import EmailMessage
 from functools import wraps
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone, date
+import calendar
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, Response
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -77,6 +75,28 @@ def load_saved_mode(client, user_id):
     return "personal"
 
 
+def load_saved_theme(client, user_id):
+    """Load the user's saved appearance preference. Falls back to light for
+    older profiles that do not have a theme value yet."""
+    try:
+        rows = client.table("profiles").select("theme").eq("id", user_id).execute().data
+        if rows and rows[0].get("theme") in ("light", "dark"):
+            return rows[0]["theme"]
+    except Exception:
+        pass
+    return "light"
+
+
+def save_theme(client, user_id, theme):
+    if theme not in ("light", "dark"):
+        return False
+    try:
+        client.table("profiles").upsert({"id": user_id, "theme": theme}).execute()
+        return True
+    except Exception:
+        return False
+
+
 def load_display_name(client, user_id):
     """The name shown in the top bar. Empty when none is saved yet (or the
     display_name column isn't there), in which case the email name is used."""
@@ -121,6 +141,7 @@ def inject_template_globals():
     return {
         "asset_version": "1",
         "app_mode": mode,
+        "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
         "nav_name": name,
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
@@ -129,23 +150,6 @@ def inject_template_globals():
 
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
-
-# Optional server-side Supabase key, used only by the monthly-report cron.
-# Never expose this key to the browser.
-SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
-MONTHLY_REPORT_CRON_SECRET = os.environ.get("MONTHLY_REPORT_CRON_SECRET", "")
-
-# SMTP is intentionally environment-driven so Minto is not tied to one mail provider.
-SMTP_HOST = os.environ.get("SMTP_HOST", "")
-SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
-SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
-SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
-SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME)
-
-# Credit-card dashboard warning defaults. These are deliberately transparent
-# thresholds rather than an opaque "AI" judgement.
-CC_SPEND_SHARE_WARNING = float(os.environ.get("CC_SPEND_SHARE_WARNING", "50"))
-CC_UTILIZATION_WARNING = float(os.environ.get("CC_UTILIZATION_WARNING", "70"))
 
 # How often login_required re-checks with Supabase's Auth service that the
 # session's user still actually exists. An access token stays valid (passes
@@ -272,6 +276,9 @@ def login_required(view):
         if "user_id" not in session:
             return redirect(url_for("info"))
 
+        if session.get("theme") not in ("light", "dark"):
+            session["theme"] = load_saved_theme(get_user_client(), session["user_id"])
+
         now = datetime.now(timezone.utc).timestamp()
         last_verified = session.get("verified_at", 0)
         if now - last_verified > USER_VERIFY_INTERVAL_SECONDS:
@@ -354,8 +361,10 @@ def login():
         session["expires_at"] = result.session.expires_at
 
         # Resume whichever mode they were last in (Trip mode survives a re-login).
-        session["mode"] = load_saved_mode(get_user_client(), result.user.id)
-        session["display_name"] = load_display_name(get_user_client(), result.user.id)
+        user_client = get_user_client()
+        session["mode"] = load_saved_mode(user_client, result.user.id)
+        session["theme"] = load_saved_theme(user_client, result.user.id)
+        session["display_name"] = load_display_name(user_client, result.user.id)
 
         # New users see Minto's short introduction once before entering the app.
         if session.pop("show_info", False):
@@ -403,37 +412,11 @@ def passkey_login():
     session["refresh_token"] = refresh_token
     session["expires_at"] = _jwt_exp(access_token)
     session["verified_at"] = time.time()
-    session["mode"] = load_saved_mode(get_user_client(), user.id)
-    session["display_name"] = load_display_name(get_user_client(), user.id)
+    user_client = get_user_client()
+    session["mode"] = load_saved_mode(user_client, user.id)
+    session["theme"] = load_saved_theme(user_client, user.id)
+    session["display_name"] = load_display_name(user_client, user.id)
     return jsonify(ok=True, redirect=home_url())
-
-
-@app.route("/auth/passkey-status")
-@login_required
-def passkey_status():
-    """Return whether the signed-in user has one or more passkeys."""
-    try:
-        result = get_user_client().auth.passkey.list()
-        passkeys = result.data if hasattr(result, "data") else result
-        return jsonify(enabled=bool(passkeys))
-    except Exception:
-        return jsonify(enabled=False)
-
-
-@app.route("/auth/passkey-disable", methods=["POST"])
-@login_required
-def passkey_disable():
-    """Remove all passkeys for the current user after explicit confirmation."""
-    try:
-        result = get_user_client().auth.passkey.list()
-        passkeys = result.data if hasattr(result, "data") else result
-        for passkey in (passkeys or []):
-            passkey_id = passkey.get("id") if isinstance(passkey, dict) else getattr(passkey, "id", None)
-            if passkey_id:
-                get_user_client().auth.passkey.delete({"passkeyId": passkey_id})
-        return jsonify(ok=True)
-    except Exception:
-        return jsonify(ok=False, error="Could not disable biometric login. Please try again."), 500
 
 
 @app.route("/auth/passkey-token", methods=["POST"])
@@ -488,8 +471,8 @@ def profile():
 
     def saved_name():
         try:
-            rows = client.table("profiles").select("display_name").eq("id", user_id).execute().data
-            return rows[0].get("display_name") if rows else None
+            rows = client.table("profiles").select("display_name, theme").eq("id", user_id).execute().data
+            return rows[0] if rows else {}
         except Exception:
             return None  # column not added yet: fall back to the email name
 
@@ -508,10 +491,13 @@ def profile():
         accounts = accounts_f.result()
         transactions = transactions_f.result()
         trips = trips_f.result()
-        name = name_f.result()
+        profile_data = name_f.result() or {}
         since = since_f.result()
 
-    session["display_name"] = name or ""  # keeps the top bar in step
+    name = profile_data.get("display_name") or ""
+    theme = profile_data.get("theme") if profile_data.get("theme") in ("light", "dark") else session.get("theme", "light")
+    session["display_name"] = name  # keeps the top bar in step
+    session["theme"] = theme
     display_name = name or (email.split("@")[0] if email else "Minto user")
     return render_template(
         "profile.html",
@@ -522,7 +508,24 @@ def profile():
         accounts=accounts,
         transactions=transactions,
         trips=trips,
+        theme=theme,
     )
+
+
+@app.route("/profile/theme", methods=["POST"])
+@login_required
+def update_profile_theme():
+    theme = request.form.get("theme", "light").strip().lower()
+    if theme not in ("light", "dark"):
+        flash("Invalid theme selection.")
+        return redirect(url_for("profile"))
+
+    if save_theme(get_user_client(), session["user_id"], theme):
+        session["theme"] = theme
+        flash("Appearance updated.")
+    else:
+        flash("Couldn't save your appearance preference. Please try again.")
+    return redirect(url_for("profile"))
 
 
 @app.route("/profile/name", methods=["POST"])
@@ -674,122 +677,6 @@ def download_report():
             "Cache-Control": "no-store",
         },
     )
-
-
-def _admin_client():
-    if not SUPABASE_SERVICE_ROLE_KEY:
-        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured.")
-    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
-
-
-def _send_report_email(to_email, user_name, report_month, pdf_bytes):
-    if not all((SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM)):
-        raise RuntimeError("SMTP settings are not configured.")
-
-    message = EmailMessage()
-    message["Subject"] = f"Minto monthly expense report — {report_month.strftime('%B %Y')}"
-    message["From"] = SMTP_FROM
-    message["To"] = to_email
-    message.set_content(
-        f"Hi {user_name},\n\n"
-        f"Attached is your Minto expense report for {report_month.strftime('%B %Y')}.\n\n"
-        "The report includes average daily expenses, category-wise spending, "
-        "account spending and other useful summaries.\n\n"
-        "— Minto"
-    )
-    message.add_attachment(
-        pdf_bytes,
-        maintype="application",
-        subtype="pdf",
-        filename=f"minto-report-{report_month.strftime('%Y-%m')}.pdf",
-    )
-
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
-        server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.send_message(message)
-
-
-def _previous_month_range(today=None):
-    today = today or datetime.now(timezone.utc).date()
-    first_this = today.replace(day=1)
-    last_previous = first_this - timedelta(days=1)
-    return last_previous.replace(day=1), last_previous
-
-
-def send_monthly_reports():
-    """Generate and email last month's report to every confirmed user.
-    The DB log makes retries idempotent.
-    """
-    month_from, month_to = _previous_month_range()
-    admin = _admin_client()
-
-    users = []
-    page = 1
-    while True:
-        result = admin.auth.admin.list_users(page=page, per_page=1000)
-        batch = result.users if hasattr(result, "users") else getattr(result, "data", result)
-        batch = batch or []
-        users.extend(batch)
-        if len(batch) < 1000:
-            break
-        page += 1
-
-    sent = skipped = failed = 0
-    for user in users:
-        email = getattr(user, "email", None)
-        confirmed = getattr(user, "email_confirmed_at", None)
-        if not email or not confirmed:
-            skipped += 1
-            continue
-
-        user_id = str(getattr(user, "id", ""))
-        try:
-            existing = admin.table("monthly_report_sends").select("id").eq(
-                "user_id", user_id
-            ).eq("report_month", month_from.isoformat()).limit(1).execute().data
-            if existing:
-                skipped += 1
-                continue
-
-            rows = _fetch_transactions(
-                admin, user_id, month_from, month_to,
-                "*, user_sources(name, source_type)",
-            )
-            if not rows:
-                skipped += 1
-                continue
-
-            name = (getattr(user, "user_metadata", {}) or {}).get("display_name") or email.split("@")[0]
-            pdf = build_report_pdf(name, month_from, month_to, rows)
-
-            _send_report_email(email, name, month_from, pdf)
-            admin.table("monthly_report_sends").insert({
-                "user_id": user_id,
-                "report_month": month_from.isoformat(),
-                "sent_at": datetime.now(timezone.utc).isoformat(),
-            }).execute()
-            sent += 1
-        except Exception:
-            failed += 1
-
-    return {"sent": sent, "skipped": skipped, "failed": failed, "report_month": month_from.isoformat()}
-
-
-@app.route("/internal/monthly-reports", methods=["POST"])
-def monthly_reports_cron():
-    """Cron endpoint. Protect with a long random secret; never expose the service key."""
-    if not MONTHLY_REPORT_CRON_SECRET:
-        return jsonify(error="Cron endpoint is not configured."), 503
-
-    supplied = request.headers.get("X-Minto-Cron-Secret", "")
-    if not secrets.compare_digest(supplied, MONTHLY_REPORT_CRON_SECRET):
-        return jsonify(error="Unauthorized."), 401
-
-    try:
-        return jsonify(send_monthly_reports())
-    except Exception as exc:
-        return jsonify(error=str(exc)), 500
 
 
 @app.route("/info")
@@ -1065,6 +952,13 @@ def delete_transaction(entry_id):
         ids_to_delete = [p["id"] for p in paired]
 
     for tid in ids_to_delete:
+        # If this transaction came from a fixed expense, removing the actual
+        # transaction should make the monthly commitment payable again.
+        try:
+            client.table("fixed_expense_payments").delete().eq("transaction_id", tid).eq("user_id", user_id).execute()
+        except Exception:
+            # Older databases may not have the fixed-expense tables yet.
+            pass
         # Deleting the entries row cascades to its transactions row too.
         client.table("entries").delete().eq("id", tid).eq("user_id", user_id).execute()
 
@@ -1753,64 +1647,184 @@ def compute_net_worth(all_txns, savings, credit_cards):
     }
 
 
-def get_dashboard_alerts(savings, credit_cards, txns):
-    """Build actionable account/card notices from explicit thresholds."""
-    alerts = []
+def fixed_expense_due_date(year, month, due_day):
+    """Return this month's due date, clamping 29-31 to the month's last day."""
+    return date(year, month, min(int(due_day), calendar.monthrange(year, month)[1]))
 
-    for source in savings:
-        if source.get("source_type") == "savings" and source.get("below_minimum"):
-            alerts.append({
-                "kind": "warning",
-                "title": f"{source['name']} is below its minimum balance",
-                "message": (
-                    f"Current balance is ₹{source['balance']:.2f}. "
-                    f"Maintain at least ₹{source['minimum_balance']:.2f} in this account."
-                ),
-            })
 
-    period_expenses = sum(
-        float(t.get("amount") or 0)
-        for t in txns
-        if t.get("category") == "expense" and t.get("amount")
+def get_fixed_expenses_for_month(client, user_id, year=None, month=None):
+    today = datetime.now(timezone.utc).date()
+    year = year or today.year
+    month = month or today.month
+    month_start = date(year, month, 1)
+    rows = (
+        client.table("fixed_expenses")
+        .select("*, user_sources(name, source_type)")
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .order("due_day")
+        .execute()
+        .data
     )
-    cc_by_source = defaultdict(float)
-    for t in txns:
-        source = t.get("user_sources") or {}
-        if (
-            t.get("category") == "expense"
-            and source.get("source_type") == "credit_card"
-            and t.get("amount")
-        ):
-            cc_by_source[source.get("name") or "Credit card"] += float(t["amount"])
+    payments = (
+        client.table("fixed_expense_payments")
+        .select("fixed_expense_id, transaction_id, paid_at")
+        .eq("user_id", user_id)
+        .eq("due_month", month_start.isoformat())
+        .execute()
+        .data
+    )
+    paid_by_id = {p["fixed_expense_id"]: p for p in payments}
+    result = []
+    for row in rows:
+        due = fixed_expense_due_date(year, month, row["due_day"])
+        paid = paid_by_id.get(row["id"])
+        item = dict(row)
+        item["due_date"] = due
+        item["paid"] = bool(paid)
+        item["payment"] = paid
+        result.append(item)
+    return result
 
-    cc_period_spend = sum(cc_by_source.values())
-    share = (cc_period_spend / period_expenses * 100) if period_expenses else 0
 
-    high_util_cards = [
-        c for c in credit_cards
-        if c.get("limit_pct") is not None and c["limit_pct"] >= CC_UTILIZATION_WARNING
-    ]
-    if cc_period_spend and (
-        share >= CC_SPEND_SHARE_WARNING or high_util_cards
-    ):
-        if high_util_cards:
-            names = ", ".join(c["name"] for c in high_util_cards[:3])
-            reason = f"{names} is at or above {CC_UTILIZATION_WARNING:.0f}% of its credit limit."
-        else:
-            reason = (
-                f"Credit-card purchases are {share:.0f}% of your expenses "
-                f"in this period."
-            )
-        alerts.append({
-            "kind": "warning",
-            "title": "High credit-card spending",
-            "message": (
-                f"{reason} Review your card expenses and make sure the balance "
-                "stays manageable."
-            ),
-        })
+@app.route("/fixed-expenses", methods=["GET", "POST"])
+@login_required
+def fixed_expenses():
+    client = get_user_client()
+    user_id = session["user_id"]
 
-    return alerts
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        amount_raw = request.form.get("amount", "").strip()
+        due_day_raw = request.form.get("due_day", "").strip()
+        category = request.form.get("category", "other").strip() or "other"
+        source_id = request.form.get("source_id") or None
+        try:
+            amount = float(amount_raw)
+            due_day = int(due_day_raw)
+            if not name or amount <= 0 or not 1 <= due_day <= 31:
+                raise ValueError
+            client.table("fixed_expenses").insert({
+                "user_id": user_id,
+                "name": name,
+                "amount": amount,
+                "due_day": due_day,
+                "category": category,
+                "source_id": int(source_id) if source_id else None,
+            }).execute()
+            flash(f"Added {name} as a monthly fixed expense.")
+        except Exception:
+            flash("Couldn't add that fixed expense. Check the name, amount and due day.")
+        return redirect(url_for("fixed_expenses"))
+
+    today = datetime.now(timezone.utc).date()
+    expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    sources = (
+        client.table("user_sources")
+        .select("id, name, source_type")
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .in_("source_type", ["savings", "cash"])
+        .order("name")
+        .execute()
+        .data
+    )
+    categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
+    return render_template(
+        "fixed_expenses.html",
+        expenses=expenses,
+        sources=sources,
+        categories=categories,
+        month_label=today.strftime("%B %Y"),
+    )
+
+
+@app.route("/fixed-expenses/<int:fixed_expense_id>/pay", methods=["POST"])
+@login_required
+def pay_fixed_expense(fixed_expense_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    today = datetime.now(timezone.utc).date()
+    month_start = today.replace(day=1)
+
+    rows = (
+        client.table("fixed_expenses")
+        .select("*")
+        .eq("id", fixed_expense_id)
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not rows:
+        flash("That fixed expense could not be found.")
+        return redirect(url_for("fixed_expenses"))
+    expense = rows[0]
+    source_id = request.form.get("source_id") or expense.get("source_id")
+    if not source_id:
+        flash("Choose the account used to pay this expense.")
+        return redirect(url_for("fixed_expenses"))
+
+    existing = (
+        client.table("fixed_expense_payments")
+        .select("id")
+        .eq("fixed_expense_id", fixed_expense_id)
+        .eq("due_month", month_start.isoformat())
+        .limit(1)
+        .execute()
+        .data
+    )
+    if existing:
+        flash("This fixed expense is already marked paid for this month.")
+        return redirect(url_for("fixed_expenses"))
+
+    try:
+        entry_row = client.table("entries").insert({
+            "user_id": user_id,
+            "entry_text": f"Fixed expense: {expense['name']}",
+            "mode": "manual",
+        }).execute()
+        entry_id = entry_row.data[0]["id"]
+        txn = client.table("transactions").insert({
+            "id": entry_id,
+            "user_id": user_id,
+            "direction": "out",
+            "category": "expense",
+            "expense_category": expense.get("category") or "other",
+            "source_id": int(source_id),
+            "amount": float(expense["amount"]),
+            "currency": "INR",
+            "description": expense["name"],
+            "raw_text": f"Fixed expense: {expense['name']}",
+            "transaction_date": today.isoformat(),
+        }).execute()
+        transaction_id = txn.data[0]["id"]
+        client.table("fixed_expense_payments").insert({
+            "fixed_expense_id": fixed_expense_id,
+            "user_id": user_id,
+            "due_month": month_start.isoformat(),
+            "transaction_id": transaction_id,
+        }).execute()
+        flash(f"Marked {expense['name']} as paid and added it to your expenses.")
+    except Exception as e:
+        try:
+            if 'entry_id' in locals():
+                client.table("entries").delete().eq("id", entry_id).eq("user_id", user_id).execute()
+        except Exception:
+            pass
+        flash("Couldn't mark that fixed expense as paid. Please try again.")
+    return redirect(url_for("fixed_expenses"))
+
+
+@app.route("/fixed-expenses/<int:fixed_expense_id>/delete", methods=["POST"])
+@login_required
+def delete_fixed_expense(fixed_expense_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    client.table("fixed_expenses").delete().eq("id", fixed_expense_id).eq("user_id", user_id).execute()
+    flash("Fixed expense removed.")
+    return redirect(url_for("fixed_expenses"))
 
 
 @app.route("/sources", methods=["GET", "POST"])
@@ -1937,11 +1951,17 @@ def dashboard():
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
     wealth = compute_net_worth(all_txns, savings, credit_cards)
 
+    # Fixed monthly commitments are forecasts until the user marks them paid.
+    today = datetime.now(timezone.utc).date()
+    fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    fixed_total = sum(float(x["amount"] or 0) for x in fixed_expenses if not x["paid"])
+    fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
+    fixed_remaining = float(wealth.total_savings) - fixed_total
+
     # Outstanding loans by person — all-time, like net worth, not scoped to
     # the period tabs. Only people with a nonzero balance are shown; fully
     # repaid loans (out - in == 0) drop off automatically.
     _, outstanding_loans = get_lending_summary(client, user_id)
-    alerts = get_dashboard_alerts(savings, credit_cards, txns)
 
     return render_template(
         "dashboard.html",
@@ -1957,9 +1977,10 @@ def dashboard():
         recent=recent,
         wealth=wealth,
         outstanding_loans=outstanding_loans,
-        alerts=alerts,
-        report_from=(get_period_start("month").date().replace(day=1)).isoformat(),
-        report_to=datetime.now(timezone.utc).date().isoformat(),
+        fixed_expenses=fixed_expenses,
+        fixed_total=fixed_total,
+        fixed_paid_total=fixed_paid_total,
+        fixed_remaining=fixed_remaining,
     )
 
 
