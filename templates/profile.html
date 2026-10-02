@@ -111,56 +111,84 @@
   }
 
 
-  .appearance-row {
+  .theme-row {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    gap: 16px;
   }
 
-  .appearance-options {
-    display: flex;
-    align-items: stretch;
-    gap: 10px;
-    flex: 1;
-    min-width: 0;
-  }
-
-  .appearance-option,
-  .appearance-save {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .appearance-option {
-    position: relative;
-  }
-
-  .appearance-option input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  .appearance-option label {
-    display: flex;
+  .theme-label {
+    display: flex !important;
     align-items: center;
-    justify-content: center;
-    min-height: 48px;
-    margin: 0;
-    padding: 10px 14px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface);
-    color: var(--text);
-    cursor: pointer;
-    font-size: 14px;
+    gap: 8px;
+    margin: 0 !important;
+    color: var(--text) !important;
+    font-size: 14px !important;
     font-weight: 600;
   }
 
-  .appearance-option input:checked + label {
-    border-color: var(--positive);
+  .theme-toggle-wrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .theme-icon {
+    font-size: 16px;
+    line-height: 1;
+    opacity: 0.8;
+  }
+
+  .theme-switch {
+    position: relative;
+    width: 58px;
+    height: 32px;
+    flex: 0 0 auto;
+  }
+
+  .theme-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+
+  .theme-slider {
+    position: absolute;
+    inset: 0;
+    border: 1px solid var(--border);
+    border-radius: 999px;
     background: var(--surface-subtle);
-    box-shadow: inset 0 0 0 1px var(--positive);
+    cursor: pointer;
+    transition: 0.2s ease;
+  }
+
+  .theme-slider::before {
+    content: '';
+    position: absolute;
+    width: 24px;
+    height: 24px;
+    left: 3px;
+    top: 3px;
+    border-radius: 50%;
+    background: var(--text);
+    transition: transform 0.2s ease;
+  }
+
+  .theme-switch input:checked + .theme-slider {
+    border-color: var(--positive);
+    background: var(--positive);
+  }
+
+  .theme-switch input:checked + .theme-slider::before {
+    transform: translateX(26px);
+    background: #fff;
+  }
+
+  .theme-switch input:focus-visible + .theme-slider {
+    outline: 2px solid var(--positive);
+    outline-offset: 3px;
   }
 
   .emoji-picker {
@@ -223,14 +251,6 @@
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-  }
-
-  .appearance-save {
-    margin-top: 0;
-    padding: 10px 14px;
-    min-height: 48px;
-    white-space: nowrap;
-    box-sizing: border-box;
   }
 
   .profile-links {
@@ -317,22 +337,62 @@
 
   <div class="profile-card">
     <h3>Appearance</h3>
-    <form method="post" action="{{ url_for('update_profile_theme') }}" data-no-loader>
-      <label>Theme</label>
-      <div class="appearance-row">
-        <div class="appearance-options">
-        <div class="appearance-option">
-          <input type="radio" id="theme-light" name="theme" value="light" {% if theme == 'light' %}checked{% endif %}>
-          <label for="theme-light">Light</label>
-        </div>
-        <div class="appearance-option">
-          <input type="radio" id="theme-dark" name="theme" value="dark" {% if theme == 'dark' %}checked{% endif %}>
-          <label for="theme-dark">Dark</label>
-        </div>
-        <button type="submit" class="profile-save appearance-save">Save</button>
+    <div class="theme-row">
+      <span class="theme-label">Theme</span>
+      <div class="theme-toggle-wrap">
+        <span class="theme-icon" aria-hidden="true">☀️</span>
+        <label class="theme-switch" aria-label="Toggle dark mode">
+          <input
+            type="checkbox"
+            id="theme-toggle"
+            {% if theme == 'dark' %}checked{% endif %}
+            aria-label="Toggle dark mode"
+          >
+          <span class="theme-slider"></span>
+        </label>
+        <span class="theme-icon" aria-hidden="true">🌙</span>
       </div>
-    </form>
+    </div>
+    <p id="theme-status" class="profile-email" style="margin-top: 10px;">{{ 'Dark mode' if theme == 'dark' else 'Light mode' }}</p>
   </div>
+
+  <script>
+    (function () {
+      const toggle = document.getElementById('theme-toggle');
+      const status = document.getElementById('theme-status');
+      if (!toggle) return;
+
+      toggle.addEventListener('change', async function () {
+        const theme = toggle.checked ? 'dark' : 'light';
+        const previous = toggle.checked;
+
+        // Apply immediately so the page feels like a real toggle.
+        document.documentElement.setAttribute('data-theme', theme);
+        if (status) status.textContent = theme === 'dark' ? 'Dark mode' : 'Light mode';
+
+        const formData = new FormData();
+        formData.append('theme', theme);
+
+        try {
+          const response = await fetch('{{ url_for("update_profile_theme") }}', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+
+          if (!response.ok) throw new Error('Theme update failed');
+        } catch (error) {
+          // Revert the switch if the preference could not be saved.
+          toggle.checked = !previous;
+          const fallback = toggle.checked ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', fallback);
+          if (status) status.textContent = fallback === 'dark' ? 'Dark mode' : 'Light mode';
+          alert('Could not save your appearance preference. Please try again.');
+        }
+      });
+    })();
+  </script>
 
   <div class="profile-card">
     <div class="profile-links">
