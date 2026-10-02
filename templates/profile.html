@@ -111,10 +111,18 @@
   }
 
 
+  .appearance-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
   .appearance-options {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 10px;
+    flex: 1;
+    min-width: 0;
   }
 
   .appearance-option {
@@ -211,6 +219,12 @@
     cursor: pointer;
   }
 
+  .appearance-save {
+    margin-top: 0;
+    padding: 12px 14px;
+    white-space: nowrap;
+  }
+
   .profile-links {
     display: flex;
     flex-direction: column;
@@ -297,7 +311,8 @@
     <h3>Appearance</h3>
     <form method="post" action="{{ url_for('update_profile_theme') }}" data-no-loader>
       <label>Theme</label>
-      <div class="appearance-options">
+      <div class="appearance-row">
+        <div class="appearance-options">
         <div class="appearance-option">
           <input type="radio" id="theme-light" name="theme" value="light" {% if theme == 'light' %}checked{% endif %}>
           <label for="theme-light">Light</label>
@@ -306,8 +321,8 @@
           <input type="radio" id="theme-dark" name="theme" value="dark" {% if theme == 'dark' %}checked{% endif %}>
           <label for="theme-dark">Dark</label>
         </div>
+        <button type="submit" class="profile-save appearance-save">Save</button>
       </div>
-      <button type="submit" class="profile-save">Save appearance</button>
     </form>
   </div>
 
