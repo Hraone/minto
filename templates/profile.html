@@ -185,7 +185,7 @@
 
   <div class="profile-card">
     <div class="profile-head">
-      <div class="profile-avatar">{{ display_name[:1]|upper }}</div>
+      <div class="profile-avatar">{{ profile_emoji }}</div>
       <div>
         <h2 class="profile-name">{{ display_name }}</h2>
         <p class="profile-email">{{ email }}</p>
@@ -225,6 +225,22 @@
         autocomplete="name"
       >
       <button type="submit" class="profile-save">Save</button>
+    </form>
+  </div>
+
+  <div class="profile-card">
+    <h3>Profile emoji</h3>
+    <p class="profile-email" style="margin-bottom: 12px;">Choose the emoji shown in the Minto navbar.</p>
+    <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
+      <div class="appearance-options">
+        {% for emoji in profile_emojis %}
+        <div class="appearance-option">
+          <input type="radio" id="profile-emoji-{{ loop.index }}" name="profile_emoji" value="{{ emoji }}" {% if profile_emoji == emoji %}checked{% endif %}>
+          <label for="profile-emoji-{{ loop.index }}" style="font-size: 24px; min-height: 54px;">{{ emoji }}</label>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="submit" class="profile-save">Save emoji</button>
     </form>
   </div>
 
