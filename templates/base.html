@@ -1198,11 +1198,11 @@
       href="{{ url_for('profile') }}"
       aria-label="Profile: {{ nav_name }}"
       title="{{ nav_name }}"
-    >{{ nav_name[:1]|upper }}</a>
+    >{{ profile_emoji }}</a>
     {% endif %}
 
     {% if session.get('user_id') and app_mode == 'trip' %}
-    <span class="user-avatar static" title="{{ nav_name }}">{{ nav_name[:1]|upper }}</span>
+    <span class="user-avatar static" title="{{ nav_name }}">{{ profile_emoji }}</span>
     {% endif %}
 
     {% if session.get('user_id') and app_mode != 'trip' %}
