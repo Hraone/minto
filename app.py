@@ -1956,8 +1956,7 @@ def dashboard():
     fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     fixed_total = sum(float(x["amount"] or 0) for x in fixed_expenses if not x["paid"])
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
-    fixed_remaining = float(wealth.total_savings) - fixed_total
-
+    fixed_remaining = float(wealth["total_savings"]) - fixed_total
     # Outstanding loans by person — all-time, like net worth, not scoped to
     # the period tabs. Only people with a nonzero balance are shown; fully
     # repaid loans (out - in == 0) drop off automatically.
