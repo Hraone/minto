@@ -233,10 +233,10 @@
     .navbar {
       position: sticky;
       top: 0;
-      z-index: 50;
+      z-index: 20;
 
-      height: 64px;
-      margin: 0 -20px 20px;
+      height: 72px;
+      margin: 0 -20px 25px;
       padding: 0 20px;
 
       display: flex;
@@ -258,14 +258,14 @@
       color: var(--text);
       text-decoration: none;
 
-      font-size: 18px;
+      font-size: 19px;
       font-weight: 800;
       letter-spacing: -0.4px;
     }
 
     .brand-icon {
-      width: 38px;
-      height: 38px;
+      width: 32px;
+      height: 32px;
 
       display: block;
       object-fit: contain;
@@ -433,8 +433,8 @@
       align-items: center;
       justify-content: center;
 
-      width: 42px;
-      height: 42px;
+      width: 36px;
+      height: 36px;
       margin: 0;
       padding: 0;
 
@@ -487,52 +487,6 @@
 
     [data-theme="dark"] .theme-toggle .icon-sun {
       display: none;
-    }
-
-
-    /* ---------- Secondary context navigation ---------- */
-    .context-nav {
-      position: sticky;
-      top: 64px;
-      z-index: 45;
-      display: flex;
-      justify-content: center;
-      margin: -20px -20px 24px;
-      padding: 8px 20px;
-      background: var(--surface-translucent);
-      -webkit-backdrop-filter: blur(14px);
-      backdrop-filter: blur(14px);
-      border-bottom: 1px solid var(--hairline);
-    }
-    .context-nav-inner {
-      width: 100%;
-      max-width: 1000px;
-      min-height: 42px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-    }
-    .context-mode { margin: 0; }
-    .context-info {
-      position: absolute;
-      right: 0;
-      width: 40px;
-      height: 40px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      background: var(--surface);
-      color: var(--nav-text);
-      text-decoration: none;
-      transition: background .15s ease, color .15s ease, border-color .15s ease;
-    }
-    .context-info.active, .context-info:hover {
-      color: var(--positive);
-      border-color: var(--positive);
-      background: var(--surface-subtle);
     }
 
     /* ---------- Bottom tab bar (mobile only) ---------- */
@@ -774,89 +728,20 @@
       font-feature-settings: "tnum" 1;
     }
 
-    /* Compact header for tablet / landscape phone layouts. Some mobile browsers
-       expose a wide CSS viewport even when the device is physically small, so
-       this breakpoint intentionally starts above the normal phone breakpoint. */
-    @media (max-width: 1200px) {
-      .navbar {
-        height: 56px !important;
-        margin-bottom: 14px !important;
-        padding: 0 12px !important;
-      }
-
-      .brand {
-        font-size: 17px !important;
-        gap: 7px !important;
-      }
-
-      .brand-icon {
-        width: 30px !important;
-        height: 30px !important;
-      }
-
-      .nav-right {
-        gap: 6px !important;
-      }
-
-      .mode-toggle {
-        padding: 2px !important;
-      }
-
-      .mode-option {
-        padding: 6px 10px !important;
-        font-size: 12px !important;
-      }
-
-      .user-avatar,
-      .about-icon,
-      .theme-toggle {
-        width: 38px !important;
-        height: 38px !important;
-      }
-
-      .about-icon svg,
-      .theme-toggle svg {
-        width: 18px !important;
-        height: 18px !important;
-      }
-    }
-
-    @media (max-width: 1200px) {
-      .context-nav { top: 56px; }
-    }
-
     @media (max-width: 880px) {
 
       .app-container {
         padding: 0 16px 96px;
       }
 
-      .context-nav {
-        margin: -14px -16px 18px;
-        padding: 5px 12px;
-      }
-      .context-nav-inner { min-height: 40px; }
-      .context-info { width: 38px; height: 38px; right: 4px; }
-
       .navbar {
         height: 60px;
         margin: 0 -16px 20px;
-        padding: 0 12px 0 16px;
-        gap: 8px;
+        padding: 0 16px;
       }
-
-      .nav-left,
-      .nav-right {
-        min-width: 0;
-      }
-
-      .nav-left { flex: 1 1 auto; }
-      .nav-right { flex: 0 0 auto; gap: 6px; }
-      .brand { min-width: 0; }
 
       .brand {
         font-size: 17px;
-        gap: 8px;
       }
 
       .brand-icon {
@@ -953,7 +838,6 @@
 
       .mode-toggle {
         padding: 2px;
-        flex: 0 0 auto;
       }
 
       .mode-option {
@@ -1021,128 +905,6 @@
 
     }
 
-    /* Compact top bar on small/tablet-width mobile viewports.
-       This also catches high-DPI phones/emulators whose CSS viewport can be
-       wider than 430px even though the physical screen is mobile-sized. */
-    @media (max-width: 600px) {
-      .navbar {
-        height: 56px;
-        margin-bottom: 16px;
-        padding: 0 10px 0 12px;
-        gap: 6px;
-      }
-
-      .brand {
-        font-size: 16px;
-        gap: 7px;
-      }
-
-      .brand-icon {
-        width: 27px;
-        height: 27px;
-      }
-
-      .nav-right {
-        gap: 5px;
-      }
-
-      .mode-toggle {
-        padding: 2px;
-      }
-
-      .mode-option {
-        padding: 6px 9px;
-        font-size: 11px;
-      }
-
-      .user-avatar {
-        width: 36px;
-        height: 36px;
-        font-size: 14px;
-      }
-
-      .about-icon,
-      .theme-toggle {
-        width: 36px;
-        height: 36px;
-      }
-
-      .about-icon svg,
-      .theme-toggle svg {
-        width: 17px;
-        height: 17px;
-      }
-    }
-
-    @media (max-width: 430px) {
-      .navbar { padding-left: 12px; padding-right: 10px; }
-      .brand { font-size: 16px; gap: 7px; }
-      .brand-icon { width: 27px; height: 27px; }
-      .mode-option { padding: 6px 8px; font-size: 11px; }
-      .theme-toggle { width: 34px; height: 34px; }
-      .about-icon { width: 38px; height: 38px; }
-      .user-avatar { width: 34px; height: 34px; }
-    }
-
-
-    /* Final responsive navbar tuning */
-    @media (max-width: 700px) {
-      .navbar {
-        width: calc(100% + 32px);
-        box-sizing: border-box;
-        margin-left: -16px;
-        margin-right: -16px;
-        padding-left: 14px !important;
-        padding-right: 10px !important;
-        min-width: 0;
-        overflow: hidden;
-      }
-      .nav-left {
-        min-width: 0;
-        flex: 0 1 auto;
-      }
-      .brand {
-        flex: 0 0 auto;
-        white-space: nowrap;
-      }
-      .nav-right {
-        min-width: 0;
-        flex: 0 0 auto;
-        margin-left: auto;
-      }
-      .mode-toggle {
-        flex: 0 0 auto;
-      }
-      .mode-option {
-        white-space: nowrap;
-      }
-    }
-
-    @media (max-width: 390px) {
-      .navbar { padding-left: 10px !important; padding-right: 8px !important; }
-      .brand { font-size: 15px !important; gap: 5px !important; }
-      .brand-icon { width: 25px !important; height: 25px !important; }
-      .mode-option { padding-left: 7px !important; padding-right: 7px !important; }
-      .nav-right { gap: 4px !important; }
-      .user-avatar, .about-icon, .theme-toggle { width: 34px !important; height: 34px !important; }
-    }
-
-    /* Secondary navigation: Personal/Trip stays centered; About is an icon-only
-       action on the right so the row remains clean on small screens. */
-    .context-info span { display: none !important; }
-    .context-info svg { width: 18px; height: 18px; }
-
-    @media (max-width: 430px) {
-      .context-nav {
-        margin-top: -14px;
-        margin-bottom: 16px;
-        padding-left: 10px;
-        padding-right: 10px;
-      }
-      .context-nav-inner { min-height: 44px; }
-      .context-info { right: 2px; width: 38px; height: 38px; }
-      .context-info svg { width: 18px; height: 18px; }
-    }
 
     /* Profile avatar in the top bar: just the initial, the name lives on the
        Overview and Profile pages so the bar stays compact. */
@@ -1414,6 +1176,31 @@
 
   <div class="nav-right">
 
+    {% if session.get('user_id') %}
+
+    <!-- Trip mode is a separate context, not just another page: turning it
+         on hides the rest of the app (see keep_trip_mode_trip_only in
+         app.py) so a screen passed around a group only ever shows trip
+         details, never personal balances. -->
+    <div class="mode-toggle" role="group" aria-label="App mode">
+      <a
+        class="mode-option {{ 'active' if app_mode != 'trip' else '' }}"
+        data-mode="personal"
+        href="{{ url_for('set_mode', mode='personal') }}"
+      >
+        Personal
+      </a>
+      <a
+        class="mode-option {{ 'active' if app_mode == 'trip' else '' }}"
+        data-mode="trip"
+        href="{{ url_for('set_mode', mode='trip') }}"
+      >
+        Trip
+      </a>
+    </div>
+
+    {% endif %}
+
     {% if session.get('user_id') and app_mode != 'trip' %}
     <a
       class="user-avatar"
@@ -1425,6 +1212,21 @@
 
     {% if session.get('user_id') and app_mode == 'trip' %}
     <span class="user-avatar static" title="{{ nav_name }}">{{ nav_name[:1]|upper }}</span>
+    {% endif %}
+
+    {% if app_mode != 'trip' %}
+    <a
+      class="theme-toggle about-icon {{ 'active' if request.endpoint == 'info' else '' }}"
+      href="{{ url_for('info') }}"
+      aria-label="About"
+      title="About"
+    >
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+    </a>
     {% endif %}
 
     <button
@@ -1475,6 +1277,12 @@
 
     {% else %}
 
+    <a
+      class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}"
+      href="{{ url_for('info') }}"
+    >
+      About
+    </a>
 
     <a
       class="nav-link"
@@ -1496,23 +1304,6 @@
 
 </nav>
 
-<div class="context-nav" role="navigation" aria-label="Minto context">
-  <div class="context-nav-inner">
-    {% if session.get('user_id') %}
-    <div class="mode-toggle context-mode" role="group" aria-label="App mode">
-      <a class="mode-option {{ 'active' if app_mode != 'trip' else '' }}" data-mode="personal" href="{{ url_for('set_mode', mode='personal') }}">Personal</a>
-      <a class="mode-option {{ 'active' if app_mode == 'trip' else '' }}" data-mode="trip" href="{{ url_for('set_mode', mode='trip') }}">Trip</a>
-    </div>
-    {% endif %}
-    <a class="context-info {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}" aria-label="About Minto" title="About Minto">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
-    </a>
-  </div>
-</div>
 
 <div class="page-content" id="page-content">
 
