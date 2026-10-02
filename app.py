@@ -8,6 +8,7 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone, date
 import calendar
+import random
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, Response
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -41,6 +42,10 @@ def add_no_cache_headers(response):
 
 
 MODES = ("personal", "trip")
+PROFILE_EMOJIS = [
+    "😀", "😎", "🤓", "🦊", "🐼", "🐸", "🐱", "🦁", "🐯", "🐨",
+    "🦄", "🌟", "🔥", "🎯", "🚀", "💰", "🎵", "🌈", "🍀", "⚡"
+]
 
 # In Trip mode the app shows trip pages and nothing else. This is an allow
 # list rather than a block list on purpose: any page added later is hidden in
@@ -97,6 +102,31 @@ def save_theme(client, user_id, theme):
         return False
 
 
+def load_profile_emoji(client, user_id):
+    """Return the user's saved profile emoji, assigning one once if missing."""
+    try:
+        rows = client.table("profiles").select("profile_emoji").eq("id", user_id).execute().data
+        emoji = rows[0].get("profile_emoji") if rows else None
+        if emoji in PROFILE_EMOJIS:
+            return emoji
+
+        emoji = random.choice(PROFILE_EMOJIS)
+        client.table("profiles").upsert({"id": user_id, "profile_emoji": emoji}).execute()
+        return emoji
+    except Exception:
+        return "👤"
+
+
+def save_profile_emoji(client, user_id, emoji):
+    if emoji not in PROFILE_EMOJIS:
+        return False
+    try:
+        client.table("profiles").upsert({"id": user_id, "profile_emoji": emoji}).execute()
+        return True
+    except Exception:
+        return False
+
+
 def load_display_name(client, user_id):
     """The name shown in the top bar. Empty when none is saved yet (or the
     display_name column isn't there), in which case the email name is used."""
@@ -138,11 +168,20 @@ def inject_template_globals():
     name = (session.get("display_name") or "").strip()
     if not name:
         name = (session.get("email") or "").split("@")[0]
+
+    profile_emoji = "👤"
+    if session.get("user_id"):
+        profile_emoji = session.get("profile_emoji")
+        if not profile_emoji:
+            profile_emoji = load_profile_emoji(get_user_client(), session["user_id"])
+            session["profile_emoji"] = profile_emoji
+
     return {
         "asset_version": "1",
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
         "nav_name": name,
+        "profile_emoji": profile_emoji,
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
     }
@@ -471,7 +510,7 @@ def profile():
 
     def saved_name():
         try:
-            rows = client.table("profiles").select("display_name, theme").eq("id", user_id).execute().data
+            rows = client.table("profiles").select("display_name, theme, profile_emoji").eq("id", user_id).execute().data
             return rows[0] if rows else {}
         except Exception:
             return None  # column not added yet: fall back to the email name
@@ -496,7 +535,9 @@ def profile():
 
     name = profile_data.get("display_name") or ""
     theme = profile_data.get("theme") if profile_data.get("theme") in ("light", "dark") else session.get("theme", "light")
+    profile_emoji = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_EMOJIS else load_profile_emoji(client, user_id)
     session["display_name"] = name  # keeps the top bar in step
+    session["profile_emoji"] = profile_emoji
     session["theme"] = theme
     display_name = name or (email.split("@")[0] if email else "Minto user")
     return render_template(
@@ -509,7 +550,21 @@ def profile():
         transactions=transactions,
         trips=trips,
         theme=theme,
+        profile_emoji=profile_emoji,
+        profile_emojis=PROFILE_EMOJIS,
     )
+
+
+@app.route("/profile/emoji", methods=["POST"])
+@login_required
+def update_profile_emoji():
+    emoji = request.form.get("profile_emoji", "").strip()
+    if save_profile_emoji(get_user_client(), session["user_id"], emoji):
+        session["profile_emoji"] = emoji
+        flash("Profile emoji updated.")
+    else:
+        flash("Please choose a valid profile emoji.")
+    return redirect(url_for("profile"))
 
 
 @app.route("/profile/theme", methods=["POST"])
@@ -1957,6 +2012,7 @@ def dashboard():
     fixed_total = sum(float(x["amount"] or 0) for x in fixed_expenses if not x["paid"])
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
     fixed_remaining = float(wealth["total_savings"]) - fixed_total
+
     # Outstanding loans by person — all-time, like net worth, not scoped to
     # the period tabs. Only people with a nonzero balance are shown; fully
     # repaid loans (out - in == 0) drop off automatically.
