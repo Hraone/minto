@@ -118,10 +118,16 @@
   }
 
   .appearance-options {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    align-items: stretch;
     gap: 10px;
     flex: 1;
+    min-width: 0;
+  }
+
+  .appearance-option,
+  .appearance-save {
+    flex: 1 1 0;
     min-width: 0;
   }
 
@@ -221,8 +227,10 @@
 
   .appearance-save {
     margin-top: 0;
-    padding: 12px 14px;
+    padding: 10px 14px;
+    min-height: 48px;
     white-space: nowrap;
+    box-sizing: border-box;
   }
 
   .profile-links {
