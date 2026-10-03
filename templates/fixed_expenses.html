@@ -217,6 +217,7 @@
         <p class="fx-name">{{ x.name }}</p>
         <p class="fx-meta">
           {{ (x.category or 'other')|replace('_', ' ')|title }}
+          {% if x.kind == 'investment' %} · Investment{% endif %}
           · due {{ x.due_date.strftime('%d %b') }}
           {% if x.user_sources %}· {{ x.user_sources.name }}{% endif %}
         </p>
@@ -271,9 +272,18 @@
         <div>
           <label for="fx-category">Category</label>
           <select id="fx-category" name="category">
-            {% for c in categories %}
-            <option value="{{ c }}" {{ 'selected' if c == 'bills' else '' }}>{{ c|replace('_', ' ')|title }}</option>
-            {% endfor %}
+            <optgroup label="Expenses">
+              {% for c in expense_categories %}
+              <option value="{{ c }}" {{ 'selected' if c == 'bills' else '' }}>{{ c|replace('_', ' ')|title }}</option>
+              {% endfor %}
+            </optgroup>
+            <optgroup label="Investments">
+              {% for c in investment_categories %}
+              {% if c != 'other' %}
+              <option value="{{ c }}">{{ c|replace('_', ' ')|title }}</option>
+              {% endif %}
+              {% endfor %}
+            </optgroup>
           </select>
         </div>
         <div>
