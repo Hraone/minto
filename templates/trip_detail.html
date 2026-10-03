@@ -526,16 +526,16 @@
   <div class="stat-row {{ '' if trip.is_group else 'two' }}">
     <div class="stat">
       <div class="stat-label">Trip total</div>
-      <div class="stat-value">₹{{ "%.2f"|format(total) }}</div>
+      <div class="stat-value">{{ (total)|inr }}</div>
     </div>
     {% if trip.is_group %}
     <div class="stat">
       <div class="stat-label">You paid</div>
-      <div class="stat-value">₹{{ "%.2f"|format(people_rows[0].paid) }}</div>
+      <div class="stat-value">{{ (people_rows[0].paid)|inr }}</div>
     </div>
     <div class="stat">
       <div class="stat-label">Your share</div>
-      <div class="stat-value">₹{{ "%.2f"|format(your_share) }}</div>
+      <div class="stat-value">{{ (your_share)|inr }}</div>
     </div>
     {% else %}
     <div class="stat">
@@ -690,13 +690,13 @@
         {% for p in people_rows %}
         <tr>
           <td>{{ p.name }}</td>
-          <td data-label="Paid">₹{{ "%.2f"|format(p.paid) }}</td>
-          <td data-label="Share">₹{{ "%.2f"|format(p.owed) }}</td>
+          <td data-label="Paid">{{ (p.paid)|inr }}</td>
+          <td data-label="Share">{{ (p.owed)|inr }}</td>
           <td data-label="Balance">
             {% if p.net > 0 %}
-            <span class="net-positive">gets back ₹{{ "%.2f"|format(p.net) }}</span>
+            <span class="net-positive">gets back {{ (p.net)|inr }}</span>
             {% elif p.net < 0 %}
-            <span class="net-negative">owes ₹{{ "%.2f"|format(-p.net) }}</span>
+            <span class="net-negative">owes {{ (-p.net)|inr }}</span>
             {% else %}
             <span class="net-zero">settled</span>
             {% endif %}
@@ -716,7 +716,7 @@
           {% elif s.to == "You" %}{{ s.from }} pays you
           {% else %}{{ s.from }} pays {{ s.to }}{% endif %}
         </span>
-        <span class="payment-amount">₹{{ "%.2f"|format(s.amount) }}</span>
+        <span class="payment-amount">{{ (s.amount)|inr }}</span>
       </li>
       {% endfor %}
     </ul>
@@ -745,11 +745,11 @@
             {% if trip.is_group %}
             · Paid by {{ e.paid_by }}
             <br>
-            {% for s in e.splits %}{{ s.participant_name }} ₹{{ "%.2f"|format(s.share_amount) }}{% if not loop.last %} · {% endif %}{% endfor %}
+            {% for s in e.splits %}{{ s.participant_name }} {{ (s.share_amount)|inr }}{% if not loop.last %} · {% endif %}{% endfor %}
             {% endif %}
           </div>
         </div>
-        <div class="expense-amount">₹{{ "%.2f"|format(e.amount) }}</div>
+        <div class="expense-amount">{{ (e.amount)|inr }}</div>
         <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}"
               onsubmit="return confirm('Delete this expense?');">
           <button type="submit" class="expense-delete" aria-label="Delete expense" title="Delete">

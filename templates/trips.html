@@ -178,7 +178,7 @@
               {% endif %}
             </div>
           </div>
-          <div class="trip-total">₹{{ "%.2f"|format(t.total) }}</div>
+          <div class="trip-total">{{ (t.total)|inr }}</div>
         </a>
       </li>
       {% endfor %}

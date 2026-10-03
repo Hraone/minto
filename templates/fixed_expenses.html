@@ -1,0 +1,294 @@
+{% extends "base.html" %}
+
+{% block title %}Fixed Expenses · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .fx-page {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 28px 16px 60px;
+  }
+
+  .fx-head h2 {
+    margin: 0 0 4px;
+    font-size: 26px;
+    color: var(--text);
+  }
+
+  .fx-head p {
+    margin: 0 0 18px;
+    font-size: 13.5px;
+    line-height: 1.5;
+    color: var(--muted);
+  }
+
+  .fx-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .fx-stat {
+    min-width: 0;
+    padding: 14px 12px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+  }
+
+  .fx-stat span {
+    display: block;
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+
+  .fx-stat strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 16px;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  .fx-card {
+    padding: 18px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+
+  .fx-card h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+    color: var(--text);
+  }
+
+  .fx-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .fx-name {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    overflow-wrap: anywhere;
+  }
+
+  .fx-meta {
+    margin: 3px 0 0;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .fx-amount {
+    flex: none;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .fx-status {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11.5px;
+    font-weight: 700;
+    background: var(--surface-alt);
+    color: var(--muted);
+  }
+
+  .fx-status.paid { color: var(--positive); }
+  .fx-status.late { color: var(--negative); }
+
+  .fx-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .fx-actions form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+  }
+
+  .fx-card select,
+  .fx-card input[type="text"],
+  .fx-card input[type="number"] {
+    box-sizing: border-box;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+  }
+
+  .fx-btn {
+    width: auto;
+    margin: 0;
+    padding: 9px 16px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--positive);
+    color: #fff;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .fx-btn.quiet {
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+  }
+
+  .fx-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .fx-grid .wide { grid-column: 1 / -1; }
+
+  .fx-grid label {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .fx-grid input,
+  .fx-grid select { width: 100%; }
+
+  .fx-empty {
+    margin: 0 0 12px;
+    font-size: 13.5px;
+    color: var(--muted-2);
+  }
+
+  @media (max-width: 420px) {
+    .fx-grid { grid-template-columns: 1fr; }
+    .fx-summary { grid-template-columns: 1fr; }
+  }
+</style>
+
+<div class="fx-page">
+
+  {% set total = expenses|sum(attribute='amount') %}
+  {% set paid_total = expenses|selectattr('paid')|sum(attribute='amount') %}
+
+  <div class="fx-head">
+    <h2>Fixed expenses</h2>
+    <p>Bills that repeat every month, like rent or subscriptions. Marking one paid adds it to your expenses for {{ month_label }}.</p>
+  </div>
+
+  <div class="fx-summary">
+    <div class="fx-stat"><span>This month</span><strong>{{ total|inr }}</strong></div>
+    <div class="fx-stat"><span>Paid</span><strong>{{ paid_total|inr }}</strong></div>
+    <div class="fx-stat"><span>Left to pay</span><strong>{{ (total - paid_total)|inr }}</strong></div>
+  </div>
+
+  {% if not expenses %}
+  <p class="fx-empty">No fixed expenses yet. Add your first one below.</p>
+  {% endif %}
+
+  {% for x in expenses %}
+  <div class="fx-card">
+    <div class="fx-row">
+      <div>
+        <p class="fx-name">{{ x.name }}</p>
+        <p class="fx-meta">
+          {{ (x.category or 'other')|replace('_', ' ')|title }}
+          · due {{ x.due_date.strftime('%d %b') }}
+          {% if x.user_sources %}· {{ x.user_sources.name }}{% endif %}
+        </p>
+        {% if x.paid %}
+        <span class="fx-status paid">Paid this month</span>
+        {% elif x.due_date < today %}
+        <span class="fx-status late">Overdue by {{ (today - x.due_date).days }} day{{ '' if (today - x.due_date).days == 1 else 's' }}</span>
+        {% else %}
+        {% set left = (x.due_date - today).days %}
+        <span class="fx-status">{{ 'Due today' if left == 0 else 'Due in ' ~ left ~ ' day' ~ ('' if left == 1 else 's') }}</span>
+        {% endif %}
+      </div>
+      <div class="fx-amount">{{ x.amount|inr }}</div>
+    </div>
+
+    <div class="fx-actions">
+      {% if not x.paid %}
+      <form method="post" action="{{ url_for('pay_fixed_expense', fixed_expense_id=x.id) }}">
+        <select name="source_id" aria-label="Pay from" required>
+          <option value="" disabled {{ '' if x.source_id else 'selected' }}>Pay from</option>
+          {% for s in sources %}
+          <option value="{{ s.id }}" {{ 'selected' if x.source_id == s.id else '' }}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="fx-btn">Mark Paid</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('delete_fixed_expense', fixed_expense_id=x.id) }}"
+            onsubmit="return confirm('Remove {{ x.name|replace("'", "") }} from your fixed expenses? Past payments stay in your expenses.');">
+        <button type="submit" class="fx-btn quiet">Remove</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="fx-card">
+    <h3>Add a fixed expense</h3>
+    <form method="post" action="{{ url_for('fixed_expenses') }}">
+      <div class="fx-grid">
+        <div class="wide">
+          <label for="fx-name">Name</label>
+          <input type="text" id="fx-name" name="name" maxlength="60" placeholder="e.g. Rent" required>
+        </div>
+        <div>
+          <label for="fx-amount">Amount</label>
+          <input type="number" id="fx-amount" name="amount" step="0.01" min="0.01" placeholder="0.00" required>
+        </div>
+        <div>
+          <label for="fx-day">Due day of month</label>
+          <input type="number" id="fx-day" name="due_day" min="1" max="31" placeholder="1 to 31" required>
+        </div>
+        <div>
+          <label for="fx-category">Category</label>
+          <select id="fx-category" name="category">
+            {% for c in categories %}
+            <option value="{{ c }}" {{ 'selected' if c == 'bills' else '' }}>{{ c|replace('_', ' ')|title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="fx-source">Usually paid from</label>
+          <select id="fx-source" name="source_id">
+            <option value="">Choose when paying</option>
+            {% for s in sources %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="fx-btn" style="margin-top:14px;">Add Fixed Expense</button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

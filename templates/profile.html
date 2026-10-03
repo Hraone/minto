@@ -38,6 +38,23 @@
     font-weight: 700;
   }
 
+  .profile-link-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .profile-link-row small {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted-2);
+  }
+
+  .profile-link-row small.on {
+    color: var(--positive);
+  }
+
   .profile-name {
     margin: 0;
     font-size: 20px;
@@ -397,7 +414,12 @@
   <div class="profile-card">
     <div class="profile-links">
       <a href="{{ url_for('reports') }}">Download a report</a>
-      <a href="{{ url_for('info') }}">Face ID, fingerprint and install app</a>
+      <a href="{{ url_for('fixed_expenses') }}">Fixed expenses</a>
+      <a href="{{ url_for('info') }}" class="profile-link-row">
+        <span>Face ID or fingerprint login</span>
+        <small class="{{ 'on' if biometric_enabled else '' }}">{{ 'On' if biometric_enabled else 'Off' }}</small>
+      </a>
+      <a href="{{ url_for('info') }}">Install the app</a>
       <a href="{{ url_for('logout') }}">Log Out</a>
     </div>
   </div>

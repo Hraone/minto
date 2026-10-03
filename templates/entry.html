@@ -415,7 +415,7 @@
             style="cursor:pointer; font:inherit; color:inherit;"
             onclick="markRepaid('{{ person.name|e }}', {{ person.amount }})"
           >
-            {{ person.name }} · ₹{{ "%.2f"|format(person.amount) }}
+            {{ person.name }} · {{ (person.amount)|inr }}
           </button>
           {% endfor %}
         </div>

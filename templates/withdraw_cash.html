@@ -166,6 +166,7 @@
             id="amount"
             name="amount"
             placeholder="0.00"
+            value="{{ form.get('amount', '') if form else '' }}"
             required
             autofocus
           >
@@ -177,7 +178,7 @@
         <div class="chip-group">
           {% for s in bank_sources %}
           <label class="chip">
-            <input type="radio" name="from_source_id" value="{{ s.id }}" required>
+            <input type="radio" name="from_source_id" value="{{ s.id }}" {{ 'checked' if form and form.get('from_source_id') == s.id|string else '' }} required>
             {{ s.name }}
           </label>
           {% endfor %}
@@ -189,7 +190,7 @@
         <div class="chip-group">
           {% for s in cash_sources %}
           <label class="chip">
-            <input type="radio" name="to_source_id" value="{{ s.id }}" required>
+            <input type="radio" name="to_source_id" value="{{ s.id }}" {{ 'checked' if form and form.get('to_source_id') == s.id|string else '' }} required>
             {{ s.name }}
           </label>
           {% endfor %}

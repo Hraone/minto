@@ -164,6 +164,7 @@
             id="amount"
             name="amount"
             placeholder="0.00"
+            value="{{ form.get('amount', '') if form else '' }}"
             required
             autofocus
           >
@@ -175,7 +176,7 @@
         <div class="chip-group">
           {% for s in savings_sources %}
           <label class="chip">
-            <input type="radio" name="from_source_id" value="{{ s.id }}" required>
+            <input type="radio" name="from_source_id" value="{{ s.id }}" {{ 'checked' if form and form.get('from_source_id') == s.id|string else '' }} required>
             {{ s.name }}
           </label>
           {% endfor %}
@@ -187,7 +188,7 @@
         <div class="chip-group">
           {% for s in cc_sources %}
           <label class="chip">
-            <input type="radio" name="to_source_id" value="{{ s.id }}" required>
+            <input type="radio" name="to_source_id" value="{{ s.id }}" {{ 'checked' if form and form.get('to_source_id') == s.id|string else '' }} required>
             {{ s.name }}
           </label>
           {% endfor %}
@@ -205,8 +206,28 @@
           name="notes"
           class="notes-input"
           placeholder="e.g. September statement"
+          value="{{ form.get('notes', '') if form else '' }}"
         >
       </div>
+
+      {% if ask_previous_bill %}
+      <div class="form-section">
+        <label class="form-label">Is this bill for spending from before you started using Minto?</label>
+        <div class="chip-group">
+          <label class="chip">
+            <input type="radio" name="previous_card_bill" value="yes" {{ 'checked' if form and form.get('previous_card_bill') == 'yes' else '' }} required>
+            Yes
+          </label>
+          <label class="chip">
+            <input type="radio" name="previous_card_bill" value="no" {{ 'checked' if form and form.get('previous_card_bill') == 'no' else '' }} required>
+            No
+          </label>
+        </div>
+        <p style="margin: 8px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
+          Asked once, on your first card payment. A yes lowers your bank and card balances but is not counted as spending.
+        </p>
+      </div>
+      {% endif %}
 
       <button type="submit" class="save-button">Save</button>
 

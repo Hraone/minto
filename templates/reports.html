@@ -45,6 +45,8 @@
   }
 
   .reports-preset {
+    width: auto;
+    margin: 0;
     padding: 8px 12px;
     border: 1px solid var(--border);
     border-radius: 999px;
@@ -58,8 +60,14 @@
 
   .reports-dates {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .reports-dates > div { min-width: 0; }
+
+  @media (max-width: 420px) {
+    .reports-dates { grid-template-columns: 1fr; }
   }
 
   .reports-dates label {
@@ -71,6 +79,7 @@
 
   .reports-dates input {
     width: 100%;
+    min-width: 0;
     box-sizing: border-box;
     padding: 12px;
     border: 1px solid var(--border);

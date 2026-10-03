@@ -177,8 +177,15 @@
 
   .wealth-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
+  }
+
+  .wealth-card { min-width: 0; }
+
+  @media (max-width: 480px) {
+    .wealth-card { padding: 14px; }
+    .wealth-card .summary-value { font-size: 19px; overflow-wrap: anywhere; }
   }
 
   .wealth-card {
@@ -189,8 +196,37 @@
     box-shadow: 0 10px 28px var(--shadow-soft);
   }
 
+  .fixed-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-top: 12px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+  }
+
+  .fixed-card small {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .fixed-card strong {
+    display: block;
+    margin-top: 2px;
+    font-size: 16px;
+  }
+
+  .fixed-card .fixed-left { min-width: 0; overflow-wrap: anywhere; }
+  .fixed-card .fixed-link { flex: none; font-size: 13px; font-weight: 600; color: var(--positive); }
+
   @media (max-width: 820px) {
-    .wealth-grid { grid-template-columns: 1fr 1fr; }
+    .wealth-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .wealth-hero-value { font-size: 36px; }
     .wealth-hero { padding: 24px; }
   }
@@ -458,28 +494,39 @@
 
     <div class="wealth-hero">
       <div class="wealth-hero-label">Net worth</div>
-      <div class="wealth-hero-value tnum">₹{{ "%.2f"|format(wealth.net_worth) }}</div>
+      <div class="wealth-hero-value tnum">{{ (wealth.net_worth)|inr }}</div>
       <div class="wealth-hero-sub">All time, not affected by the period tabs above</div>
     </div>
 
     <div class="wealth-grid">
       <div class="wealth-card">
         <div class="summary-label">Bank</div>
-        <div class="summary-value tnum">₹{{ "%.2f"|format(wealth.total_savings) }}</div>
+        <div class="summary-value tnum">{{ (wealth.total_savings)|inr }}</div>
       </div>
       <div class="wealth-card">
         <div class="summary-label">Invested</div>
-        <div class="summary-value tnum">₹{{ "%.2f"|format(wealth.total_invested) }}</div>
+        <div class="summary-value tnum">{{ (wealth.total_invested)|inr }}</div>
       </div>
       <div class="wealth-card">
         <div class="summary-label">Lent out</div>
-        <div class="summary-value tnum">₹{{ "%.2f"|format(wealth.total_lent) }}</div>
+        <div class="summary-value tnum">{{ (wealth.total_lent)|inr }}</div>
       </div>
       <div class="wealth-card">
         <div class="summary-label">Card debt</div>
-        <div class="summary-value negative tnum">₹{{ "%.2f"|format(wealth.total_cc_debt) }}</div>
+        <div class="summary-value negative tnum">{{ (wealth.total_cc_debt)|inr }}</div>
       </div>
     </div>
+
+    {% if fixed_expenses %}
+    <a class="fixed-card" href="{{ url_for('fixed_expenses') }}">
+      <div class="fixed-left">
+        <small>Fixed expenses still to pay this month</small>
+        <strong class="tnum">{{ fixed_total|inr }}</strong>
+        <small>Bank after paying them: {{ fixed_remaining|inr }}</small>
+      </div>
+      <span class="fixed-link">Manage</span>
+    </a>
+    {% endif %}
 
     {% if outstanding_loans %}
     <div class="lending-heading">Lent, by person</div>
@@ -487,9 +534,9 @@
       {% for person in outstanding_loans %}
       <li class="lending-pill tnum">
         {% if person.amount > 0 %}
-        {{ person.name }} owes you ₹{{ "%.2f"|format(person.amount) }}
+        {{ person.name }} owes you {{ (person.amount)|inr }}
         {% else %}
-        You owe {{ person.name }} ₹{{ "%.2f"|format(-person.amount) }}
+        You owe {{ person.name }} {{ (-person.amount)|inr }}
         {% endif %}
       </li>
       {% endfor %}
@@ -501,15 +548,15 @@
   <div class="summary-grid">
     <div class="summary-card">
       <div class="summary-label">Money in</div>
-      <div class="summary-value positive tnum">₹{{ "%.2f"|format(total_in) }}</div>
+      <div class="summary-value positive tnum">{{ (total_in)|inr }}</div>
     </div>
     <div class="summary-card">
       <div class="summary-label">Money out</div>
-      <div class="summary-value negative tnum">₹{{ "%.2f"|format(total_out) }}</div>
+      <div class="summary-value negative tnum">{{ (total_out)|inr }}</div>
     </div>
     <div class="summary-card">
       <div class="summary-label">Net</div>
-      <div class="summary-value tnum {{ 'positive' if net >= 0 else 'negative' }}">₹{{ "%.2f"|format(net) }}</div>
+      <div class="summary-value tnum {{ 'positive' if net >= 0 else 'negative' }}">{{ (net)|inr }}</div>
     </div>
   </div>
   <p class="period-note">
@@ -550,7 +597,7 @@
           </div>
         </div>
         <div class="txn-amount tnum {{ t.direction }}">
-          {{ "+" if t.direction == "in" else "-" }}₹{{ "%.2f"|format(t.amount or 0) }}
+          {{ "+" if t.direction == "in" else "-" }}{{ (t.amount or 0)|inr }}
         </div>
         <form method="post" action="{{ url_for('delete_transaction', entry_id=t.id) }}" onsubmit="return confirm('Delete this transaction?{{ ' Both linked legs of this transfer will be removed.' if t.transfer_group else '' }}');">
           <button type="submit" class="txn-delete" aria-label="Delete transaction" title="Delete">

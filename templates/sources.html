@@ -379,7 +379,7 @@
             </div>
           </div>
           <div class="source-figure">
-            <div class="figure-value">₹{{ "%.2f"|format(s.balance) }}</div>
+            <div class="figure-value">{{ (s.balance)|inr }}</div>
             <div class="figure-label">on hand</div>
           </div>
         </div>
@@ -414,12 +414,12 @@
             </div>
           </div>
           <div class="source-figure">
-            <div class="figure-value">₹{{ "%.2f"|format(s.balance) }}</div>
+            <div class="figure-value">{{ (s.balance)|inr }}</div>
             <div class="figure-label">available</div>
           </div>
         </div>
         {% if s.below_minimum %}
-        <div class="below-minimum-badge">Below minimum balance of ₹{{ "%.2f"|format(s.minimum_balance) }}</div>
+        <div class="below-minimum-badge">Below minimum balance of {{ (s.minimum_balance)|inr }}</div>
         {% endif %}
       </li>
       {% endfor %}
@@ -452,7 +452,7 @@
             </div>
           </div>
           <div class="source-figure">
-            <div class="figure-value">₹{{ "%.2f"|format(s.outstanding) }}</div>
+            <div class="figure-value">{{ (s.outstanding)|inr }}</div>
             <div class="figure-label">outstanding</div>
           </div>
         </div>
@@ -464,7 +464,7 @@
         </div>
         <div class="limit-meta-row">
           <span>{{ s.limit_pct }}% used</span>
-          <span>₹{{ "%.2f"|format(s.limit_left) }} left of ₹{{ "%.2f"|format(s.limit) }}</span>
+          <span>{{ (s.limit_left)|inr }} left of {{ (s.limit)|inr }}</span>
         </div>
         {% else %}
         <div class="limit-meta-row">

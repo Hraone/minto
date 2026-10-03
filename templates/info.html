@@ -43,6 +43,10 @@
   .about-secondary { border: 1px solid var(--border); color: var(--text); background: var(--surface); }
   .install-btn { margin-top: 14px; border: 0; cursor: pointer; font-family: inherit; }
 
+  .bio-btn[hidden] {
+    display: none;
+  }
+
   .bio-btn {
     display: inline-flex;
     align-items: center;
@@ -183,7 +187,7 @@
   {% if session.get('user_id') %}
   <div class="about-note" id="bio-box" hidden>
     <strong>Biometric login</strong>
-    <p id="bio-text">Enable Face ID, fingerprint or another device passkey for quicker sign-in.</p>
+    <p id="bio-text">{% if session.get('biometric_enabled') %}Biometric login is on. Add this device if you have not yet, or turn it off to remove all passkeys.{% else %}Enable Face ID, fingerprint or another device passkey for quicker sign-in.{% endif %}</p>
     <button type="button" class="bio-btn" id="bio-btn">
       <span class="bio-btn-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
@@ -195,7 +199,10 @@
           <path d="M12 8v7"></path>
         </svg>
       </span>
-      <span id="bio-btn-label">Enable Biometric</span>
+      <span id="bio-btn-label">{{ 'Disable Biometric' if session.get('biometric_enabled') else 'Enable Biometric' }}</span>
+    </button>
+    <button type="button" class="bio-btn" id="bio-add" {% if not session.get('biometric_enabled') %}hidden{% endif %}>
+      <span id="bio-add-label">Add this device</span>
     </button>
   </div>
   {% endif %}
@@ -228,122 +235,104 @@
   var text = document.getElementById("bio-text");
   var btn = document.getElementById("bio-btn");
   var label = document.getElementById("bio-btn-label");
+  var addBtn = document.getElementById("bio-add");
   if (!box || !window.PublicKeyCredential || !window.supabase) return;
   box.hidden = false;
 
-  var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, experimental: { passkey: true } }
-  });
+  // What we last stored for this account. The page is already drawn from it,
+  // and the check at the bottom corrects it if the passkeys changed elsewhere.
+  var enabled = {{ 'true' if session.get('biometric_enabled') else 'false' }};
 
-  function setEnabled(enabled) {
-    label.textContent = enabled ? "Disable Biometric" : "Enable Biometric";
-    text.textContent = enabled
-      ? "Biometric login is enabled. Disable it here to remove the passkeys registered for this account."
-      : "Enable Face ID, fingerprint or another device passkey for quicker sign-in.";
+  var MSG_ON = "Biometric login is on. Add this device if you have not yet, or turn it off to remove all passkeys.";
+  var MSG_OFF = "Enable Face ID, fingerprint or another device passkey for quicker sign-in.";
+
+  function setEnabled(on, note) {
+    enabled = on;
+    label.textContent = on ? "Disable Biometric" : "Enable Biometric";
+    addBtn.hidden = !on;
+    text.textContent = note || (on ? MSG_ON : MSG_OFF);
   }
 
-  async function refreshStatus() {
-    try {
-      var r = await fetch("{{ url_for('passkey_status') }}", { credentials: "same-origin" });
-      var data = await r.json();
-      setEnabled(Boolean(data.enabled));
-    } catch (e) {
-      setEnabled(false);
-    }
-  }
-
-  btn.addEventListener("click", async function () {
-    btn.disabled = true;
-    try {
-      var status = await fetch("{{ url_for('passkey_status') }}", { credentials: "same-origin" });
-      var statusData = await status.json();
-
-      if (statusData.enabled) {
-        if (!window.confirm("Disable biometric login for Minto on all registered devices?")) {
-          btn.disabled = false;
-          return;
-        }
-        var off = await fetch("{{ url_for('passkey_disable') }}", {
-          method: "POST",
-          credentials: "same-origin"
-        });
-        var offData = await off.json();
-        if (!off.ok || !offData.ok) throw new Error("disable");
-        setEnabled(false);
-      } else {
+  // The passkeys live in Supabase Auth and only the browser library can list,
+  // add or remove them, so this signs a browser-side client in with fresh
+  // tokens (once per page) and uses it.
+  var clientPromise = null;
+  function getClient() {
+    if (!clientPromise) {
+      clientPromise = (async function () {
         var r = await fetch("{{ url_for('passkey_token') }}", { method: "POST", credentials: "same-origin" });
         var t = await r.json();
-        if (!r.ok) { text.textContent = t.error || "Please log in again."; throw new Error("token"); }
-
+        if (!r.ok) throw new Error(t.error || "Please log in again.");
+        var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
+          auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, experimental: { passkey: true } }
+        });
         await sb.auth.setSession({ access_token: t.access_token, refresh_token: t.refresh_token });
-        var res = await sb.auth.registerPasskey();
-
-        if (res.error) {
-          var code = res.error.code || "";
-          if (code === "webauthn_credential_exists") {
-            setEnabled(true);
-          } else if (code === "passkey_disabled") {
-            text.textContent = "Passkey login is not available yet.";
-          } else if (code === "too_many_passkeys") {
-            text.textContent = "You have reached the passkey limit for this account.";
-          } else {
-            text.textContent = "That was cancelled or did not work. Try again.";
-          }
-        } else {
-          setEnabled(true);
-        }
-      }
-    } catch (e) {
-      if (e.message === "disable") {
-        text.textContent = "Could not disable biometric login. Please try again.";
-      }
+        return sb;
+      })();
+      clientPromise.catch(function () { clientPromise = null; });
     }
-    btn.disabled = false;
-  });
+    return clientPromise;
+  }
 
-  refreshStatus();
-})();
-</script>
-<script>
-(function () {
-  var box = document.getElementById("bio-box");
-  var text = document.getElementById("bio-text");
-  var btn = document.getElementById("bio-btn");
-  if (!box || !window.PublicKeyCredential || !window.supabase) return;
-  box.hidden = false;
+  function saveFlag(on) {
+    fetch("{{ url_for('passkey_flag') }}", {
+      method: "POST", credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: on })
+    }).catch(function () {});
+  }
 
-  btn.addEventListener("click", async function () {
-    btn.disabled = true;
+  async function register() {
+    var sb = await getClient();
+    var res = await sb.auth.registerPasskey();
+    var code = res.error && (res.error.code || "");
+    if (!res.error || code === "webauthn_credential_exists") {
+      setEnabled(true, !res.error ? "Done. This device can now log in with Face ID or fingerprint." : "This device is already set up.");
+      saveFlag(true);
+    } else if (code === "passkey_disabled") {
+      text.textContent = "Passkey login is not available yet.";
+    } else if (code === "too_many_passkeys") {
+      text.textContent = "You have reached the passkey limit for this account.";
+    } else {
+      text.textContent = "That was cancelled or did not work. Try again.";
+    }
+  }
+
+  async function turnOff() {
+    if (!window.confirm("Turn off biometric login for Minto on all devices?")) return;
+    var sb = await getClient();
+    var list = await sb.auth.passkey.list();
+    if (list.error) { text.textContent = "Could not turn it off. Try again."; return; }
+    var items = list.data || [];
+    for (var i = 0; i < items.length; i++) {
+      var del = await sb.auth.passkey.delete({ passkeyId: items[i].id });
+      if (del.error) { text.textContent = "Could not turn it off. Try again."; return; }
+    }
+    setEnabled(false, "Biometric login is off.");
+    saveFlag(false);
+  }
+
+  function guard(fn) {
+    return async function () {
+      btn.disabled = true; addBtn.disabled = true;
+      try { await fn(); } catch (e) { text.textContent = "That did not work. Try again."; }
+      btn.disabled = false; addBtn.disabled = false;
+    };
+  }
+
+  btn.addEventListener("click", guard(function () { return enabled ? turnOff() : register(); }));
+  addBtn.addEventListener("click", guard(register));
+
+  // Quietly confirm the stored state against Supabase shortly after load.
+  setTimeout(async function () {
     try {
-      var r = await fetch("{{ url_for('passkey_token') }}", { method: "POST", credentials: "same-origin" });
-      var t = await r.json();
-      if (!r.ok) { text.textContent = t.error || "Please log in again."; btn.disabled = false; return; }
-
-      var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
-        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, experimental: { passkey: true } }
-      });
-      await sb.auth.setSession({ access_token: t.access_token, refresh_token: t.refresh_token });
-      var res = await sb.auth.registerPasskey();
-
-      if (!res.error) {
-        text.textContent = "Done. Next time, use Face ID or fingerprint on the login page.";
-        btn.hidden = true;
-        return;
-      }
-      var code = res.error.code || "";
-      if (code === "webauthn_credential_exists") {
-        text.textContent = "A passkey is already enabled on this device.";
-        btn.hidden = true;
-        return;
-      }
-      if (code === "passkey_disabled") text.textContent = "Passkey login is not available yet.";
-      else if (code === "too_many_passkeys") text.textContent = "You have reached the passkey limit for this account.";
-      else text.textContent = "That was cancelled or did not work. Try again.";
-    } catch (e) {
-      text.textContent = "That did not work. Try again.";
-    }
-    btn.disabled = false;
-  });
+      var sb = await getClient();
+      var res = await sb.auth.passkey.list();
+      if (res.error) return;
+      var now = (res.data || []).length > 0;
+      if (now !== enabled) { setEnabled(now); saveFlag(now); }
+    } catch (e) {}
+  }, 700);
 })();
 </script>
 {% endif %}

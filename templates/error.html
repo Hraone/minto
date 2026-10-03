@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .error-page {
+    max-width: 460px;
+    margin: 60px auto;
+    padding: 0 20px;
+    text-align: center;
+  }
+
+  .error-code {
+    font-size: 64px;
+    font-weight: 800;
+    line-height: 1;
+    color: var(--positive);
+  }
+
+  .error-page h2 {
+    margin: 14px 0 8px;
+    font-size: 20px;
+    color: var(--text);
+  }
+
+  .error-page p {
+    margin: 0 0 22px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: var(--muted);
+  }
+
+  .error-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .error-actions a {
+    padding: 11px 20px;
+    border-radius: 999px;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    color: var(--text);
+    background: var(--surface);
+  }
+
+  .error-actions a.primary {
+    background: var(--positive);
+    border-color: var(--positive);
+    color: #fff;
+  }
+</style>
+
+<div class="error-page">
+  <div class="error-code">{{ code }}</div>
+  <h2>{{ "That page isn't here" if code == 404 else title }}</h2>
+  <p>
+    {% if code == 404 %}
+    The address may be mistyped, or the page may have moved.
+    {% elif code == 405 %}
+    That address can't be opened this way. Head back and try again from the app.
+    {% else %}
+    Something about that request didn't work. Head back and try again.
+    {% endif %}
+  </p>
+  <div class="error-actions">
+    <a class="primary" href="{{ url_for('dashboard') }}">Go to Overview</a>
+    <a href="{{ url_for('entry') }}">Add an entry</a>
+  </div>
+</div>
+{% endblock %}
