@@ -1,4 +1,7 @@
 import os
+import math
+import smtplib
+import secrets
 import uuid
 import json
 import time
@@ -9,6 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone, date
 import calendar
 import random
+from email.message import EmailMessage
+from zoneinfo import ZoneInfo
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, Response
 from supabase import create_client, Client
 from dotenv import load_dotenv
@@ -23,6 +28,12 @@ app.secret_key = os.environ["SECRET_KEY"]
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
 # renews automatically as long as this outer session is still alive.
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+# Cookie hardening. Lax stops other sites from making a logged-in browser
+# submit this app's POST forms (there are no CSRF tokens). Secure keeps the
+# cookie off plain HTTP; set SESSION_COOKIE_SECURE=0 only for local http dev.
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"
 
 
 @app.after_request
@@ -98,6 +109,16 @@ def save_theme(client, user_id, theme):
     try:
         client.table("profiles").upsert({"id": user_id, "theme": theme}).execute()
         return True
+    except Exception:
+        return False
+
+
+def load_biometric_flag(client, user_id):
+    """Whether this account turned biometric login on. Safe on databases that
+    don't have the column yet."""
+    try:
+        rows = client.table("profiles").select("biometric_enabled").eq("id", user_id).execute().data
+        return bool(rows and rows[0].get("biometric_enabled"))
     except Exception:
         return False
 
@@ -218,6 +239,27 @@ def inject_template_globals():
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
 
+# Optional server-side Supabase key, used only by the monthly-report cron.
+# Never expose this key to the browser.
+SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+MONTHLY_REPORT_CRON_SECRET = os.environ.get("MONTHLY_REPORT_CRON_SECRET", "")
+
+# SMTP is environment-driven so Minto is not tied to one mail provider.
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USERNAME = os.environ.get("SMTP_USERNAME", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+SMTP_FROM = os.environ.get("SMTP_FROM", SMTP_USERNAME)
+
+# Credit-card dashboard warning thresholds: plain numbers, not a black box.
+CC_SPEND_SHARE_WARNING = float(os.environ.get("CC_SPEND_SHARE_WARNING", "50"))
+CC_UTILIZATION_WARNING = float(os.environ.get("CC_UTILIZATION_WARNING", "70"))
+
+# Reports and "this month" follow Indian time, not UTC, so a job that runs just
+# after midnight IST on the 1st still reports the month that just ended.
+APP_TZ = ZoneInfo("Asia/Kolkata")
+MAX_AMOUNT = 100_000_000  # one hundred million rupees: a sanity ceiling
+
 # How often login_required re-checks with Supabase's Auth service that the
 # session's user still actually exists. An access token stays valid (passes
 # signature checks) until its own expiry no matter what happens to the
@@ -259,6 +301,66 @@ def get_categories(client, user_id, kind, fixed_list):
     )
     custom_names = [c["name"] for c in custom]
     return fixed_list + custom_names + ["other"]
+
+
+def parse_money(raw, *, allow_zero=False, default=None):
+    """A finite rupee amount rounded to paise, or None if it isn't usable.
+    Rejects blanks (unless a default is given), text, nan/inf, negatives,
+    zero (unless allow_zero) and absurdly large numbers."""
+    if raw is None or str(raw).strip() == "":
+        return default
+    try:
+        value = float(str(raw).strip().replace(",", ""))
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(value) or value < 0 or value > MAX_AMOUNT:
+        return None
+    if value == 0 and not allow_zero:
+        return None
+    return round(value, 2)
+
+
+def parse_iso_date(raw):
+    try:
+        return date.fromisoformat(str(raw).strip())
+    except (TypeError, ValueError):
+        return None
+
+
+def insert_entry_and_transaction(client, user_id, entry_text, txn_fields):
+    """One entries row plus the transactions row that shares its id. If the
+    second insert fails the first is removed, so a failure never leaves an
+    orphan entry behind. Returns the new id."""
+    entry_row = client.table("entries").insert({
+        "user_id": user_id,
+        "entry_text": entry_text,
+        "mode": "manual",
+    }).execute()
+    entry_id = entry_row.data[0]["id"]
+    try:
+        client.table("transactions").insert({
+            "id": entry_id,
+            "user_id": user_id,
+            "currency": "INR",
+            **txn_fields,
+        }).execute()
+    except Exception:
+        try:
+            client.table("entries").delete().eq("id", entry_id).eq("user_id", user_id).execute()
+        except Exception:
+            pass
+        raise
+    return entry_id
+
+
+def source_ids_for(client):
+    """Ids of this user's accounts (RLS already limits the query to them)."""
+    rows = client.table("user_sources").select("id").execute().data
+    return {r["id"] for r in rows}
+
+
+ENTRY_DIRECTIONS = ("in", "out")
+ENTRY_CATEGORIES = ("expense", "income", "investment", "lending", "transfer")
 
 
 def get_client() -> Client:
@@ -317,7 +419,11 @@ def handle_unexpected_error(e):
             and not request.path.startswith("/static/")
         ):
             return redirect(url_for("info"))
-        return e
+        if request.path.startswith("/static/") or (e.code or 500) >= 500 or e.code in (301, 302, 303, 307, 308):
+            return e
+        # Logged-in users get a page that looks like the rest of Minto
+        # instead of the bare browser-default error text.
+        return render_template("error.html", code=e.code, title=e.name), e.code
 
     message = str(e).lower()
     session_is_dead = (
@@ -432,6 +538,7 @@ def login():
         session["mode"] = load_saved_mode(user_client, result.user.id)
         session["theme"] = load_saved_theme(user_client, result.user.id)
         session["display_name"] = load_display_name(user_client, result.user.id)
+        session["biometric_enabled"] = load_biometric_flag(user_client, result.user.id)
 
         # New users see Minto's short introduction once before entering the app.
         if session.pop("show_info", False):
@@ -483,7 +590,26 @@ def passkey_login():
     session["mode"] = load_saved_mode(user_client, user.id)
     session["theme"] = load_saved_theme(user_client, user.id)
     session["display_name"] = load_display_name(user_client, user.id)
+    session["biometric_enabled"] = load_biometric_flag(user_client, user.id)
     return jsonify(ok=True, redirect=home_url())
+
+
+@app.route("/auth/passkey-flag", methods=["POST"])
+@login_required
+def passkey_flag():
+    """Remembers whether biometric login is on for this account so the page
+    can show the right option immediately. The passkeys themselves live in
+    Supabase Auth; the browser lists and removes them (the Python client has
+    no passkey API) and then reports the result here."""
+    enabled = bool((request.get_json(silent=True) or {}).get("enabled"))
+    try:
+        get_user_client().table("profiles").upsert(
+            {"id": session["user_id"], "biometric_enabled": enabled}
+        ).execute()
+    except Exception:
+        return jsonify(ok=False), 200  # column not added yet: the page still works
+    session["biometric_enabled"] = enabled
+    return jsonify(ok=True)
 
 
 @app.route("/auth/passkey-token", methods=["POST"])
@@ -538,10 +664,12 @@ def profile():
 
     def saved_name():
         try:
-            rows = client.table("profiles").select("display_name, theme, profile_emoji").eq("id", user_id).execute().data
+            # "*" returns whichever columns exist, so one missing column
+            # (say theme) can never hide the others (like the display name).
+            rows = client.table("profiles").select("*").eq("id", user_id).execute().data
             return rows[0] if rows else {}
         except Exception:
-            return None  # column not added yet: fall back to the email name
+            return None
 
     def member_since():
         try:
@@ -564,9 +692,11 @@ def profile():
     name = profile_data.get("display_name") or ""
     theme = profile_data.get("theme") if profile_data.get("theme") in ("light", "dark") else session.get("theme", "light")
     profile_emoji = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_EMOJIS else load_profile_emoji(client, user_id)
+    biometric_enabled = bool(profile_data.get("biometric_enabled"))
     session["display_name"] = name  # keeps the top bar in step
     session["profile_emoji"] = profile_emoji
     session["theme"] = theme
+    session["biometric_enabled"] = biometric_enabled
     display_name = name or (email.split("@")[0] if email else "Minto user")
     return render_template(
         "profile.html",
@@ -580,6 +710,7 @@ def profile():
         theme=theme,
         profile_emoji=profile_emoji,
         profile_emojis=PROFILE_EMOJIS,
+        biometric_enabled=biometric_enabled,
     )
 
 
@@ -598,16 +729,23 @@ def update_profile_emoji():
 @app.route("/profile/theme", methods=["POST"])
 @login_required
 def update_profile_theme():
+    # The profile page's toggle calls this with fetch(). It gets a plain
+    # status code back; a flash message would otherwise sit in the session and
+    # pop up on whatever page is opened next.
+    wants_json = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     theme = request.form.get("theme", "light").strip().lower()
     if theme not in ("light", "dark"):
+        if wants_json:
+            return jsonify(ok=False), 400
         flash("Invalid theme selection.")
         return redirect(url_for("profile"))
 
-    if save_theme(get_user_client(), session["user_id"], theme):
+    saved = save_theme(get_user_client(), session["user_id"], theme)
+    if saved:
         session["theme"] = theme
-        flash("Appearance updated.")
-    else:
-        flash("Couldn't save your appearance preference. Please try again.")
+    if wants_json:
+        return jsonify(ok=saved), (200 if saved else 500)
+    flash("Appearance updated." if saved else "Couldn't save your appearance preference. Please try again.")
     return redirect(url_for("profile"))
 
 
@@ -662,7 +800,7 @@ def _fetch_report_history(client, user_id):
 @login_required
 def reports():
     client = get_user_client()
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(APP_TZ).date()
     return render_template(
         "reports.html",
         default_from=today.replace(day=1).isoformat(),
@@ -762,6 +900,163 @@ def download_report():
     )
 
 
+# ---------------------------------------------------------------------------
+# Monthly report email. A scheduler (for example a Railway cron) calls
+# POST /internal/monthly-reports with the secret header once a month.
+# ---------------------------------------------------------------------------
+
+def _admin_client():
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY is not configured.")
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+
+def _send_report_email(to_email, user_name, report_month, pdf_bytes):
+    if not all((SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM)):
+        raise RuntimeError("SMTP settings are not configured.")
+
+    label = report_month.strftime("%B %Y")
+    message = EmailMessage()
+    message["Subject"] = f"Your Minto report for {label}"
+    message["From"] = SMTP_FROM
+    message["To"] = to_email
+    message.set_content(
+        f"Hi {user_name},\n\n"
+        f"Attached is your Minto spending report for {label}.\n\n"
+        "It includes your average daily spend, category-wise spending, "
+        "spend by account and a few useful highlights.\n\n"
+        "Minto"
+    )
+    message.add_attachment(
+        pdf_bytes,
+        maintype="application",
+        subtype="pdf",
+        filename=f"minto-report-{report_month.strftime('%Y-%m')}.pdf",
+    )
+
+    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=30) as server:
+        server.starttls()
+        server.login(SMTP_USERNAME, SMTP_PASSWORD)
+        server.send_message(message)
+
+
+def _previous_month_range(today=None):
+    """First and last day of the month before `today`, in Indian time."""
+    today = today or datetime.now(APP_TZ).date()
+    first_this = today.replace(day=1)
+    last_previous = first_this - timedelta(days=1)
+    return last_previous.replace(day=1), last_previous
+
+
+def send_monthly_reports(max_sends=100):
+    """Email last month's report to every confirmed user who has activity.
+
+    Safe to call repeatedly: a row in monthly_report_sends is claimed *before*
+    the email goes out (the unique rule means only one caller can claim it),
+    and released again if anything fails so the next run retries. At most
+    `max_sends` emails go out per call so one request never runs long; the
+    response says when there is more to do."""
+    month_from, month_to = _previous_month_range()
+    span = (month_to - month_from).days + 1
+    prev_to = month_from - timedelta(days=1)
+    prev_from = prev_to - timedelta(days=span - 1)
+    admin = _admin_client()
+
+    users, page = [], 1
+    while True:
+        result = admin.auth.admin.list_users(page=page, per_page=1000)
+        batch = result.users if hasattr(result, "users") else getattr(result, "data", result)
+        batch = batch or []
+        users.extend(batch)
+        if len(batch) < 1000:
+            break
+        page += 1
+
+    sent = skipped = failed = 0
+    more = False
+    for user in users:
+        email = getattr(user, "email", None)
+        if not email or not getattr(user, "email_confirmed_at", None):
+            skipped += 1
+            continue
+        user_id = str(getattr(user, "id", ""))
+        claimed = False
+        try:
+            already = admin.table("monthly_report_sends").select("id").eq(
+                "user_id", user_id
+            ).eq("report_month", month_from.isoformat()).limit(1).execute().data
+            if already:
+                skipped += 1
+                continue
+
+            rows = _fetch_transactions(
+                admin, user_id, month_from, month_to, "*, user_sources(name, source_type)"
+            )
+            if not rows:
+                skipped += 1
+                continue
+
+            if sent >= max_sends:
+                more = True
+                break
+
+            # Claim first. A duplicate-key error here means another run got there first.
+            admin.table("monthly_report_sends").insert({
+                "user_id": user_id,
+                "report_month": month_from.isoformat(),
+            }).execute()
+            claimed = True
+
+            # The name chosen on the Profile page lives in profiles.display_name.
+            profile = admin.table("profiles").select("display_name").eq("id", user_id).limit(1).execute().data
+            name = ((profile[0].get("display_name") if profile else None)
+                    or (getattr(user, "user_metadata", {}) or {}).get("display_name")
+                    or email.split("@")[0])
+
+            prev_rows = _fetch_transactions(admin, user_id, prev_from, prev_to, "amount, category")
+            prev_spend = sum(float(r["amount"] or 0) for r in prev_rows if r.get("category") == "expense")
+
+            pdf = build_report_pdf(name, month_from, month_to, rows, prev_spend)
+            _send_report_email(email, name, month_from, pdf)
+            sent += 1
+        except Exception as exc:
+            if claimed:
+                try:
+                    admin.table("monthly_report_sends").delete().eq(
+                        "user_id", user_id
+                    ).eq("report_month", month_from.isoformat()).execute()
+                except Exception:
+                    app.logger.exception("Could not release report claim for %s", user_id)
+            if "duplicate" in str(exc).lower() or "unique" in str(exc).lower():
+                skipped += 1
+            else:
+                failed += 1
+                app.logger.exception("Monthly report failed for user %s", user_id)
+
+    return {
+        "sent": sent, "skipped": skipped, "failed": failed, "more": more,
+        "report_month": month_from.isoformat(),
+    }
+
+
+@app.route("/internal/monthly-reports", methods=["POST"])
+def monthly_reports_cron():
+    """Cron endpoint. Protect with a long random secret; never expose the service key."""
+    if not MONTHLY_REPORT_CRON_SECRET:
+        return jsonify(error="Cron endpoint is not configured."), 503
+
+    supplied = request.headers.get("X-Minto-Cron-Secret", "")
+    # Compare as bytes: comparing non-ASCII text would raise instead of failing.
+    if not secrets.compare_digest(supplied.encode("utf-8"), MONTHLY_REPORT_CRON_SECRET.encode("utf-8")):
+        return jsonify(error="Unauthorized."), 401
+
+    try:
+        return jsonify(send_monthly_reports())
+    except Exception:
+        app.logger.exception("Monthly report run failed")
+        return jsonify(error="Monthly report run failed. See the server logs."), 500
+
+
 @app.route("/info")
 def info():
     return render_template("info.html")
@@ -810,42 +1105,58 @@ def entry():
     user_id = session["user_id"]
 
     if request.method == "POST":
-        amount = request.form.get("amount")
+        raw_amount = request.form.get("amount")
         direction = request.form.get("direction")
         category = request.form.get("category")
         expense_category = request.form.get("expense_category") or None
         investment_category = request.form.get("investment_category") or None
-        counterparty = request.form.get("counterparty") or None
+        counterparty = (request.form.get("counterparty") or "").strip() or None
         source_id = request.form.get("source_id") or None
-        notes = request.form.get("notes") or None
-        transaction_date = request.form.get("transaction_date") or None
+        notes = (request.form.get("notes") or "").strip() or None
+        raw_date = request.form.get("transaction_date") or None
 
-        entry_row = client.table("entries").insert({
-            "user_id": user_id,
-            "entry_text": notes or f"{direction} {amount} {category}",
-            "mode": "manual",
-        }).execute()
-        entry_id = entry_row.data[0]["id"]
+        amount = parse_money(raw_amount)
+        problem = None
+        if amount is None:
+            problem = "Enter an amount greater than zero."
+        elif direction not in ENTRY_DIRECTIONS or category not in ENTRY_CATEGORIES:
+            problem = "Choose In or Out and a category."
+        elif category == "lending" and not counterparty:
+            problem = "Add who the money was lent to or came back from."
+        elif raw_date and parse_iso_date(raw_date) is None:
+            problem = "That date doesn't look right."
+        elif source_id:
+            try:
+                if int(source_id) not in source_ids_for(client):
+                    problem = "Pick one of your accounts."
+            except ValueError:
+                problem = "Pick one of your accounts."
+        if problem:
+            flash(problem)
+            return redirect(url_for("entry"))
 
         transaction_row = {
-            "id": entry_id,
-            "user_id": user_id,
             "direction": direction,
             "category": category,
-            "expense_category": expense_category,
-            "investment_category": investment_category,
+            "expense_category": expense_category if category == "expense" else None,
+            "investment_category": investment_category if category == "investment" else None,
             "counterparty": counterparty if category == "lending" else None,
             "source_id": int(source_id) if source_id else None,
-            "amount": float(amount) if amount else None,
-            "currency": "INR",
+            "amount": amount,
             "description": notes,
             "raw_text": notes,
         }
-        if transaction_date:
-            transaction_row["transaction_date"] = transaction_date
+        if raw_date:
+            transaction_row["transaction_date"] = raw_date
         # else: omitted entirely so the column's own DB default (today) applies —
         # explicitly sending null here would fail the not-null constraint.
-        client.table("transactions").insert(transaction_row).execute()
+        try:
+            insert_entry_and_transaction(
+                client, user_id, notes or f"{direction} {amount} {category}", transaction_row
+            )
+        except Exception:
+            flash("Couldn't save that entry. Please try again.")
+            return redirect(url_for("entry"))
 
         flash("Saved.")
         return redirect(url_for("entry"))
@@ -871,7 +1182,7 @@ def entry():
         outstanding_loans=outstanding_loans,
         expense_categories=expense_categories,
         investment_categories=investment_categories,
-        today=datetime.now(timezone.utc).date().isoformat(),
+        today=datetime.now(APP_TZ).date().isoformat(),
     )
 
 
@@ -900,97 +1211,83 @@ def pay_cc_bill():
     savings_sources = [s for s in sources if s["source_type"] in ("savings", "cash")]
     cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
 
+    # Until a user has paid a first card bill, ask whether it is for spending
+    # from before they started using Minto. The answer is remembered only as
+    # "setup done"; each payment keeps its own previous-bill flag.
+    ask_previous_bill = not load_credit_card_setup_completed(client, user_id)
+
+    def render_form():
+        return render_template(
+            "pay_cc_bill.html",
+            savings_sources=savings_sources,
+            cc_sources=cc_sources,
+            ask_previous_bill=ask_previous_bill,
+            form=request.form,
+        )
+
     if request.method == "POST":
-        amount = request.form.get("amount")
+        amount = parse_money(request.form.get("amount"))
         from_source_id = request.form.get("from_source_id")
         to_source_id = request.form.get("to_source_id")
-        notes = request.form.get("notes") or None
+        notes = (request.form.get("notes") or "").strip() or None
         previous_card_bill = request.form.get("previous_card_bill")
-        setup_completed = load_credit_card_setup_completed(client, user_id)
 
-        # On a user's first credit-card bill payment, require an explicit
-        # choice about whether the bill belongs to spending from before Minto
-        # was started. The choice is remembered only as setup completion; the
-        # individual transaction keeps its own previous-bill flag.
-        if not setup_completed and previous_card_bill not in ("yes", "no"):
-            return render_template(
-                "pay_cc_bill.html",
-                savings_sources=savings_sources,
-                cc_sources=cc_sources,
-                first_card_payment=True,
-            )
+        pay_from_ids = {str(s["id"]) for s in savings_sources}
+        card_ids = {str(s["id"]) for s in cc_sources}
 
-        is_previous_card_bill = (previous_card_bill == "yes") if not setup_completed else False
+        if amount is None:
+            flash("Enter an amount greater than zero.")
+            return render_form()
+        if from_source_id not in pay_from_ids or to_source_id not in card_ids:
+            flash("Pick an account to pay from and a card to pay off.")
+            return render_form()
+        if ask_previous_bill and previous_card_bill not in ("yes", "no"):
+            flash("Say whether this bill is for spending from before you started using Minto.")
+            return render_form()
 
-        if not amount or not from_source_id or not to_source_id:
-            flash("Pick an amount, a bank or cash account to pay from, and a card to pay off.")
-            return render_template(
-                "pay_cc_bill.html",
-                savings_sources=savings_sources,
-                cc_sources=cc_sources,
-            )
-
-        amount = float(amount)
+        is_previous_card_bill = ask_previous_bill and previous_card_bill == "yes"
         transfer_group = str(uuid.uuid4())
         description = notes or "Credit card bill payment"
 
-        def insert_leg(direction, source_id):
-            entry_row = client.table("entries").insert({
-                "user_id": user_id,
-                "entry_text": description,
-                "mode": "manual",
-            }).execute()
-            entry_id = entry_row.data[0]["id"]
-            client.table("transactions").insert({
-                "id": entry_id,
-                "user_id": user_id,
+        def leg(direction, source_id):
+            fields = {
                 "direction": direction,
                 "category": "transfer",
                 "source_id": int(source_id),
                 "amount": amount,
-                "currency": "INR",
                 "description": description,
                 "raw_text": description,
                 "transfer_group": transfer_group,
-                "is_previous_card_bill": is_previous_card_bill,
-            }).execute()
-            return entry_id
+            }
+            if is_previous_card_bill:
+                fields["is_previous_card_bill"] = True
+            return insert_entry_and_transaction(client, user_id, description, fields)
 
         out_entry_id = None
         try:
-            out_entry_id = insert_leg("out", from_source_id)
-            insert_leg("in", to_source_id)
-        except Exception as e:
-            # Best-effort rollback: without the first leg, don't leave a
-            # dangling half-transfer sitting in the savings account.
+            out_entry_id = leg("out", from_source_id)
+            leg("in", to_source_id)
+        except Exception:
+            # Without the second leg, don't leave a dangling half-transfer.
             if out_entry_id is not None:
                 try:
-                    client.table("entries").delete().eq("id", out_entry_id).execute()
+                    client.table("entries").delete().eq("id", out_entry_id).eq("user_id", user_id).execute()
                 except Exception:
                     pass
-            flash(f"Couldn't record the payment. Please try again. ({e})")
-            return render_template(
-                "pay_cc_bill.html",
-                savings_sources=savings_sources,
-                cc_sources=cc_sources,
-            )
+            flash("Couldn't record the payment. Please try again.")
+            return render_form()
 
-        if not setup_completed:
-            # Do not fail the payment if the preference write is unavailable;
-            # the transaction itself has already been recorded correctly.
+        if ask_previous_bill:
+            # The payment is already saved; a failed preference write is harmless.
             save_credit_card_setup_completed(client, user_id)
 
         if is_previous_card_bill:
-            flash("Previous card bill recorded. It reduces your bank and card balances but is not counted as current spending.")
+            flash("Previous card bill recorded. It lowers your bank and card balances but is not counted as spending.")
         else:
             flash("Payment recorded. Bank and card balances both updated.")
         return redirect(url_for("sources"))
 
-    return render_template(
-        "pay_cc_bill.html",
-        savings_sources=savings_sources,
-        cc_sources=cc_sources,
-    )
+    return render_form()
 
 
 @app.route("/categories/add", methods=["POST"])
@@ -1336,7 +1633,7 @@ def trip_detail(trip_id):
         people_rows=people_rows,
         settlements=settlements,
         your_share=your_share,
-        today=datetime.now(timezone.utc).date().isoformat(),
+        today=datetime.now(APP_TZ).date().isoformat(),
     )
 
 
@@ -1588,88 +1885,60 @@ def withdraw_cash():
     bank_sources = [s for s in sources if s["source_type"] == "savings"]
     cash_sources = [s for s in sources if s["source_type"] == "cash"]
 
+    def render_form():
+        return render_template(
+            "withdraw_cash.html",
+            bank_sources=bank_sources,
+            cash_sources=cash_sources,
+            form=request.form,
+        )
+
     if request.method == "POST":
-        amount = request.form.get("amount")
+        amount = parse_money(request.form.get("amount"))
         from_source_id = request.form.get("from_source_id")
         to_source_id = request.form.get("to_source_id")
-        notes = request.form.get("notes") or None
-        previous_card_bill = request.form.get("previous_card_bill")
-        setup_completed = load_credit_card_setup_completed(client, user_id)
+        notes = (request.form.get("notes") or "").strip() or None
 
-        # On a user's first credit-card bill payment, require an explicit
-        # choice about whether the bill belongs to spending from before Minto
-        # was started. The choice is remembered only as setup completion; the
-        # individual transaction keeps its own previous-bill flag.
-        if not setup_completed and previous_card_bill not in ("yes", "no"):
-            return render_template(
-                "pay_cc_bill.html",
-                savings_sources=savings_sources,
-                cc_sources=cc_sources,
-                first_card_payment=True,
-            )
+        if amount is None:
+            flash("Enter an amount greater than zero.")
+            return render_form()
+        if (from_source_id not in {str(s["id"]) for s in bank_sources}
+                or to_source_id not in {str(s["id"]) for s in cash_sources}):
+            flash("Pick a bank account to take it from and the cash account it goes into.")
+            return render_form()
 
-        is_previous_card_bill = (previous_card_bill == "yes") if not setup_completed else False
-
-        if not amount or not from_source_id or not to_source_id:
-            flash("Pick an amount, a bank account to take it from, and which cash account it goes into.")
-            return render_template(
-                "withdraw_cash.html",
-                bank_sources=bank_sources,
-                cash_sources=cash_sources,
-            )
-
-        amount = float(amount)
         transfer_group = str(uuid.uuid4())
         description = notes or "Cash withdrawal"
 
-        def insert_leg(direction, source_id):
-            entry_row = client.table("entries").insert({
-                "user_id": user_id,
-                "entry_text": description,
-                "mode": "manual",
-            }).execute()
-            entry_id = entry_row.data[0]["id"]
-            client.table("transactions").insert({
-                "id": entry_id,
-                "user_id": user_id,
+        def leg(direction, source_id):
+            return insert_entry_and_transaction(client, user_id, description, {
                 "direction": direction,
                 "category": "transfer",
                 "source_id": int(source_id),
                 "amount": amount,
-                "currency": "INR",
                 "description": description,
                 "raw_text": description,
                 "transfer_group": transfer_group,
-            }).execute()
-            return entry_id
+            })
 
         out_entry_id = None
         try:
-            out_entry_id = insert_leg("out", from_source_id)
-            insert_leg("in", to_source_id)
-        except Exception as e:
-            # Best-effort rollback: without the first leg, don't leave a
-            # dangling half-transfer sitting in the bank account.
+            out_entry_id = leg("out", from_source_id)
+            leg("in", to_source_id)
+        except Exception:
             if out_entry_id is not None:
                 try:
-                    client.table("entries").delete().eq("id", out_entry_id).execute()
+                    client.table("entries").delete().eq("id", out_entry_id).eq("user_id", user_id).execute()
                 except Exception:
                     pass
-            flash(f"Couldn't record the cash out. Please try again. ({e})")
-            return render_template(
-                "withdraw_cash.html",
-                bank_sources=bank_sources,
-                cash_sources=cash_sources,
-            )
+            flash("Couldn't record the cash out. Please try again.")
+            return render_form()
 
         flash("Cash out recorded. Bank and cash balances both updated.")
         return redirect(url_for("sources"))
 
-    return render_template(
-        "withdraw_cash.html",
-        bank_sources=bank_sources,
-        cash_sources=cash_sources,
-    )
+    return render_form()
+
 
 
 def compute_source_balances(client, user_id):
@@ -1771,13 +2040,73 @@ def compute_net_worth(all_txns, savings, credit_cards):
     }
 
 
+def get_dashboard_alerts(savings, credit_cards, txns):
+    """Plain, threshold-based notices for the top of Overview."""
+    alerts = []
+
+    for source in savings:
+        if source.get("source_type") == "savings" and source.get("below_minimum"):
+            alerts.append({
+                "kind": "warning",
+                "title": f"{source['name']} is below its minimum balance",
+                "message": (
+                    f"Current balance is {inr_filter(source['balance'])}. "
+                    f"Keep at least {inr_filter(source['minimum_balance'])} in this account."
+                ),
+            })
+
+    # A card near its limit is worth a warning even if nothing new was spent
+    # on it this period.
+    near_limit = [
+        c for c in credit_cards
+        if c.get("limit_pct") is not None and c["limit_pct"] >= CC_UTILIZATION_WARNING
+    ]
+    if near_limit:
+        detail = ", ".join(f"{c['name']} ({c['limit_pct']:.0f}% used)" for c in near_limit[:3])
+        alerts.append({
+            "kind": "warning",
+            "title": "Credit card close to its limit",
+            "message": f"{detail}. Consider paying the bill down soon.",
+        })
+
+    period_expenses = sum(
+        float(t.get("amount") or 0) for t in txns
+        if t.get("category") == "expense" and t.get("amount")
+    )
+    card_spend = sum(
+        float(t["amount"]) for t in txns
+        if t.get("category") == "expense" and t.get("amount")
+        and (t.get("user_sources") or {}).get("source_type") == "credit_card"
+    )
+    share = (card_spend / period_expenses * 100) if period_expenses else 0
+    if card_spend and share >= CC_SPEND_SHARE_WARNING:
+        alerts.append({
+            "kind": "warning",
+            "title": "High credit-card spending",
+            "message": (
+                f"Credit-card purchases are {share:.0f}% of your expenses in this period. "
+                "Review them and make sure the balance stays manageable."
+            ),
+        })
+
+    return alerts
+
+
 def fixed_expense_due_date(year, month, due_day):
     """Return this month's due date, clamping 29-31 to the month's last day."""
     return date(year, month, min(int(due_day), calendar.monthrange(year, month)[1]))
 
 
 def get_fixed_expenses_for_month(client, user_id, year=None, month=None):
-    today = datetime.now(timezone.utc).date()
+    try:
+        return _get_fixed_expenses_for_month(client, user_id, year, month)
+    except Exception:
+        app.logger.exception("Fixed expenses unavailable (has the database update been run?)")
+        return []
+
+
+def _get_fixed_expenses_for_month(client, user_id, year=None, month=None):
+    today = datetime.now(APP_TZ).date()
     year = year or today.year
     month = month or today.month
     month_start = date(year, month, 1)
@@ -1817,31 +2146,41 @@ def fixed_expenses():
     client = get_user_client()
     user_id = session["user_id"]
 
+    categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
+
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
-        amount_raw = request.form.get("amount", "").strip()
-        due_day_raw = request.form.get("due_day", "").strip()
-        category = request.form.get("category", "other").strip() or "other"
+        name = request.form.get("name", "").strip()[:60]
+        amount = parse_money(request.form.get("amount"))
+        category = (request.form.get("category") or "other").strip()
         source_id = request.form.get("source_id") or None
         try:
-            amount = float(amount_raw)
-            due_day = int(due_day_raw)
-            if not name or amount <= 0 or not 1 <= due_day <= 31:
-                raise ValueError
-            client.table("fixed_expenses").insert({
-                "user_id": user_id,
-                "name": name,
-                "amount": amount,
-                "due_day": due_day,
-                "category": category,
-                "source_id": int(source_id) if source_id else None,
-            }).execute()
-            flash(f"Added {name} as a monthly fixed expense.")
-        except Exception:
+            due_day = int(request.form.get("due_day", "").strip())
+        except ValueError:
+            due_day = 0
+        pay_ids = {r["id"] for r in client.table("user_sources").select("id, source_type")
+                   .in_("source_type", ["savings", "cash"]).execute().data}
+        if not name or amount is None or not 1 <= due_day <= 31:
             flash("Couldn't add that fixed expense. Check the name, amount and due day.")
+        elif category not in categories:
+            flash("Pick one of the listed categories.")
+        elif source_id and (not source_id.isdigit() or int(source_id) not in pay_ids):
+            flash("Pick one of your bank or cash accounts.")
+        else:
+            try:
+                client.table("fixed_expenses").insert({
+                    "user_id": user_id,
+                    "name": name,
+                    "amount": amount,
+                    "due_day": due_day,
+                    "category": category,
+                    "source_id": int(source_id) if source_id else None,
+                }).execute()
+                flash(f"Added {name} as a monthly fixed expense.")
+            except Exception:
+                flash("Couldn't add that fixed expense. Please try again.")
         return redirect(url_for("fixed_expenses"))
 
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(APP_TZ).date()
     expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     sources = (
         client.table("user_sources")
@@ -1853,13 +2192,13 @@ def fixed_expenses():
         .execute()
         .data
     )
-    categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
     return render_template(
         "fixed_expenses.html",
         expenses=expenses,
         sources=sources,
         categories=categories,
         month_label=today.strftime("%B %Y"),
+        today=today,
     )
 
 
@@ -1868,7 +2207,7 @@ def fixed_expenses():
 def pay_fixed_expense(fixed_expense_id):
     client = get_user_client()
     user_id = session["user_id"]
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(APP_TZ).date()
     month_start = today.replace(day=1)
 
     rows = (
@@ -1889,6 +2228,11 @@ def pay_fixed_expense(fixed_expense_id):
     if not source_id:
         flash("Choose the account used to pay this expense.")
         return redirect(url_for("fixed_expenses"))
+    pay_ids = {str(r["id"]) for r in client.table("user_sources").select("id")
+               .in_("source_type", ["savings", "cash"]).execute().data}
+    if str(source_id) not in pay_ids:
+        flash("Pick one of your bank or cash accounts.")
+        return redirect(url_for("fixed_expenses"))
 
     existing = (
         client.table("fixed_expense_payments")
@@ -1903,41 +2247,40 @@ def pay_fixed_expense(fixed_expense_id):
         flash("This fixed expense is already marked paid for this month.")
         return redirect(url_for("fixed_expenses"))
 
+    entry_id = None
     try:
-        entry_row = client.table("entries").insert({
-            "user_id": user_id,
-            "entry_text": f"Fixed expense: {expense['name']}",
-            "mode": "manual",
-        }).execute()
-        entry_id = entry_row.data[0]["id"]
-        txn = client.table("transactions").insert({
-            "id": entry_id,
-            "user_id": user_id,
-            "direction": "out",
-            "category": "expense",
-            "expense_category": expense.get("category") or "other",
-            "source_id": int(source_id),
-            "amount": float(expense["amount"]),
-            "currency": "INR",
-            "description": expense["name"],
-            "raw_text": f"Fixed expense: {expense['name']}",
-            "transaction_date": today.isoformat(),
-        }).execute()
-        transaction_id = txn.data[0]["id"]
+        entry_id = insert_entry_and_transaction(
+            client, user_id, f"Fixed expense: {expense['name']}", {
+                "direction": "out",
+                "category": "expense",
+                "expense_category": expense.get("category") or "other",
+                "source_id": int(source_id),
+                "amount": float(expense["amount"]),
+                "description": expense["name"],
+                "raw_text": f"Fixed expense: {expense['name']}",
+                "transaction_date": today.isoformat(),
+            },
+        )
         client.table("fixed_expense_payments").insert({
             "fixed_expense_id": fixed_expense_id,
             "user_id": user_id,
             "due_month": month_start.isoformat(),
-            "transaction_id": transaction_id,
+            "transaction_id": entry_id,
         }).execute()
         flash(f"Marked {expense['name']} as paid and added it to your expenses.")
     except Exception as e:
-        try:
-            if 'entry_id' in locals():
+        # Undo the expense if the payment row could not be saved (for example
+        # a double tap that lost the race against the unique rule), so the
+        # same bill is never counted twice.
+        if entry_id is not None:
+            try:
                 client.table("entries").delete().eq("id", entry_id).eq("user_id", user_id).execute()
-        except Exception:
-            pass
-        flash("Couldn't mark that fixed expense as paid. Please try again.")
+            except Exception:
+                pass
+        if "duplicate" in str(e).lower() or "unique" in str(e).lower():
+            flash("This fixed expense is already marked paid for this month.")
+        else:
+            flash("Couldn't mark that fixed expense as paid. Please try again.")
     return redirect(url_for("fixed_expenses"))
 
 
@@ -1958,40 +2301,65 @@ def sources():
     user_id = session["user_id"]
 
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
+        name = request.form.get("name", "").strip()[:60]
         source_type = request.form.get("source_type")
-        if name and source_type:
-            row = {
-                "user_id": user_id,
-                "name": name,
-                "source_type": source_type,
-            }
-            if source_type == "savings":
-                opening_balance = request.form.get("opening_balance") or 0
-                minimum_balance = request.form.get("minimum_balance") or 0
-                row["opening_balance"] = float(opening_balance)
-                row["minimum_balance"] = float(minimum_balance)
-            elif source_type == "cash":
-                opening_balance = request.form.get("cash_opening_balance") or 0
-                row["opening_balance"] = float(opening_balance)
-            elif source_type == "credit_card":
-                credit_limit = request.form.get("credit_limit") or None
-                outstanding = request.form.get("outstanding") or 0
-                row["credit_limit"] = float(credit_limit) if credit_limit else None
-                row["opening_balance"] = float(outstanding)
-            try:
-                client.table("user_sources").insert(row).execute()
-            except Exception as e:
-                if "duplicate key" in str(e).lower():
-                    flash(f"You already have an account named '{name}'.")
-                else:
-                    flash("Couldn't add that account. Please try again.")
+        if not name or source_type not in ("savings", "cash", "credit_card"):
+            flash("Add a name and choose an account type.")
+            return redirect(url_for("sources"))
+
+        row = {"user_id": user_id, "name": name, "source_type": source_type}
+        bad = False
+        if source_type == "savings":
+            opening = parse_money(request.form.get("opening_balance"), allow_zero=True, default=0.0)
+            minimum = parse_money(request.form.get("minimum_balance"), allow_zero=True, default=0.0)
+            bad = opening is None or minimum is None
+            row["opening_balance"], row["minimum_balance"] = opening, minimum
+        elif source_type == "cash":
+            opening = parse_money(request.form.get("cash_opening_balance"), allow_zero=True, default=0.0)
+            bad = opening is None
+            row["opening_balance"] = opening
+        else:
+            limit = parse_money(request.form.get("credit_limit"))
+            outstanding = parse_money(request.form.get("outstanding"), allow_zero=True, default=0.0)
+            bad = outstanding is None or (request.form.get("credit_limit") and limit is None)
+            row["credit_limit"] = limit
+            row["opening_balance"] = outstanding
+        if bad:
+            flash("Check the amounts. They must be plain numbers, zero or more.")
+            return redirect(url_for("sources"))
+        try:
+            client.table("user_sources").insert(row).execute()
+        except Exception as e:
+            if "duplicate key" in str(e).lower():
+                flash(f"You already have an account named '{name}'.")
+            else:
+                flash("Couldn't add that account. Please try again.")
         return redirect(url_for("sources"))
 
     savings, credit_cards, _ = compute_source_balances(client, user_id)
     cash = [s for s in savings if s["source_type"] == "cash"]
     savings = [s for s in savings if s["source_type"] == "savings"]
     return render_template("sources.html", savings=savings, cash=cash, credit_cards=credit_cards)
+
+
+@app.template_filter("inr")
+def inr_filter(value):
+    """12345.6 -> ₹12,345.60 (Indian digit grouping, sign in front)."""
+    try:
+        x = round(float(value), 2)
+    except (TypeError, ValueError):
+        x = 0.0
+    whole, frac = f"{abs(x):.2f}".split(".")
+    if len(whole) > 3:
+        head, tail = whole[:-3], whole[-3:]
+        parts = []
+        while len(head) > 2:
+            parts.insert(0, head[-2:])
+            head = head[:-2]
+        if head:
+            parts.insert(0, head)
+        whole = ",".join(parts + [tail])
+    return ("-" if x < 0 else "") + "₹" + whole + "." + frac
 
 
 @app.template_filter("nice_date")
@@ -2004,12 +2372,12 @@ def nice_date(value):
         d = datetime.strptime(value, "%Y-%m-%d").date()
     except (ValueError, TypeError):
         return value
-    this_year = datetime.now(timezone.utc).date().year
+    this_year = datetime.now(APP_TZ).date().year
     return d.strftime("%d %b" if d.year == this_year else "%d %b %Y")
 
 
 def get_period_start(period):
-    now = datetime.now(timezone.utc)
+    now = datetime.now(APP_TZ)
     if period == "today":
         return now.replace(hour=0, minute=0, second=0, microsecond=0)
     elif period == "week":
@@ -2076,11 +2444,12 @@ def dashboard():
     wealth = compute_net_worth(all_txns, savings, credit_cards)
 
     # Fixed monthly commitments are forecasts until the user marks them paid.
-    today = datetime.now(timezone.utc).date()
+    today = datetime.now(APP_TZ).date()
     fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     fixed_total = sum(float(x["amount"] or 0) for x in fixed_expenses if not x["paid"])
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
     fixed_remaining = float(wealth["total_savings"]) - fixed_total
+    alerts = get_dashboard_alerts(savings, credit_cards, txns)
 
     # Outstanding loans by person — all-time, like net worth, not scoped to
     # the period tabs. Only people with a nonzero balance are shown; fully
@@ -2105,6 +2474,9 @@ def dashboard():
         fixed_total=fixed_total,
         fixed_paid_total=fixed_paid_total,
         fixed_remaining=fixed_remaining,
+        alerts=alerts,
+        report_from=datetime.now(APP_TZ).date().replace(day=1).isoformat(),
+        report_to=datetime.now(APP_TZ).date().isoformat(),
     )
 
 
