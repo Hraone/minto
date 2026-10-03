@@ -36,6 +36,7 @@ def _register_fonts():
     so a missing font file can never stop the app from starting."""
     candidates = [
         FONT_DIR,
+        os.path.join(HERE, "static"),  # in case the fonts were dropped in static/ directly
         "/usr/share/fonts/truetype/dejavu",
         "/usr/share/fonts/dejavu",
         "/usr/share/fonts/TTF",
