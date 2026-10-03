@@ -224,3 +224,77 @@ alter table public.monthly_report_sends enable row level security;
 drop policy if exists "own monthly report sends" on public.monthly_report_sends;
 create policy "own monthly report sends" on public.monthly_report_sends
     for select using (auth.uid() = user_id);
+
+
+-- ---------------------------------------------------------------------------
+-- Profile preferences (name, theme, emoji, biometric login, card setup)
+-- ---------------------------------------------------------------------------
+alter table public.profiles add column if not exists display_name text;
+alter table public.profiles add column if not exists theme text check (theme in ('light', 'dark'));
+alter table public.profiles add column if not exists profile_emoji text;
+alter table public.profiles add column if not exists biometric_enabled boolean not null default false;
+alter table public.profiles add column if not exists credit_card_setup_completed boolean not null default false;
+
+-- Card payments recorded as "for spending from before Minto was started"
+alter table public.transactions add column if not exists is_previous_card_bill boolean not null default false;
+
+-- ---------------------------------------------------------------------------
+-- Fixed (monthly repeating) expenses
+-- ---------------------------------------------------------------------------
+create table if not exists public.fixed_expenses (
+    id bigserial primary key,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    name text not null,
+    amount numeric not null check (amount > 0),
+    due_day integer not null check (due_day between 1 and 31),
+    category text not null default 'other',
+    source_id integer references public.user_sources(id) on delete set null,
+    active boolean not null default true,
+    created_at timestamp with time zone not null default now()
+);
+
+create table if not exists public.fixed_expense_payments (
+    id bigserial primary key,
+    fixed_expense_id bigint not null references public.fixed_expenses(id) on delete cascade,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    due_month date not null,
+    transaction_id integer references public.transactions(id) on delete set null,
+    paid_at timestamp with time zone not null default now(),
+    -- One payment per expense per month, enforced by the database so a
+    -- double tap can never count the same bill twice.
+    unique (fixed_expense_id, due_month)
+);
+
+create index if not exists fixed_expense_payments_txn_idx on public.fixed_expense_payments (transaction_id);
+
+alter table public.fixed_expenses enable row level security;
+alter table public.fixed_expense_payments enable row level security;
+
+drop policy if exists "own fixed expenses" on public.fixed_expenses;
+create policy "own fixed expenses" on public.fixed_expenses
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+drop policy if exists "own fixed expense payments" on public.fixed_expense_payments;
+create policy "own fixed expense payments" on public.fixed_expense_payments
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- ---------------------------------------------------------------------------
+-- Report download history (range and size only, never the report itself)
+-- ---------------------------------------------------------------------------
+create table if not exists public.report_history (
+    id bigserial primary key,
+    user_id uuid not null references auth.users(id) on delete cascade,
+    date_from date not null,
+    date_to date not null,
+    row_count integer not null default 0,
+    file_format text not null default 'pdf',
+    created_at timestamp with time zone not null default now()
+);
+
+create index if not exists report_history_user_idx on public.report_history (user_id, created_at desc);
+
+alter table public.report_history enable row level security;
+
+drop policy if exists "own report history" on public.report_history;
+create policy "own report history" on public.report_history
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
