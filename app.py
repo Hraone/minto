@@ -281,7 +281,7 @@ FIXED_EXPENSE_CATEGORIES = [
     "insurance", "entertainment", "groceries", "rent",
 ]
 FIXED_INVESTMENT_CATEGORIES = [
-    "mutual_fund", "stocks", "fixed_deposit", "recurring_deposit",
+    "mutual_fund", "stocks", "sip", "fixed_deposit", "recurring_deposit",
     "gold", "ppf_nps", "crypto",
 ]
 
@@ -2146,12 +2146,15 @@ def fixed_expenses():
     client = get_user_client()
     user_id = session["user_id"]
 
-    categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
+    expense_categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
+    investment_categories = get_categories(client, user_id, "investment", FIXED_INVESTMENT_CATEGORIES)
+    categories = expense_categories + [c for c in investment_categories if c not in expense_categories]
 
     if request.method == "POST":
         name = request.form.get("name", "").strip()[:60]
         amount = parse_money(request.form.get("amount"))
         category = (request.form.get("category") or "other").strip()
+        kind = "investment" if category in investment_categories else "expense"
         source_id = request.form.get("source_id") or None
         try:
             due_day = int(request.form.get("due_day", "").strip())
@@ -2173,6 +2176,7 @@ def fixed_expenses():
                     "amount": amount,
                     "due_day": due_day,
                     "category": category,
+                    "kind": kind,
                     "source_id": int(source_id) if source_id else None,
                 }).execute()
                 flash(f"Added {name} as a monthly fixed expense.")
@@ -2197,6 +2201,8 @@ def fixed_expenses():
         expenses=expenses,
         sources=sources,
         categories=categories,
+        expense_categories=expense_categories,
+        investment_categories=investment_categories,
         month_label=today.strftime("%B %Y"),
         today=today,
     )
@@ -2249,15 +2255,18 @@ def pay_fixed_expense(fixed_expense_id):
 
     entry_id = None
     try:
+        is_investment = (expense.get("kind") or "expense") == "investment"
+        entry_label = "Fixed investment" if is_investment else "Fixed expense"
         entry_id = insert_entry_and_transaction(
-            client, user_id, f"Fixed expense: {expense['name']}", {
+            client, user_id, f"{entry_label}: {expense['name']}", {
                 "direction": "out",
-                "category": "expense",
+                "category": expense.get("kind") or "expense",
                 "expense_category": expense.get("category") or "other",
+                "investment_category": expense.get("category") or "other",
                 "source_id": int(source_id),
                 "amount": float(expense["amount"]),
                 "description": expense["name"],
-                "raw_text": f"Fixed expense: {expense['name']}",
+                "raw_text": f"{entry_label}: {expense['name']}",
                 "transaction_date": today.isoformat(),
             },
         )
@@ -2267,7 +2276,8 @@ def pay_fixed_expense(fixed_expense_id):
             "due_month": month_start.isoformat(),
             "transaction_id": entry_id,
         }).execute()
-        flash(f"Marked {expense['name']} as paid and added it to your expenses.")
+        destination = "investments" if is_investment else "expenses"
+        flash(f"Marked {expense['name']} as paid and added it to your {destination}.")
     except Exception as e:
         # Undo the expense if the payment row could not be saved (for example
         # a double tap that lost the race against the unique rule), so the
