@@ -503,7 +503,31 @@ def get_card_cycle_dates(statement_day, today=None):
     }
 
 
-def get_credit_card_forecasts(credit_cards, all_txns, today=None):
+def get_active_cc_loans(client, user_id):
+    """Active credit-card loan/EMI rows keyed by card/source id."""
+    try:
+        rows = (
+            client.table("credit_card_loans")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("active", True)
+            .order("created_at", desc=True)
+            .execute()
+            .data
+        )
+    except Exception:
+        app.logger.exception("Could not load credit-card loans")
+        return {}
+
+    loans = {}
+    for row in rows:
+        source_id = row.get("source_id")
+        if source_id is not None and int(source_id) not in loans:
+            loans[int(source_id)] = row
+    return loans
+
+
+def get_credit_card_forecasts(credit_cards, all_txns, today=None, cc_loans=None):
     """Calculate each card's expected next statement from transactions in the
     active billing cycle. Existing opening/current outstanding is never treated
     as the next bill; only new cycle activity is forecast."""
@@ -514,14 +538,22 @@ def get_credit_card_forecasts(credit_cards, all_txns, today=None):
         if sid is not None:
             by_card[sid].append(txn)
 
+    cc_loans = cc_loans or {}
     forecasts = []
     for card in credit_cards:
         item = dict(card)
         info = get_card_cycle_dates(card.get("statement_day"), today)
+        loan = cc_loans.get(int(card["id"]))
+        item["cc_loan"] = loan
+        item["loan_outstanding"] = float(loan.get("outstanding_amount") or 0) if loan else 0.0
+        item["loan_emi"] = min(
+            float(loan.get("monthly_emi") or 0),
+            item["loan_outstanding"],
+        ) if loan else 0.0
         item["cycle_configured"] = bool(
             card.get("billing_cycle_enabled") and card.get("statement_day")
         )
-        item["expected_bill"] = 0.0
+        item["expected_bill"] = item["loan_emi"]
         item["expected_bill_date"] = None
         item["due_date"] = None
 
@@ -1462,7 +1494,8 @@ def net_worth():
     manual_items = get_net_worth_manual_items() if unlocked else []
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
     wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items) if unlocked else None
-    card_forecasts = get_credit_card_forecasts(credit_cards, all_txns)
+    cc_loans = get_active_cc_loans(client, user_id)
+    card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, cc_loans=cc_loans)
     snapshots = get_net_worth_snapshots() if unlocked else []
     return render_template(
         "net_worth.html",
@@ -2932,7 +2965,8 @@ def sources():
     savings, credit_cards, _ = compute_source_balances(client, user_id)
     cash = [s for s in savings if s["source_type"] == "cash"]
     savings = [s for s in savings if s["source_type"] == "savings"]
-    return render_template("sources.html", savings=savings, cash=cash, credit_cards=credit_cards)
+    cc_loans = get_active_cc_loans(client, user_id)
+    return render_template("sources.html", savings=savings, cash=cash, credit_cards=credit_cards, cc_loans=cc_loans)
 
 
 @app.template_filter("inr")
@@ -3044,7 +3078,8 @@ def dashboard():
     # Fixed monthly commitments plus expected CC statements form the dashboard's
     # future obligations. They are independent of the period tabs.
     today = datetime.now(APP_TZ).date()
-    card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today)
+    cc_loans = get_active_cc_loans(client, user_id)
+    card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
     try:
         upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
     except Exception:
