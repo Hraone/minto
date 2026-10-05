@@ -1667,14 +1667,9 @@ def entry():
 @app.route("/pay-cc-bill", methods=["GET", "POST"])
 @login_required
 def pay_cc_bill():
-    """Record a credit-card bill payment as a linked pair of transfer legs:
-    money OUT of a savings source and the same amount IN to the card, so the
-    savings balance and the card's outstanding both move together and net
-    worth is unaffected (paying down debt with cash isn't a gain or a loss).
-
-    A single 'expense' entry from savings does NOT reduce the card's
-    outstanding balance — that's the mistake this route exists to prevent.
-    """
+    """Record a card payment as linked bank/cash -> card transfer legs.
+    Optional CC Loan / EMI allocation reduces the separate loan balance while
+    the transfer still reduces the card's actual outstanding amount."""
     client = get_user_client()
     user_id = session["user_id"]
 
@@ -1688,10 +1683,9 @@ def pay_cc_bill():
     )
     savings_sources = [s for s in sources if s["source_type"] in ("savings", "cash")]
     cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
+    cc_loans = get_active_cc_loans(client, user_id)
 
-    # Until a user has paid a first card bill, ask whether it is for spending
-    # from before they started using Minto. The answer is remembered only as
-    # "setup done"; each payment keeps its own previous-bill flag.
+    # First card payment asks whether it is for spending before Minto started.
     ask_previous_bill = not load_credit_card_setup_completed(client, user_id)
 
     def render_form():
@@ -1699,6 +1693,7 @@ def pay_cc_bill():
             "pay_cc_bill.html",
             savings_sources=savings_sources,
             cc_sources=cc_sources,
+            cc_loans=cc_loans,
             ask_previous_bill=ask_previous_bill,
             form=request.form,
         )
@@ -1709,6 +1704,7 @@ def pay_cc_bill():
         to_source_id = request.form.get("to_source_id")
         notes = (request.form.get("notes") or "").strip() or None
         previous_card_bill = request.form.get("previous_card_bill")
+        payment_type = request.form.get("payment_type") or "regular"
 
         pay_from_ids = {str(s["id"]) for s in savings_sources}
         card_ids = {str(s["id"]) for s in cc_sources}
@@ -1719,13 +1715,27 @@ def pay_cc_bill():
         if from_source_id not in pay_from_ids or to_source_id not in card_ids:
             flash("Pick an account to pay from and a card to pay off.")
             return render_form()
+        if payment_type not in ("regular", "loan"):
+            flash("Choose regular card bill or CC loan / EMI.")
+            return render_form()
         if ask_previous_bill and previous_card_bill not in ("yes", "no"):
             flash("Say whether this bill is for spending from before you started using Minto.")
             return render_form()
 
+        selected_loan = cc_loans.get(int(to_source_id)) if payment_type == "loan" else None
+        if payment_type == "loan" and not selected_loan:
+            flash("Set up a CC loan / EMI for this card first.")
+            return render_form()
+
+        if selected_loan:
+            loan_outstanding = float(selected_loan.get("outstanding_amount") or 0)
+            if amount > loan_outstanding:
+                flash("The payment cannot be greater than the remaining CC loan balance.")
+                return render_form()
+
         is_previous_card_bill = ask_previous_bill and previous_card_bill == "yes"
         transfer_group = str(uuid.uuid4())
-        description = notes or "Credit card bill payment"
+        description = notes or ("CC loan / EMI payment" if payment_type == "loan" else "Credit card bill payment")
 
         def leg(direction, source_id):
             fields = {
@@ -1741,28 +1751,60 @@ def pay_cc_bill():
                 fields["is_previous_card_bill"] = True
             return insert_entry_and_transaction(client, user_id, description, fields)
 
-        out_entry_id = None
+        entry_ids = []
         try:
-            out_entry_id = leg("out", from_source_id)
-            leg("in", to_source_id)
+            entry_ids.append(leg("out", from_source_id))
+            entry_ids.append(leg("in", to_source_id))
+
+            if selected_loan:
+                old_loan_outstanding = float(selected_loan.get("outstanding_amount") or 0)
+                new_loan_outstanding = max(round(old_loan_outstanding - amount, 2), 0.0)
+
+                client.table("credit_card_loans").update({
+                    "outstanding_amount": new_loan_outstanding,
+                    "active": new_loan_outstanding > 0,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", selected_loan["id"]).eq("user_id", user_id).execute()
+
+                client.table("credit_card_loan_payments").insert({
+                    "loan_id": selected_loan["id"],
+                    "user_id": user_id,
+                    "amount": amount,
+                    "payment_date": datetime.now(APP_TZ).date().isoformat(),
+                    "transfer_group": transfer_group,
+                }).execute()
+
         except Exception:
-            # Without the second leg, don't leave a dangling half-transfer.
-            if out_entry_id is not None:
-                try:
-                    client.table("entries").delete().eq("id", out_entry_id).eq("user_id", user_id).execute()
-                except Exception:
-                    pass
+            app.logger.exception("Could not record card payment")
+            try:
+                if selected_loan:
+                    client.table("credit_card_loans").update({
+                        "outstanding_amount": old_loan_outstanding,
+                        "active": old_loan_outstanding > 0,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }).eq("id", selected_loan["id"]).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+
+            try:
+                if entry_ids:
+                    client.table("entries").delete().in_("id", entry_ids).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+
             flash("Couldn't record the payment. Please try again.")
             return render_form()
 
         if ask_previous_bill:
-            # The payment is already saved; a failed preference write is harmless.
             save_credit_card_setup_completed(client, user_id)
 
-        if is_previous_card_bill:
+        if payment_type == "loan":
+            flash("CC loan / EMI payment recorded. Bank balance, card outstanding and loan balance updated.")
+        elif is_previous_card_bill:
             flash("Previous card bill recorded. It lowers your bank and card balances but is not counted as spending.")
         else:
             flash("Payment recorded. Bank and card balances both updated.")
+
         return redirect(url_for("sources"))
 
     return render_form()
