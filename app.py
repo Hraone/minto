@@ -3091,7 +3091,14 @@ def sources():
     cash = [s for s in savings if s["source_type"] == "cash"]
     savings = [s for s in savings if s["source_type"] == "savings"]
     cc_loans = get_active_cc_loans(client, user_id)
-    return render_template("sources.html", savings=savings, cash=cash, credit_cards=credit_cards, cc_loans=cc_loans)
+    return render_template(
+        "sources.html",
+        savings=savings,
+        cash=cash,
+        credit_cards=credit_cards,
+        cc_loans=cc_loans,
+        today=datetime.now(APP_TZ).date().isoformat(),
+    )
 
 
 @app.template_filter("inr")
