@@ -2455,7 +2455,13 @@ def dashboard():
 
     # Fixed monthly commitments are forecasts until the user marks them paid.
     today = datetime.now(APP_TZ).date()
-    fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    try:
+        fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    except Exception:
+        # An extra on this page: if its tables are missing or unreachable, the
+        # Overview should still open instead of showing an error page.
+        app.logger.exception("Fixed expenses could not be loaded for the Overview")
+        fixed_expenses = []
     fixed_total = sum(float(x["amount"] or 0) for x in fixed_expenses if not x["paid"])
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
     fixed_remaining = float(wealth["total_savings"]) - fixed_total
