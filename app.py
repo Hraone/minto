@@ -3236,6 +3236,22 @@ def dashboard():
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
     fixed_remaining = float(wealth["total_savings"]) - fixed_total - fixed_investment_total
     safe_to_spend = compute_safe_to_spend(savings, upcoming_commitments)
+    safe_spend_bank_cash = sum(float(s.get("balance") or 0) for s in savings)
+    safe_spend_fixed = sum(
+        float(x.get("amount") or 0)
+        for x in upcoming_commitments
+        if x.get("kind") == "fixed"
+    )
+    safe_spend_investments = sum(
+        float(x.get("amount") or 0)
+        for x in upcoming_commitments
+        if x.get("kind") == "investment"
+    )
+    safe_spend_cc = sum(
+        float(x.get("amount") or 0)
+        for x in upcoming_commitments
+        if x.get("kind") == "credit_card"
+    )
     alerts = get_dashboard_alerts(savings, credit_cards, txns)
 
     expected_cc_total = sum(
@@ -3277,6 +3293,10 @@ def dashboard():
         expected_cc_total=expected_cc_total,
         upcoming_commitments=upcoming_commitments,
         safe_to_spend=safe_to_spend,
+        safe_spend_bank_cash=safe_spend_bank_cash,
+        safe_spend_fixed=safe_spend_fixed,
+        safe_spend_investments=safe_spend_investments,
+        safe_spend_cc=safe_spend_cc,
         alerts=alerts,
         report_from=datetime.now(APP_TZ).date().replace(day=1).isoformat(),
         report_to=datetime.now(APP_TZ).date().isoformat(),
