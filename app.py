@@ -3226,7 +3226,12 @@ def dashboard():
     month_end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
     safe_spend_commitments = [
         x for x in upcoming_commitments
-        if x.get("due_date") and today <= x["due_date"] <= month_end
+        if (
+            x.get("due_date")
+            and x["due_date"].year == today.year
+            and x["due_date"].month == today.month
+            and x["due_date"] <= month_end
+        )
     ]
 
     try:
