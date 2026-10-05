@@ -303,3 +303,128 @@ create policy "own report history" on public.report_history
 -- Fixed items can be a plain expense or an investment such as a SIP. Investments
 -- are saved as investments (not expenses) when marked paid.
 alter table public.fixed_expenses add column if not exists kind text not null default 'expense' check (kind in ('expense', 'investment'));
+
+
+-- ---------------------------------------------------------------------------
+-- Credit-card billing cycle / expected statement forecasting
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.user_sources
+ADD COLUMN IF NOT EXISTS statement_day integer;
+
+ALTER TABLE public.user_sources
+ADD COLUMN IF NOT EXISTS payment_due_days integer;
+
+ALTER TABLE public.user_sources
+ADD COLUMN IF NOT EXISTS billing_cycle_enabled boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.user_sources
+DROP CONSTRAINT IF EXISTS user_sources_statement_day_check;
+
+ALTER TABLE public.user_sources
+ADD CONSTRAINT user_sources_statement_day_check
+CHECK (statement_day IS NULL OR statement_day BETWEEN 1 AND 31);
+
+ALTER TABLE public.user_sources
+DROP CONSTRAINT IF EXISTS user_sources_payment_due_days_check;
+
+ALTER TABLE public.user_sources
+ADD CONSTRAINT user_sources_payment_due_days_check
+CHECK (payment_due_days IS NULL OR payment_due_days BETWEEN 0 AND 60);
+
+-- ---------------------------------------------------------------------------
+-- Protected Net Worth data
+-- Net Worth password hashes are server-only; normal authenticated users do
+-- not receive a SELECT policy for this table. The Flask backend reads/writes
+-- it through the server-side Supabase service-role client.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.net_worth_security (
+    user_id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    password_hash text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.net_worth_security ENABLE ROW LEVEL SECURITY;
+
+-- Intentionally no SELECT/INSERT/UPDATE/DELETE policy.
+-- The backend uses the server-only service-role key.
+
+-- Manual/historical assets and liabilities that are not represented as
+-- ordinary Minto transactions. "as_of_date" records when the stated value
+-- was observed; the current amount remains part of the current Net Worth
+-- until the item is updated or removed.
+CREATE TABLE IF NOT EXISTS public.net_worth_items (
+    id bigserial PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name text NOT NULL,
+    item_type text NOT NULL
+        CHECK (item_type IN ('asset', 'liability')),
+    category text NOT NULL
+        CHECK (
+            category IN (
+                'cash',
+                'investment',
+                'gold',
+                'vehicle',
+                'property',
+                'fixed_deposit',
+                'recurring_deposit',
+                'ppf_nps',
+                'loan_receivable',
+                'loan_payable',
+                'other'
+            )
+        ),
+    amount numeric NOT NULL CHECK (amount >= 0),
+    as_of_date date NOT NULL DEFAULT current_date,
+    active boolean NOT NULL DEFAULT true,
+    notes text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.net_worth_items ENABLE ROW LEVEL SECURITY;
+
+-- The backend accesses these through the service-role client so the
+-- protected Net Worth content is never directly readable through the anon
+-- PostgREST session.
+CREATE POLICY IF NOT EXISTS "own net worth items"
+ON public.net_worth_items
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS net_worth_items_user_idx
+ON public.net_worth_items (user_id, active, category);
+
+CREATE INDEX IF NOT EXISTS net_worth_items_user_date_idx
+ON public.net_worth_items (user_id, as_of_date DESC);
+
+-- Point-in-time Net Worth snapshots for historical tracking.
+CREATE TABLE IF NOT EXISTS public.net_worth_snapshots (
+    id bigserial PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    snapshot_date date NOT NULL,
+    net_worth numeric NOT NULL,
+    notes text,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, snapshot_date)
+);
+
+ALTER TABLE public.net_worth_snapshots ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY IF NOT EXISTS "own net worth snapshots"
+ON public.net_worth_snapshots
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS net_worth_snapshots_user_date_idx
+ON public.net_worth_snapshots (user_id, snapshot_date DESC);
+
+-- Dashboard calculation indexes.
+CREATE INDEX IF NOT EXISTS transactions_user_date_idx
+ON public.transactions (user_id, transaction_date DESC);
+
+CREATE INDEX IF NOT EXISTS transactions_user_source_date_idx
+ON public.transactions (user_id, source_id, transaction_date DESC);
