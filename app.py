@@ -558,7 +558,7 @@ def get_credit_card_forecasts(credit_cards, all_txns, today=None, cc_loans=None)
         item["due_date"] = None
 
         if info and item["cycle_configured"]:
-            expected = 0.0
+            expected = item["loan_emi"]
             for txn in by_card.get(card["id"], []):
                 txn_date = parse_iso_date(txn.get("transaction_date"))
                 if not txn_date or txn_date < info["cycle_start"] or txn_date > today:
