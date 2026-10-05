@@ -388,11 +388,8 @@ ALTER TABLE public.net_worth_items ENABLE ROW LEVEL SECURITY;
 -- The backend accesses these through the service-role client so the
 -- protected Net Worth content is never directly readable through the anon
 -- PostgREST session.
-CREATE POLICY IF NOT EXISTS "own net worth items"
-ON public.net_worth_items
-FOR ALL
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own net worth items"
+ON public.net_worth_items;
 
 CREATE INDEX IF NOT EXISTS net_worth_items_user_idx
 ON public.net_worth_items (user_id, active, category);
@@ -413,11 +410,8 @@ CREATE TABLE IF NOT EXISTS public.net_worth_snapshots (
 
 ALTER TABLE public.net_worth_snapshots ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY IF NOT EXISTS "own net worth snapshots"
-ON public.net_worth_snapshots
-FOR ALL
-USING (auth.uid() = user_id)
-WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "own net worth snapshots"
+ON public.net_worth_snapshots;
 
 CREATE INDEX IF NOT EXISTS net_worth_snapshots_user_date_idx
 ON public.net_worth_snapshots (user_id, snapshot_date DESC);
