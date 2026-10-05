@@ -3218,6 +3218,15 @@ def dashboard():
         app.logger.exception("Upcoming commitments could not be loaded")
         upcoming_commitments = []
 
+    # Safe to Spend reserves only commitments still due during the current
+    # calendar month. Future-month expenses should not reduce this month's
+    # spendable balance.
+    month_end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    safe_spend_commitments = [
+        x for x in upcoming_commitments
+        if x.get("due_date") and today <= x["due_date"] <= month_end
+    ]
+
     try:
         fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     except Exception:
@@ -3235,21 +3244,21 @@ def dashboard():
     )
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
     fixed_remaining = float(wealth["total_savings"]) - fixed_total - fixed_investment_total
-    safe_to_spend = compute_safe_to_spend(savings, upcoming_commitments)
+    safe_to_spend = compute_safe_to_spend(savings, safe_spend_commitments)
     safe_spend_bank_cash = sum(float(s.get("balance") or 0) for s in savings)
     safe_spend_fixed = sum(
         float(x.get("amount") or 0)
-        for x in upcoming_commitments
+        for x in safe_spend_commitments
         if x.get("kind") == "fixed"
     )
     safe_spend_investments = sum(
         float(x.get("amount") or 0)
-        for x in upcoming_commitments
+        for x in safe_spend_commitments
         if x.get("kind") == "investment"
     )
     safe_spend_cc = sum(
         float(x.get("amount") or 0)
-        for x in upcoming_commitments
+        for x in safe_spend_commitments
         if x.get("kind") == "credit_card"
     )
     alerts = get_dashboard_alerts(savings, credit_cards, txns)
