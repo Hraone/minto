@@ -551,11 +551,8 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
             })
 
     for month_offset in (0, 1):
-        month_anchor = date(today.year + (today.month == 12 and month_offset or 0),
-                            1 if today.month == 12 and month_offset else today.month + month_offset if today.month + month_offset <= 12 else today.month + month_offset - 12,
-                            1)
-        # Simpler and safer than relying on month arithmetic above: derive the
-        # target month from a 32-day offset.
+        # Derive the target month from a date arithmetic anchor so December
+        # rolls cleanly into January.
         month_anchor = (today.replace(day=28) + timedelta(days=4 + 31 * month_offset)).replace(day=1)
         try:
             fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
@@ -2407,7 +2404,7 @@ def compute_source_balances(client, user_id):
 
     all_txns = (
         client.table("transactions")
-        .select("source_id, amount, direction, category")
+        .select("source_id, amount, direction, category, transaction_date, is_previous_card_bill")
         .eq("user_id", user_id)
         .execute()
         .data
