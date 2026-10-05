@@ -298,3 +298,8 @@ alter table public.report_history enable row level security;
 drop policy if exists "own report history" on public.report_history;
 create policy "own report history" on public.report_history
     for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+
+-- Fixed items can be a plain expense or an investment such as a SIP. Investments
+-- are saved as investments (not expenses) when marked paid.
+alter table public.fixed_expenses add column if not exists kind text not null default 'expense' check (kind in ('expense', 'investment'));
