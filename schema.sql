@@ -462,6 +462,15 @@ CREATE TABLE IF NOT EXISTS public.credit_card_loans (
     UNIQUE (user_id, source_id)
 );
 
+ALTER TABLE public.credit_card_loans
+DROP CONSTRAINT IF EXISTS credit_card_loans_amount_check;
+
+ALTER TABLE public.credit_card_loans
+ADD CONSTRAINT credit_card_loans_amount_check
+CHECK (
+    outstanding_amount <= original_amount
+);
+
 ALTER TABLE public.credit_card_loans ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "own credit card loans"
