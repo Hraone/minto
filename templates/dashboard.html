@@ -361,6 +361,18 @@
   }
 
   .safe-spend-card {
+  .safe-spend-shortfall {
+    margin-top: 4px;
+    padding-top: 9px;
+    border-top: 1px solid var(--border);
+  }
+
+  .safe-spend-shortfall span,
+  .safe-spend-shortfall strong {
+    color: var(--negative);
+    font-weight: 700;
+  }
+
     .safe-spend-breakdown {
       margin-top: 14px;
       padding-top: 12px;
@@ -779,7 +791,7 @@
   <div class="safe-spend-card">
     <div class="safe-spend-label">Safe to spend</div>
     <div class="safe-spend-value tnum">{{ safe_to_spend|inr }}</div>
-    <div class="safe-spend-note">Available bank/cash balance after expected commitments over the next 31 days.</div>
+    <div class="safe-spend-note">Available bank/cash balance after unpaid commitments due this month.</div>
 
     <div class="safe-spend-breakdown" aria-label="Safe to spend calculation">
       <div>
@@ -798,6 +810,12 @@
         <span>Credit-card bills</span>
         <strong class="tnum">−{{ safe_spend_cc|inr }}</strong>
       </div>
+      {% if safe_spend_shortfall > 0 %}
+      <div class="safe-spend-shortfall">
+        <span>Shortfall</span>
+        <strong class="tnum">{{ safe_spend_shortfall|inr }}</strong>
+      </div>
+      {% endif %}
     </div>
   </div>
 
