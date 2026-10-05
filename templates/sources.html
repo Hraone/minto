@@ -209,6 +209,27 @@
     margin-top: 1px;
   }
 
+  .cc-cycle-edit-btn {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-alt);
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+
+  .cc-cycle-edit-btn:hover {
+    border-color: var(--border-strong);
+  }
+
+  .cc-cycle-editor[hidden] {
+    display: none;
+  }
+
   .cc-cycle-form {
     margin-top: 13px;
     padding-top: 12px;
@@ -527,28 +548,50 @@
         {% if s.statement_day %}
         <div class="cc-cycle-form">
           <p>Cycle: statement on day {{ s.statement_day }} · payment due {{ s.payment_due_days }} day{{ "" if s.payment_due_days == 1 else "s" }} later</p>
+          <button
+            type="button"
+            class="cc-cycle-edit-btn"
+            data-cycle-edit="{{ s.id }}"
+            aria-expanded="false">
+            Edit billing cycle
+          </button>
+        </div>
+
+        <div class="cc-cycle-editor" id="cc-cycle-editor-{{ s.id }}" hidden>
+          <form method="post" action="{{ url_for('update_card_cycle', source_id=s.id) }}" class="cc-cycle-form">
+            <div class="cc-cycle-grid">
+              <div>
+                <label for="statement_day_{{ s.id }}">Statement day</label>
+                <input type="number" id="statement_day_{{ s.id }}" name="statement_day" min="1" max="31"
+                       value="{{ s.statement_day or '' }}" placeholder="5" required>
+              </div>
+              <div>
+                <label for="payment_due_days_{{ s.id }}">Days until due</label>
+                <input type="number" id="payment_due_days_{{ s.id }}" name="payment_due_days" min="0" max="60" value="{{ s.payment_due_days if s.payment_due_days is not none else '' }}" placeholder="20" required>
+              </div>
+            </div>
+            <button type="submit" class="cc-cycle-save">Save billing cycle</button>
+          </form>
         </div>
         {% else %}
         <div class="cc-cycle-form">
           <p>Billing cycle not configured. Configure it below to forecast your next bill.</p>
+          <form method="post" action="{{ url_for('update_card_cycle', source_id=s.id) }}">
+            <div class="cc-cycle-grid">
+              <div>
+                <label for="statement_day_{{ s.id }}">Statement day</label>
+                <input type="number" id="statement_day_{{ s.id }}" name="statement_day" min="1" max="31"
+                       value="" placeholder="5" required>
+              </div>
+              <div>
+                <label for="payment_due_days_{{ s.id }}">Days until due</label>
+                <input type="number" id="payment_due_days_{{ s.id }}" name="payment_due_days" min="0" max="60" placeholder="20" required>
+              </div>
+            </div>
+            <button type="submit" class="cc-cycle-save">Save billing cycle</button>
+          </form>
         </div>
         {% endif %}
-
-        <form method="post" action="{{ url_for('update_card_cycle', source_id=s.id) }}" class="cc-cycle-form">
-          <div class="cc-cycle-grid">
-            <div>
-              <label for="statement_day_{{ s.id }}">Statement day</label>
-              <input type="number" id="statement_day_{{ s.id }}" name="statement_day" min="1" max="31"
-                     value="{{ s.statement_day or '' }}" placeholder="5" required>
-            </div>
-            <div>
-              <label for="payment_due_days_{{ s.id }}">Days until due</label>
-              <input type="number" id="payment_due_days_{{ s.id }}" name="payment_due_days" min="0" max="60"
-                     value="{{ s.payment_due_days if s.payment_due_days is not none else '' }}" placeholder="20" required>
-            </div>
-          </div>
-          <button type="submit" class="cc-cycle-save">Save billing cycle</button>
-        </form>
 
         {% if s.limit %}
         <div class="limit-bar-track">
@@ -586,6 +629,22 @@ function toggleSourceFields() {
 }
 document.addEventListener("DOMContentLoaded", function () {
   toggleSourceFields();
+
+  document.querySelectorAll("[data-cycle-edit]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      const id = button.getAttribute("data-cycle-edit");
+      const editor = document.getElementById("cc-cycle-editor-" + id);
+      if (!editor) return;
+      const open = editor.hidden;
+      editor.hidden = !open;
+      button.setAttribute("aria-expanded", String(open));
+      button.textContent = open ? "− Close edit" : "Edit billing cycle";
+      if (open) {
+        const firstInput = editor.querySelector("input");
+        if (firstInput) firstInput.focus();
+      }
+    });
+  });
 
   const toggle = document.getElementById("add-account-toggle");
   const card = document.getElementById("add-account-card");
