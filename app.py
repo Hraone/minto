@@ -2921,6 +2921,89 @@ def delete_fixed_expense(fixed_expense_id):
     return redirect(url_for("fixed_expenses"))
 
 
+@app.route("/sources/<int:source_id>/cc-loan", methods=["POST"])
+@login_required
+def update_cc_loan(source_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    action = request.form.get("loan_action", "save")
+
+    card = (
+        client.table("user_sources")
+        .select("id, source_type")
+        .eq("id", source_id)
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .limit(1)
+        .execute()
+        .data
+    )
+    if not card or card[0]["source_type"] != "credit_card":
+        flash("That credit card could not be found.")
+        return redirect(url_for("sources"))
+
+    try:
+        if action == "remove":
+            client.table("credit_card_loans").update({
+                "active": False,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("source_id", source_id).eq("user_id", user_id).eq("active", True).execute()
+            flash("CC loan / EMI removed.")
+            return redirect(url_for("sources"))
+
+        original_amount = parse_money(request.form.get("original_amount"))
+        outstanding_amount = parse_money(request.form.get("outstanding_amount"), allow_zero=True)
+        monthly_emi = parse_money(request.form.get("monthly_emi"))
+        start_date = parse_iso_date(request.form.get("start_date"))
+        if start_date is None:
+            start_date = datetime.now(APP_TZ).date()
+
+        if original_amount is None or outstanding_amount is None or monthly_emi is None:
+            flash("Enter the original amount, current outstanding amount and monthly EMI.")
+            return redirect(url_for("sources"))
+
+        if outstanding_amount > original_amount:
+            flash("Current loan outstanding cannot be greater than the original amount.")
+            return redirect(url_for("sources"))
+
+        name = " ".join((request.form.get("loan_name") or "Credit card loan").split())[:80]
+        row = {
+            "user_id": user_id,
+            "source_id": source_id,
+            "name": name or "Credit card loan",
+            "original_amount": original_amount,
+            "outstanding_amount": outstanding_amount,
+            "monthly_emi": monthly_emi,
+            "start_date": start_date.isoformat(),
+            "active": outstanding_amount > 0,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+        existing = (
+            client.table("credit_card_loans")
+            .select("id")
+            .eq("source_id", source_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+            .data
+        )
+
+        if existing:
+            client.table("credit_card_loans").update(row).eq(
+                "id", existing[0]["id"]
+            ).eq("user_id", user_id).execute()
+        else:
+            client.table("credit_card_loans").insert(row).execute()
+
+        flash("CC loan / EMI details saved.")
+    except Exception:
+        app.logger.exception("Could not save CC loan")
+        flash("Couldn't save the CC loan details. Please run the database update first.")
+
+    return redirect(url_for("sources"))
+
+
 @app.route("/sources/<int:source_id>/card-cycle", methods=["POST"])
 @login_required
 def update_card_cycle(source_id):
