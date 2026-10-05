@@ -106,6 +106,49 @@
     text-decoration: underline;
   }
 
+  .additional-details {
+    margin-bottom: 25px;
+    border-top: 1px solid var(--hairline);
+    padding-top: 14px;
+  }
+
+  .additional-details summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    cursor: pointer;
+    list-style: none;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .additional-details summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .additional-details summary::after {
+    content: "+";
+    flex: none;
+    font-size: 18px;
+    font-weight: 400;
+    color: var(--muted);
+    line-height: 1;
+  }
+
+  .additional-details[open] summary::after {
+    content: "−";
+  }
+
+  .additional-details-content {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: var(--surface-subtle);
+  }
+
   .save-button {
     margin-top: 2px;
   }
@@ -211,25 +254,34 @@
       </div>
 
       {% if ask_previous_bill %}
-      <div class="form-section">
-        <label class="form-label">Is this bill for spending from before you started using Minto?</label>
-        <div class="chip-group">
-          <label class="chip">
-            <input type="radio" name="previous_card_bill" value="yes" {{ 'checked' if form and form.get('previous_card_bill') == 'yes' else '' }} required>
-            Yes
-          </label>
-          <label class="chip">
-            <input type="radio" name="previous_card_bill" value="no" {{ 'checked' if form and form.get('previous_card_bill') == 'no' else '' }} required>
-            No
-          </label>
+      <details class="additional-details">
+        <summary>
+          <span>Additional details <span style="font-weight:400; color:var(--muted-2);">(first-time card payment)</span></span>
+        </summary>
+        <div class="additional-details-content">
+          <div class="form-section" style="margin-bottom:0;">
+            <label class="form-label">
+              Is this bill for spending that happened before you started using Minto?
+            </label>
+            <div class="chip-group">
+              <label class="chip">
+                <input type="radio" name="previous_card_bill" value="yes" {{ 'checked' if form and form.get('previous_card_bill') == 'yes' else '' }} required>
+                Yes — old spending
+              </label>
+              <label class="chip">
+                <input type="radio" name="previous_card_bill" value="no" {{ 'checked' if form and form.get('previous_card_bill') == 'no' else '' }} required>
+                No — tracked in Minto
+              </label>
+            </div>
+            <p style="margin: 8px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
+              Required for your first card payment. Choose <strong>Yes</strong> when the bill is for spending that happened before you started tracking it in Minto. That payment updates your bank and card balances but won't be counted as a new expense.
+            </p>
+          </div>
         </div>
-        <p style="margin: 8px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
-          Asked once, on your first card payment. A yes lowers your bank and card balances but is not counted as spending.
-        </p>
-      </div>
+      </details>
       {% endif %}
 
-      <button type="submit" class="save-button">Save</button>
+      <button type="submit" class="save-button">Save Payment</button>
 
       <p style="margin: 10px 0 0; font-size: 12px; color: var(--muted-2); line-height: 1.5;">
         Records a payment you already made.
