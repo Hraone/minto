@@ -1535,16 +1535,33 @@ def entry():
         if amount is None:
             problem = "Enter an amount greater than zero."
         elif direction not in ENTRY_DIRECTIONS or category not in ENTRY_CATEGORIES:
-            problem = "Choose In or Out and a category."
+            problem = "Choose In or Out and a transaction type."
+        elif category == "expense" and not expense_category:
+            problem = "Choose an expense category."
+        elif category == "investment" and not investment_category:
+            problem = "Choose an investment category."
         elif category == "lending" and not counterparty:
             problem = "Add who the money was lent to or came back from."
         elif raw_date and parse_iso_date(raw_date) is None:
             problem = "That date doesn't look right."
+        elif category in ("expense", "income", "investment", "lending", "transfer") and not source_id:
+            problem = "Choose a cash/bank account or card."
         elif source_id:
             try:
-                if int(source_id) not in source_ids_for(client):
-                    problem = "Pick one of your accounts."
-            except ValueError:
+                selected_source_id = int(source_id)
+                source_rows = (
+                    client.table("user_sources")
+                    .select("id, source_type")
+                    .eq("user_id", user_id)
+                    .eq("active", True)
+                    .eq("id", selected_source_id)
+                    .limit(1)
+                    .execute()
+                    .data
+                )
+                if not source_rows:
+                    problem = "Pick one of your active accounts."
+            except (TypeError, ValueError):
                 problem = "Pick one of your accounts."
         if problem:
             flash(problem)
