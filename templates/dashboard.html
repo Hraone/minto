@@ -787,6 +787,9 @@
             {% else %}
               Billing cycle not configured
             {% endif %}
+            {% if card.cc_loan %}
+              · Loan EMI {{ card.loan_emi|inr }} · Loan left {{ card.loan_outstanding|inr }}
+            {% endif %}
           </small>
         </div>
         <div class="tnum">
