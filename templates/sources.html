@@ -572,6 +572,7 @@
     <ul class="source-list">
       {% for s in credit_cards %}
       <li class="source-item">
+        {% set loan = cc_loans.get(s.id) if cc_loans else none %}
         <div class="source-top-row">
           <div class="source-info">
             <div class="source-icon">CC</div>
@@ -580,146 +581,19 @@
               <div class="source-type">card</div>
             </div>
           </div>
-          <div class="source-figure">
-            <div class="figure-value">{{ (s.outstanding)|inr }}</div>
-            <div class="figure-label">outstanding</div>
-          </div>
-        </div>
-
-        {% if s.statement_day %}
-        <div class="cc-cycle-form">
-          <p>Cycle: statement on day {{ s.statement_day }} · payment due {{ s.payment_due_days }} day{{ "" if s.payment_due_days == 1 else "s" }} later</p>
-          <button
-            type="button"
-            class="cc-cycle-edit-btn"
-            data-cycle-edit="{{ s.id }}"
-            aria-expanded="false">
-            Edit billing cycle
-          </button>
-        </div>
-
-        <div class="cc-cycle-editor" id="cc-cycle-editor-{{ s.id }}" hidden>
-          <form method="post" action="{{ url_for('update_card_cycle', source_id=s.id) }}" class="cc-cycle-form">
-            <div class="cc-cycle-grid">
-              <div>
-                <label for="statement_day_{{ s.id }}">Statement day</label>
-                <input type="number" id="statement_day_{{ s.id }}" name="statement_day" min="1" max="31"
-                       value="{{ s.statement_day or '' }}" placeholder="5" required>
-              </div>
-              <div>
-                <label for="payment_due_days_{{ s.id }}">Days until due</label>
-                <input type="number" id="payment_due_days_{{ s.id }}" name="payment_due_days" min="0" max="60" value="{{ s.payment_due_days if s.payment_due_days is not none else '' }}" placeholder="20" required>
-              </div>
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div class="source-figure">
+              <div class="figure-value">{{ (s.outstanding)|inr }}</div>
+              <div class="figure-label">outstanding</div>
             </div>
-            <button type="submit" class="cc-cycle-save">Save billing cycle</button>
-          </form>
-        </div>
-        {% else %}
-        <div class="cc-cycle-form">
-          <p>Billing cycle not configured. Configure it below to forecast your next bill.</p>
-          <form method="post" action="{{ url_for('update_card_cycle', source_id=s.id) }}">
-            <div class="cc-cycle-grid">
-              <div>
-                <label for="statement_day_{{ s.id }}">Statement day</label>
-                <input type="number" id="statement_day_{{ s.id }}" name="statement_day" min="1" max="31"
-                       value="" placeholder="5" required>
-              </div>
-              <div>
-                <label for="payment_due_days_{{ s.id }}">Days until due</label>
-                <input type="number" id="payment_due_days_{{ s.id }}" name="payment_due_days" min="0" max="60" placeholder="20" required>
-              </div>
-            </div>
-            <button type="submit" class="cc-cycle-save">Save billing cycle</button>
-          </form>
-        </div>
-        {% endif %}
-
-        {% set loan = cc_loans.get(s.id) if cc_loans else none %}
-        <div class="cc-loan-panel">
-          {% if loan %}
-          <div class="cc-loan-summary">
-            <span>{{ loan.name }} · EMI {{ loan.monthly_emi|inr }}</span>
-            <strong>{{ loan.outstanding_amount|inr }} left</strong>
+            <button
+              type="button"
+              class="cc-card-edit-btn"
+              data-card-edit="{{ s.id }}"
+              aria-expanded="false">
+              Edit
+            </button>
           </div>
-          <button
-            type="button"
-            class="cc-loan-edit-btn"
-            data-loan-edit="{{ s.id }}"
-            aria-expanded="false">
-            Edit CC loan / EMI
-          </button>
-
-          <div class="cc-loan-editor" id="cc-loan-editor-{{ s.id }}" hidden>
-            <form method="post" action="{{ url_for('update_cc_loan', source_id=s.id) }}" class="cc-loan-form">
-              <input type="hidden" name="loan_action" value="save">
-              <label style="display:block;margin-bottom:5px;font-size:11px;color:var(--muted);">Loan name</label>
-              <input type="text" name="loan_name" maxlength="80" value="{{ loan.name }}" placeholder="CC loan" style="width:100%;box-sizing:border-box;min-height:38px;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;">
-              <div class="cc-cycle-grid" style="margin-top:10px;">
-                <div>
-                  <label for="loan_original_{{ s.id }}">Original amount</label>
-                  <input type="number" id="loan_original_{{ s.id }}" name="original_amount" min="0.01" step="0.01" value="{{ loan.original_amount }}" required>
-                </div>
-                <div>
-                  <label for="loan_outstanding_{{ s.id }}">Current outstanding</label>
-                  <input type="number" id="loan_outstanding_{{ s.id }}" name="outstanding_amount" min="0" step="0.01" value="{{ loan.outstanding_amount }}" required>
-                </div>
-              </div>
-              <div class="cc-cycle-grid" style="margin-top:10px;">
-                <div>
-                  <label for="loan_emi_{{ s.id }}">Monthly EMI</label>
-                  <input type="number" id="loan_emi_{{ s.id }}" name="monthly_emi" min="0.01" step="0.01" value="{{ loan.monthly_emi }}" required>
-                </div>
-                <div>
-                  <label for="loan_start_{{ s.id }}">Start date</label>
-                  <input type="date" id="loan_start_{{ s.id }}" name="start_date" value="{{ loan.start_date }}" required>
-                </div>
-              </div>
-              <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-                <button type="submit" class="cc-cycle-save">Save loan</button>
-              </div>
-            </form>
-            <form method="post" action="{{ url_for('update_cc_loan', source_id=s.id) }}" style="margin-top:8px;">
-              <input type="hidden" name="loan_action" value="remove">
-              <button type="submit" class="cc-cycle-edit-btn">Remove CC loan</button>
-            </form>
-          </div>
-          {% else %}
-          <button
-            type="button"
-            class="cc-loan-edit-btn"
-            data-loan-edit="{{ s.id }}"
-            aria-expanded="false">
-            + Add CC loan / EMI
-          </button>
-
-          <div class="cc-loan-editor" id="cc-loan-editor-{{ s.id }}" hidden>
-            <form method="post" action="{{ url_for('update_cc_loan', source_id=s.id) }}" class="cc-loan-form">
-              <input type="hidden" name="loan_action" value="save">
-              <input type="text" name="loan_name" maxlength="80" placeholder="CC loan" aria-label="Loan name">
-              <div class="cc-cycle-grid" style="margin-top:10px;">
-                <div>
-                  <label for="loan_original_new_{{ s.id }}">Original amount</label>
-                  <input type="number" id="loan_original_new_{{ s.id }}" name="original_amount" min="0.01" step="0.01" placeholder="200000" required>
-                </div>
-                <div>
-                  <label for="loan_outstanding_new_{{ s.id }}">Current outstanding</label>
-                  <input type="number" id="loan_outstanding_new_{{ s.id }}" name="outstanding_amount" min="0" step="0.01" placeholder="200000" required>
-                </div>
-              </div>
-              <div class="cc-cycle-grid" style="margin-top:10px;">
-                <div>
-                  <label for="loan_emi_new_{{ s.id }}">Monthly EMI</label>
-                  <input type="number" id="loan_emi_new_{{ s.id }}" name="monthly_emi" min="0.01" step="0.01" placeholder="15000" required>
-                </div>
-                <div>
-                  <label for="loan_start_new_{{ s.id }}">Start date</label>
-                  <input type="date" id="loan_start_new_{{ s.id }}" name="start_date" value="{{ today if today is defined else '' }}" required>
-                </div>
-              </div>
-              <button type="submit" class="cc-cycle-save">Save CC loan</button>
-            </form>
-          </div>
-          {% endif %}
         </div>
 
         {% if s.limit %}
@@ -736,8 +610,88 @@
           <span>No credit limit set for this card</span>
         </div>
         {% endif %}
-      </li>
-      {% endfor %}
+
+        <div class="cc-card-editor" id="cc-card-editor-{{ s.id }}" hidden>
+          <div class="cc-cycle-form">
+            <strong style="display:block;margin-bottom:5px;font-size:12px;color:var(--text);">Billing cycle</strong>
+            <p>
+              {% if s.statement_day %}
+                Statement on day {{ s.statement_day }} · payment due {{ s.payment_due_days }} day{{ "" if s.payment_due_days == 1 else "s" }} later
+              {% else %}
+                Not configured yet
+              {% endif %}
+            </p>
+            <form method="post" action="{{ url_for('update_card_cycle', source_id=s.id) }}">
+              <div class="cc-cycle-grid">
+                <div>
+                  <label for="statement_day_{{ s.id }}">Statement day</label>
+                  <input type="number" id="statement_day_{{ s.id }}" name="statement_day" min="1" max="31"
+                         value="{{ s.statement_day or '' }}" placeholder="5" required>
+                </div>
+                <div>
+                  <label for="payment_due_days_{{ s.id }}">Days until due</label>
+                  <input type="number" id="payment_due_days_{{ s.id }}" name="payment_due_days" min="0" max="60"
+                         value="{{ s.payment_due_days if s.payment_due_days is not none else '' }}" placeholder="20" required>
+                </div>
+              </div>
+              <button type="submit" class="cc-cycle-save">Save billing cycle</button>
+            </form>
+          </div>
+
+          <div class="cc-loan-panel">
+            <strong style="display:block;margin-bottom:5px;font-size:12px;color:var(--text);">CC loan / EMI</strong>
+            {% if loan %}
+            <div class="cc-loan-summary">
+              <span>{{ loan.name }} · EMI {{ loan.monthly_emi|inr }}</span>
+              <strong>{{ loan.outstanding_amount|inr }} left</strong>
+            </div>
+            {% else %}
+            <p style="margin:0;color:var(--muted-2);font-size:11.5px;">
+              No CC loan configured.
+            </p>
+            {% endif %}
+
+            <form method="post" action="{{ url_for('update_cc_loan', source_id=s.id) }}" class="cc-loan-form">
+              <input type="hidden" name="loan_action" value="save">
+              <input type="text" name="loan_name" maxlength="80"
+                     value="{{ loan.name if loan else '' }}"
+                     placeholder="CC loan / EMI name">
+              <div class="cc-cycle-grid" style="margin-top:10px;">
+                <div>
+                  <label for="loan_original_{{ s.id }}">Original amount</label>
+                  <input type="number" id="loan_original_{{ s.id }}" name="original_amount" min="0.01" step="0.01"
+                         value="{{ loan.original_amount if loan else '' }}" placeholder="200000" required>
+                </div>
+                <div>
+                  <label for="loan_outstanding_{{ s.id }}">Current outstanding</label>
+                  <input type="number" id="loan_outstanding_{{ s.id }}" name="outstanding_amount" min="0" step="0.01"
+                         value="{{ loan.outstanding_amount if loan else '' }}" placeholder="200000" required>
+                </div>
+              </div>
+              <div class="cc-cycle-grid" style="margin-top:10px;">
+                <div>
+                  <label for="loan_emi_{{ s.id }}">Monthly EMI</label>
+                  <input type="number" id="loan_emi_{{ s.id }}" name="monthly_emi" min="0.01" step="0.01"
+                         value="{{ loan.monthly_emi if loan else '' }}" placeholder="15000" required>
+                </div>
+                <div>
+                  <label for="loan_start_{{ s.id }}">Start date</label>
+                  <input type="date" id="loan_start_{{ s.id }}" name="start_date"
+                         value="{{ loan.start_date if loan else today }}" required>
+                </div>
+              </div>
+              <button type="submit" class="cc-cycle-save">Save CC loan / EMI</button>
+            </form>
+
+            {% if loan %}
+            <form method="post" action="{{ url_for('update_cc_loan', source_id=s.id) }}" style="margin-top:8px;">
+              <input type="hidden" name="loan_action" value="remove">
+              <button type="submit" class="cc-cycle-edit-btn">Remove CC loan</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </li>      {% endfor %}
     </ul>
     {% else %}
     <div class="empty-state">
@@ -756,36 +710,21 @@ function toggleSourceFields() {
   document.getElementById("cash-fields").classList.toggle("visible", selected === "cash");
   document.getElementById("cc-fields").classList.toggle("visible", selected === "credit_card");
 }
+
 document.addEventListener("DOMContentLoaded", function () {
   toggleSourceFields();
 
-  document.querySelectorAll("[data-loan-edit]").forEach(function (button) {
+  document.querySelectorAll("[data-card-edit]").forEach(function (button) {
     button.addEventListener("click", function () {
-      const id = button.getAttribute("data-loan-edit");
-      const editor = document.getElementById("cc-loan-editor-" + id);
+      const id = button.getAttribute("data-card-edit");
+      const editor = document.getElementById("cc-card-editor-" + id);
       if (!editor) return;
-      const open = editor.hidden;
-      editor.hidden = !open;
-      button.setAttribute("aria-expanded", String(open));
-      button.textContent = open
-        ? "− Close edit"
-        : (button.textContent.indexOf("Add") >= 0 ? "+ Add CC loan / EMI" : "Edit CC loan / EMI");
-      if (open) {
-        const firstInput = editor.querySelector("input");
-        if (firstInput) firstInput.focus();
-      }
-    });
-  });
 
-  document.querySelectorAll("[data-cycle-edit]").forEach(function (button) {
-    button.addEventListener("click", function () {
-      const id = button.getAttribute("data-cycle-edit");
-      const editor = document.getElementById("cc-cycle-editor-" + id);
-      if (!editor) return;
       const open = editor.hidden;
       editor.hidden = !open;
       button.setAttribute("aria-expanded", String(open));
-      button.textContent = open ? "− Close edit" : "Edit billing cycle";
+      button.textContent = open ? "− Close" : "Edit";
+
       if (open) {
         const firstInput = editor.querySelector("input");
         if (firstInput) firstInput.focus();
