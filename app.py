@@ -601,10 +601,12 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
                 "due_date": due,
             })
 
-    for month_offset in (0, 1):
-        # Derive the target month from a date arithmetic anchor so December
-        # rolls cleanly into January.
-        month_anchor = (today.replace(day=28) + timedelta(days=4 + 31 * month_offset)).replace(day=1)
+    # Load the current month first, then the following month so the
+    # upcoming-commitments list works across a month boundary.
+    current_month = today.replace(day=1)
+    next_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+    for month_anchor in (current_month, next_month):
         try:
             fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
         except Exception:
@@ -3246,6 +3248,8 @@ def dashboard():
     fixed_remaining = float(wealth["total_savings"]) - fixed_total - fixed_investment_total
     safe_to_spend = compute_safe_to_spend(savings, safe_spend_commitments)
     safe_spend_bank_cash = sum(float(s.get("balance") or 0) for s in savings)
+    safe_spend_committed = sum(float(x.get("amount") or 0) for x in safe_spend_commitments)
+    safe_spend_shortfall = max(round(safe_spend_committed - safe_spend_bank_cash, 2), 0.0)
     safe_spend_fixed = sum(
         float(x.get("amount") or 0)
         for x in safe_spend_commitments
@@ -3303,6 +3307,7 @@ def dashboard():
         upcoming_commitments=upcoming_commitments,
         safe_to_spend=safe_to_spend,
         safe_spend_bank_cash=safe_spend_bank_cash,
+        safe_spend_shortfall=safe_spend_shortfall,
         safe_spend_fixed=safe_spend_fixed,
         safe_spend_investments=safe_spend_investments,
         safe_spend_cc=safe_spend_cc,
