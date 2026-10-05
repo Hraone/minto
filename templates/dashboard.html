@@ -255,6 +255,202 @@
     color: var(--text-secondary);
   }
 
+  .net-worth-locked {
+    padding: 26px 30px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 22px;
+    background: var(--surface);
+  }
+
+  .net-worth-locked-label {
+    font-size: 13px;
+    font-weight: 650;
+    color: var(--muted);
+  }
+
+  .net-worth-locked h3 {
+    margin: 5px 0 0;
+    font-size: 26px;
+    letter-spacing: -0.4px;
+  }
+
+  .net-worth-locked p {
+    margin: 7px 0 16px;
+    font-size: 12.5px;
+    color: var(--muted);
+  }
+
+  .net-worth-locked a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 14px;
+    border-radius: 11px;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    text-decoration: none;
+    font-size: 12.5px;
+    font-weight: 750;
+  }
+
+  .commitments-section {
+    margin: 0 0 28px;
+    padding: 22px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+
+  .section-heading-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .section-heading-row h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .section-heading-row span {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .commitments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .commitment-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 11px 12px;
+    border: 1px solid var(--surface-subtle-border);
+    border-radius: 12px;
+  }
+
+  .commitment-left {
+    min-width: 0;
+  }
+
+  .commitment-left strong {
+    display: block;
+    font-size: 13px;
+  }
+
+  .commitment-left small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted-2);
+    font-size: 11px;
+  }
+
+  .commitment-amount {
+    flex: none;
+    font-size: 13px;
+    font-weight: 750;
+  }
+
+  .safe-spend-card {
+    margin: 0 0 28px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface-translucent);
+    box-shadow: 0 12px 34px var(--shadow-soft);
+  }
+
+  .safe-spend-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .safe-spend-value {
+    margin-top: 5px;
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.9px;
+    color: var(--positive);
+  }
+
+  .safe-spend-note {
+    margin-top: 5px;
+    font-size: 12px;
+    color: var(--muted-2);
+  }
+
+  .cc-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .cc-summary-card {
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .cc-summary-card small {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .cc-summary-card strong {
+    display: block;
+    margin-top: 4px;
+    font-size: 18px;
+  }
+
+  .cc-list {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cc-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 12px;
+    align-items: center;
+    padding: 11px 12px;
+    border: 1px solid var(--surface-subtle-border);
+    border-radius: 12px;
+  }
+
+  .cc-row strong {
+    display: block;
+    font-size: 13px;
+  }
+
+  .cc-row small {
+    color: var(--muted-2);
+    font-size: 11px;
+  }
+
+  @media (max-width: 700px) {
+    .net-worth-locked { padding: 22px 20px; }
+    .cc-summary-grid { grid-template-columns: 1fr; }
+    .cc-row { grid-template-columns: 1fr auto; }
+    .cc-row .cc-due { grid-column: 1 / -1; }
+  }
+
   /* Summary cards */
 
   .summary-grid {
@@ -492,10 +688,11 @@
 
   <div class="wealth-section">
 
+    {% if wealth_unlocked %}
     <div class="wealth-hero">
       <div class="wealth-hero-label">Net worth</div>
       <div class="wealth-hero-value tnum">{{ (wealth.net_worth)|inr }}</div>
-      <div class="wealth-hero-sub">All time, not affected by the period tabs above</div>
+      <div class="wealth-hero-sub">All time · <a href="{{ url_for('net_worth') }}" style="color:inherit;">Manage protected Net Worth</a></div>
     </div>
 
     <div class="wealth-grid">
@@ -508,27 +705,35 @@
         <div class="summary-value tnum">{{ (wealth.total_invested)|inr }}</div>
       </div>
       <div class="wealth-card">
-        <div class="summary-label">Lent out</div>
-        <div class="summary-value tnum">{{ (wealth.total_lent)|inr }}</div>
+        <div class="summary-label">Other assets</div>
+        <div class="summary-value tnum">{{ (wealth.manual_assets)|inr }}</div>
       </div>
       <div class="wealth-card">
-        <div class="summary-label">Card debt</div>
-        <div class="summary-value negative tnum">{{ (wealth.total_cc_debt)|inr }}</div>
+        <div class="summary-label">Liabilities</div>
+        <div class="summary-value negative tnum">{{ (wealth.total_cc_debt + wealth.manual_liabilities)|inr }}</div>
       </div>
     </div>
+    {% else %}
+    <div class="net-worth-locked">
+      <div class="net-worth-locked-label">🔒 Protected Net Worth</div>
+      <h3>₹ •••••••</h3>
+      <p>Your overall wealth is protected by a separate Net Worth password.</p>
+      <a href="{{ url_for('net_worth') }}">Unlock Net Worth</a>
+    </div>
+    {% endif %}
 
     {% if fixed_expenses %}
     <a class="fixed-card" href="{{ url_for('fixed_expenses') }}">
       <div class="fixed-left">
         <small>Fixed expenses still to pay this month</small>
         <strong class="tnum">{{ fixed_total|inr }}</strong>
-        <small>Bank after paying them: {{ fixed_remaining|inr }}</small>
+        <small>Bank after fixed expenses and SIP commitments: {{ fixed_remaining|inr }}</small>
       </div>
       <span class="fixed-link">Manage</span>
     </a>
     {% endif %}
 
-    {% if outstanding_loans %}
+    {% if outstanding_loans and wealth_unlocked %}
     <div class="lending-heading">Lent, by person</div>
     <ul class="lending-pills">
       {% for person in outstanding_loans %}
@@ -544,6 +749,82 @@
     {% endif %}
 
   </div>
+
+  <div class="safe-spend-card">
+    <div class="safe-spend-label">Safe to spend</div>
+    <div class="safe-spend-value tnum">{{ safe_to_spend|inr }}</div>
+    <div class="safe-spend-note">Available bank/cash balance after expected commitments over the next 31 days.</div>
+  </div>
+
+  {% if card_forecasts %}
+  <div class="commitments-section">
+    <div class="section-heading-row">
+      <h3>Credit cards</h3>
+      <span class="tnum">Expected bills {{ expected_cc_total|inr }}</span>
+    </div>
+    <div class="cc-summary-grid">
+      <div class="cc-summary-card">
+        <small>Outstanding</small>
+        <strong class="tnum">{{ (wealth.total_cc_debt if wealth_unlocked else (card_forecasts|sum(attribute='outstanding')))|inr }}</strong>
+      </div>
+      <div class="cc-summary-card">
+        <small>Expected next bills</small>
+        <strong class="tnum">{{ expected_cc_total|inr }}</strong>
+      </div>
+      <div class="cc-summary-card">
+        <small>Configured cards</small>
+        <strong>{{ card_forecasts|selectattr('cycle_configured')|list|length }}/{{ card_forecasts|length }}</strong>
+      </div>
+    </div>
+    <div class="cc-list">
+      {% for card in card_forecasts %}
+      <div class="cc-row">
+        <div>
+          <strong>{{ card.name }}</strong>
+          <small>
+            {% if card.cycle_configured %}
+              Expected {{ card.expected_bill|inr }} · Statement {{ card.expected_bill_date|nice_date }}
+            {% else %}
+              Billing cycle not configured
+            {% endif %}
+          </small>
+        </div>
+        <div class="tnum">
+          <small>Outstanding</small><br>
+          <strong>{{ card.outstanding|inr }}</strong>
+        </div>
+        <div class="cc-due tnum">
+          {% if card.due_date %}
+            <small>Due</small><br><strong>{{ card.due_date|nice_date }}</strong>
+          {% else %}
+            <small>Set cycle in Accounts</small>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if upcoming_commitments %}
+  <div class="commitments-section">
+    <div class="section-heading-row">
+      <h3>Upcoming commitments</h3>
+      <span class="tnum">{{ upcoming_commitments|sum(attribute='amount')|inr }} next 31 days</span>
+    </div>
+    <div class="commitments-list">
+      {% for item in upcoming_commitments %}
+      <div class="commitment-row">
+        <div class="commitment-left">
+          <strong>{{ "💳 " if item.kind == "credit_card" else ("🔄 " if item.kind == "investment" else "📅 ") }}{{ item.name }}</strong>
+          <small>{{ item.due_date|nice_date }}</small>
+        </div>
+        <div class="commitment-amount tnum">{{ item.amount|inr }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
 
   <div class="summary-grid">
     <div class="summary-card">
