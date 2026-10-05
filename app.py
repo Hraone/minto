@@ -18,6 +18,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
+from werkzeug.security import generate_password_hash, check_password_hash
 from report_pdf import build_report_pdf
 
 load_dotenv()
@@ -366,6 +367,221 @@ ENTRY_CATEGORIES = ("expense", "income", "investment", "lending", "transfer")
 def get_client() -> Client:
     """A plain (unauthenticated) client — used for signup/login itself."""
     return create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+
+def get_service_client():
+    """Server-only Supabase client for protected Net Worth metadata.
+    This key is never sent to the browser. Net Worth password hashes are
+    deliberately kept outside user-readable RLS."""
+    if not SUPABASE_SERVICE_ROLE_KEY:
+        return None
+    return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+
+def net_worth_is_unlocked():
+    expires_at = session.get("net_worth_unlock_expires")
+    try:
+        if expires_at and time.time() < float(expires_at):
+            return True
+    except (TypeError, ValueError):
+        pass
+    session.pop("net_worth_unlocked", None)
+    session.pop("net_worth_unlock_expires", None)
+    return False
+
+
+def unlock_net_worth_session():
+    session["net_worth_unlocked"] = True
+    session["net_worth_unlock_expires"] = time.time() + 15 * 60
+
+
+def lock_net_worth_session():
+    session.pop("net_worth_unlocked", None)
+    session.pop("net_worth_unlock_expires", None)
+
+
+def net_worth_password_hash_exists():
+    service = get_service_client()
+    if service is None:
+        return False
+    try:
+        rows = service.table("net_worth_security").select("user_id").eq(
+            "user_id", session["user_id"]
+        ).limit(1).execute().data
+        return bool(rows)
+    except Exception:
+        app.logger.exception("Could not check Net Worth password configuration")
+        return False
+
+
+def get_net_worth_manual_items():
+    service = get_service_client()
+    if service is None:
+        return []
+    try:
+        return (
+            service.table("net_worth_items")
+            .select("*")
+            .eq("user_id", session["user_id"])
+            .eq("active", True)
+            .order("item_type")
+            .order("category")
+            .order("name")
+            .execute()
+            .data
+        )
+    except Exception:
+        app.logger.exception("Could not load Net Worth items")
+        return []
+
+
+def compute_net_worth_manual_totals(items):
+    assets = sum(
+        float(i.get("amount") or 0) for i in items
+        if i.get("item_type") == "asset"
+    )
+    liabilities = sum(
+        float(i.get("amount") or 0) for i in items
+        if i.get("item_type") == "liability"
+    )
+    return assets, liabilities
+
+
+def get_card_cycle_dates(statement_day, today=None):
+    """Return the current billing-cycle boundaries and next bill dates.
+    Statement day is the day the statement is generated. The active cycle is
+    the day after the last statement through today."""
+    if not statement_day:
+        return None
+    today = today or datetime.now(APP_TZ).date()
+    statement_day = int(statement_day)
+
+    def stmt_date(year, month):
+        return date(
+            year,
+            month,
+            min(statement_day, calendar.monthrange(year, month)[1]),
+        )
+
+    current_stmt = stmt_date(today.year, today.month)
+    if today >= current_stmt:
+        last_stmt = current_stmt
+        if today.month == 12:
+            next_stmt = stmt_date(today.year + 1, 1)
+        else:
+            next_stmt = stmt_date(today.year, today.month + 1)
+    else:
+        if today.month == 1:
+            last_stmt = stmt_date(today.year - 1, 12)
+        else:
+            last_stmt = stmt_date(today.year, today.month - 1)
+        next_stmt = current_stmt
+
+    return {
+        "last_statement_date": last_stmt,
+        "next_statement_date": next_stmt,
+        "cycle_start": last_stmt + timedelta(days=1),
+    }
+
+
+def get_credit_card_forecasts(credit_cards, all_txns, today=None):
+    """Calculate each card's expected next statement from transactions in the
+    active billing cycle. Existing opening/current outstanding is never treated
+    as the next bill; only new cycle activity is forecast."""
+    today = today or datetime.now(APP_TZ).date()
+    by_card = defaultdict(list)
+    for txn in all_txns:
+        sid = txn.get("source_id")
+        if sid is not None:
+            by_card[sid].append(txn)
+
+    forecasts = []
+    for card in credit_cards:
+        item = dict(card)
+        info = get_card_cycle_dates(card.get("statement_day"), today)
+        item["cycle_configured"] = bool(
+            card.get("billing_cycle_enabled") and card.get("statement_day")
+        )
+        item["expected_bill"] = 0.0
+        item["expected_bill_date"] = None
+        item["due_date"] = None
+
+        if info and item["cycle_configured"]:
+            expected = 0.0
+            for txn in by_card.get(card["id"], []):
+                txn_date = parse_iso_date(txn.get("transaction_date"))
+                if not txn_date or txn_date < info["cycle_start"] or txn_date > today:
+                    continue
+                if txn.get("is_previous_card_bill"):
+                    continue
+                if txn.get("category") == "transfer":
+                    continue
+                amount = float(txn.get("amount") or 0)
+                if txn.get("direction") == "out":
+                    expected += amount
+                elif txn.get("direction") == "in":
+                    expected -= amount
+            item["expected_bill"] = max(round(expected, 2), 0.0)
+            item["expected_bill_date"] = info["next_statement_date"]
+            due_days = int(card.get("payment_due_days") or 0)
+            item["due_date"] = info["next_statement_date"] + timedelta(days=due_days)
+            item["cycle_start"] = info["cycle_start"]
+            item["last_statement_date"] = info["last_statement_date"]
+
+        forecasts.append(item)
+
+    return forecasts
+
+
+def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_days=31):
+    """Return currently expected payments due within the next horizon."""
+    today = datetime.now(APP_TZ).date()
+    cutoff = today + timedelta(days=horizon_days)
+    commitments = []
+
+    for card in credit_card_forecasts:
+        due = card.get("due_date")
+        amount = float(card.get("expected_bill") or 0)
+        if due and amount > 0 and today <= due <= cutoff:
+            commitments.append({
+                "kind": "credit_card",
+                "name": f"{card['name']} card bill",
+                "amount": amount,
+                "due_date": due,
+            })
+
+    for month_offset in (0, 1):
+        month_anchor = date(today.year + (today.month == 12 and month_offset or 0),
+                            1 if today.month == 12 and month_offset else today.month + month_offset if today.month + month_offset <= 12 else today.month + month_offset - 12,
+                            1)
+        # Simpler and safer than relying on month arithmetic above: derive the
+        # target month from a 32-day offset.
+        month_anchor = (today.replace(day=28) + timedelta(days=4 + 31 * month_offset)).replace(day=1)
+        try:
+            fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
+        except Exception:
+            fixed = []
+        for item in fixed:
+            due = item.get("due_date")
+            if isinstance(due, datetime):
+                due = due.date()
+            if not due or item.get("paid") or due < today or due > cutoff:
+                continue
+            commitments.append({
+                "kind": "investment" if item.get("kind") == "investment" else "fixed",
+                "name": item["name"],
+                "amount": float(item["amount"] or 0),
+                "due_date": due,
+            })
+
+    commitments.sort(key=lambda x: (x["due_date"], x["name"]))
+    return commitments
+
+
+def compute_safe_to_spend(savings, commitments):
+    liquid = sum(float(s.get("balance") or 0) for s in savings)
+    committed = sum(float(x.get("amount") or 0) for x in commitments)
+    return max(round(liquid - committed, 2), 0.0)
 
 
 def refresh_if_needed(client):
@@ -1066,6 +1282,168 @@ def info():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+
+@app.route("/net-worth", methods=["GET", "POST"])
+@login_required
+def net_worth():
+    client = get_user_client()
+    user_id = session["user_id"]
+    service = get_service_client()
+
+    if service is None:
+        flash("Net Worth protection needs SUPABASE_SERVICE_ROLE_KEY on the server.")
+        return redirect(url_for("dashboard"))
+
+    password_configured = net_worth_password_hash_exists()
+
+    if request.method == "POST":
+        action = request.form.get("action")
+
+        if action == "setup-password":
+            password = request.form.get("password", "")
+            confirm = request.form.get("confirm_password", "")
+            if len(password) < 8:
+                flash("Use a Net Worth password with at least 8 characters.")
+            elif password != confirm:
+                flash("The passwords do not match.")
+            else:
+                try:
+                    service.table("net_worth_security").upsert({
+                        "user_id": user_id,
+                        "password_hash": generate_password_hash(password),
+                    }).execute()
+                    unlock_net_worth_session()
+                    flash("Net Worth password created.")
+                except Exception:
+                    app.logger.exception("Could not save Net Worth password")
+                    flash("Couldn't create the Net Worth password. Please run the database update first.")
+            return redirect(url_for("net_worth"))
+
+        if action == "unlock":
+            password = request.form.get("password", "")
+            try:
+                rows = service.table("net_worth_security").select(
+                    "password_hash"
+                ).eq("user_id", user_id).limit(1).execute().data
+                password_hash = rows[0]["password_hash"] if rows else None
+                if password_hash and check_password_hash(password_hash, password):
+                    unlock_net_worth_session()
+                    flash("Net Worth unlocked for 15 minutes.")
+                else:
+                    flash("Incorrect Net Worth password.")
+            except Exception:
+                app.logger.exception("Could not verify Net Worth password")
+                flash("Couldn't unlock Net Worth. Please try again.")
+            return redirect(url_for("net_worth"))
+
+        if action == "lock":
+            lock_net_worth_session()
+            return redirect(url_for("net_worth"))
+
+        if not net_worth_is_unlocked():
+            flash("Unlock Net Worth before changing its data.")
+            return redirect(url_for("net_worth"))
+
+        if action == "change-password":
+            current_password = request.form.get("current_password", "")
+            new_password = request.form.get("new_password", "")
+            confirm = request.form.get("confirm_password", "")
+            try:
+                rows = service.table("net_worth_security").select(
+                    "password_hash"
+                ).eq("user_id", user_id).limit(1).execute().data
+                stored_hash = rows[0]["password_hash"] if rows else None
+                if not stored_hash or not check_password_hash(stored_hash, current_password):
+                    flash("Current Net Worth password is incorrect.")
+                elif len(new_password) < 8:
+                    flash("Use a new Net Worth password with at least 8 characters.")
+                elif new_password != confirm:
+                    flash("The new passwords do not match.")
+                else:
+                    service.table("net_worth_security").update({
+                        "password_hash": generate_password_hash(new_password),
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }).eq("user_id", user_id).execute()
+                    unlock_net_worth_session()
+                    flash("Net Worth password changed.")
+            except Exception:
+                app.logger.exception("Could not change Net Worth password")
+                flash("Couldn't change the Net Worth password.")
+            return redirect(url_for("net_worth"))
+
+        if action == "add-item":
+            name = " ".join(request.form.get("name", "").split())[:80]
+            item_type = request.form.get("item_type")
+            category = request.form.get("category")
+            amount = parse_money(request.form.get("amount"), allow_zero=True)
+            item_date = parse_iso_date(request.form.get("as_of_date")) or datetime.now(APP_TZ).date()
+            notes = (request.form.get("notes") or "").strip()[:300] or None
+            allowed_categories = {
+                "asset": {
+                    "cash", "investment", "gold", "vehicle", "property",
+                    "fixed_deposit", "recurring_deposit", "ppf_nps",
+                    "loan_receivable", "other",
+                },
+                "liability": {"loan_payable", "other"},
+            }
+            if (
+                not name
+                or item_type not in allowed_categories
+                or category not in allowed_categories[item_type]
+                or amount is None
+                or amount < 0
+            ):
+                flash("Check the Net Worth item details.")
+            else:
+                try:
+                    service.table("net_worth_items").insert({
+                        "user_id": user_id,
+                        "name": name,
+                        "item_type": item_type,
+                        "category": category,
+                        "amount": amount,
+                        "as_of_date": item_date.isoformat(),
+                        "notes": notes,
+                    }).execute()
+                    flash(f"{name} added to Net Worth.")
+                except Exception:
+                    app.logger.exception("Could not add Net Worth item")
+                    flash("Couldn't add that item. Please run the database update first.")
+            return redirect(url_for("net_worth"))
+
+        if action == "delete-item":
+            item_id = request.form.get("item_id")
+            if item_id and item_id.isdigit():
+                try:
+                    service.table("net_worth_items").delete().eq(
+                        "id", int(item_id)
+                    ).eq("user_id", user_id).execute()
+                    flash("Net Worth item removed.")
+                except Exception:
+                    flash("Couldn't remove that item.")
+            return redirect(url_for("net_worth"))
+
+    unlocked = net_worth_is_unlocked()
+    manual_items = get_net_worth_manual_items() if unlocked else []
+    savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items) if unlocked else None
+    card_forecasts = get_credit_card_forecasts(credit_cards, all_txns)
+    return render_template(
+        "net_worth.html",
+        password_configured=password_configured,
+        unlocked=unlocked,
+        wealth=wealth,
+        manual_items=manual_items,
+        card_forecasts=card_forecasts,
+    )
+
+
+@app.route("/net-worth/lock", methods=["POST"])
+@login_required
+def lock_net_worth():
+    lock_net_worth_session()
+    return redirect(url_for("dashboard"))
 
 
 def get_lending_summary(client, user_id):
@@ -2069,12 +2447,10 @@ def compute_source_balances(client, user_id):
     return savings, credit_cards, all_txns
 
 
-def compute_net_worth(all_txns, savings, credit_cards):
+def compute_net_worth(all_txns, savings, credit_cards, manual_items=None):
     total_savings = sum(s["balance"] for s in savings)
     total_cc_debt = sum(s["outstanding"] for s in credit_cards)
     total_cc_limit = sum(s["limit"] for s in credit_cards if s.get("limit"))
-    # Only meaningful if at least one card has a limit set — otherwise leave
-    # it out rather than showing a misleading 0%.
     overall_utilization_pct = (
         round((total_cc_debt / total_cc_limit) * 100, 1) if total_cc_limit else None
     )
@@ -2089,10 +2465,6 @@ def compute_net_worth(all_txns, savings, credit_cards):
     )
     total_invested = invested_out - invested_in
 
-    # Money lent to other people (e.g. a friend) leaves your account like an
-    # expense would, but unlike an expense you expect it back — so it's
-    # counted as a receivable asset here, the same way an investment is,
-    # rather than as spending. A repayment ("in") shrinks it back down.
     lent_out = sum(
         float(t["amount"]) for t in all_txns
         if t.get("category") == "lending" and t.get("direction") == "out" and t.get("amount")
@@ -2103,13 +2475,25 @@ def compute_net_worth(all_txns, savings, credit_cards):
     )
     total_lent = lent_out - lent_in
 
+    manual_items = manual_items or []
+    manual_assets, manual_liabilities = compute_net_worth_manual_totals(manual_items)
+
     return {
         "total_savings": total_savings,
         "total_invested": total_invested,
         "total_lent": total_lent,
         "total_cc_debt": total_cc_debt,
+        "manual_assets": manual_assets,
+        "manual_liabilities": manual_liabilities,
         "overall_utilization_pct": overall_utilization_pct,
-        "net_worth": total_savings + total_invested + total_lent - total_cc_debt,
+        "net_worth": (
+            total_savings
+            + total_invested
+            + total_lent
+            + manual_assets
+            - total_cc_debt
+            - manual_liabilities
+        ),
     }
 
 
@@ -2395,6 +2779,34 @@ def delete_fixed_expense(fixed_expense_id):
     return redirect(url_for("fixed_expenses"))
 
 
+@app.route("/sources/<int:source_id>/card-cycle", methods=["POST"])
+@login_required
+def update_card_cycle(source_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    try:
+        statement_day = int(request.form.get("statement_day", "").strip())
+        payment_due_days = int(request.form.get("payment_due_days", "").strip())
+    except (TypeError, ValueError):
+        flash("Enter a valid statement day and days until payment.")
+        return redirect(url_for("sources"))
+
+    if not 1 <= statement_day <= 31 or not 0 <= payment_due_days <= 60:
+        flash("Statement day must be 1–31 and payment due days must be 0–60.")
+        return redirect(url_for("sources"))
+
+    try:
+        client.table("user_sources").update({
+            "statement_day": statement_day,
+            "payment_due_days": payment_due_days,
+            "billing_cycle_enabled": True,
+        }).eq("id", source_id).eq("user_id", user_id).eq("source_type", "credit_card").execute()
+        flash("Credit-card billing cycle updated.")
+    except Exception:
+        flash("Couldn't save the card cycle. Run the latest database update first.")
+    return redirect(url_for("sources"))
+
+
 @app.route("/sources", methods=["GET", "POST"])
 @login_required
 def sources():
@@ -2422,9 +2834,22 @@ def sources():
         else:
             limit = parse_money(request.form.get("credit_limit"))
             outstanding = parse_money(request.form.get("outstanding"), allow_zero=True, default=0.0)
-            bad = outstanding is None or (request.form.get("credit_limit") and limit is None)
+            try:
+                statement_day = int(request.form.get("statement_day", "").strip()) if request.form.get("statement_day", "").strip() else None
+                payment_due_days = int(request.form.get("payment_due_days", "").strip()) if request.form.get("payment_due_days", "").strip() else None
+            except ValueError:
+                statement_day, payment_due_days = None, None
+            bad = (
+                outstanding is None
+                or (request.form.get("credit_limit") and limit is None)
+                or (statement_day is not None and not 1 <= statement_day <= 31)
+                or (payment_due_days is not None and not 0 <= payment_due_days <= 60)
+            )
             row["credit_limit"] = limit
             row["opening_balance"] = outstanding
+            row["statement_day"] = statement_day
+            row["payment_due_days"] = payment_due_days
+            row["billing_cycle_enabled"] = bool(statement_day is not None)
         if bad:
             flash("Check the amounts. They must be plain numbers, zero or more.")
             return redirect(url_for("sources"))
@@ -2542,10 +2967,19 @@ def dashboard():
     recent = txns[:10]
 
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
-    wealth = compute_net_worth(all_txns, savings, credit_cards)
+    manual_items = get_net_worth_manual_items() if net_worth_is_unlocked() else []
+    wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items)
 
-    # Fixed monthly commitments are forecasts until the user marks them paid.
+    # Fixed monthly commitments plus expected CC statements form the dashboard's
+    # future obligations. They are independent of the period tabs.
     today = datetime.now(APP_TZ).date()
+    card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today)
+    try:
+        upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
+    except Exception:
+        app.logger.exception("Upcoming commitments could not be loaded")
+        upcoming_commitments = []
+
     try:
         fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     except Exception:
@@ -2553,10 +2987,28 @@ def dashboard():
         # Overview should still open instead of showing an error page.
         app.logger.exception("Fixed expenses could not be loaded for the Overview")
         fixed_expenses = []
-    fixed_total = sum(float(x["amount"] or 0) for x in fixed_expenses if not x["paid"])
+    fixed_total = sum(
+        float(x["amount"] or 0) for x in fixed_expenses
+        if not x["paid"] and (x.get("kind") or "expense") == "expense"
+    )
+    fixed_investment_total = sum(
+        float(x["amount"] or 0) for x in fixed_expenses
+        if not x["paid"] and (x.get("kind") or "expense") == "investment"
+    )
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
-    fixed_remaining = float(wealth["total_savings"]) - fixed_total
+    fixed_remaining = float(wealth["total_savings"]) - fixed_total - fixed_investment_total
+    safe_to_spend = compute_safe_to_spend(savings, upcoming_commitments)
     alerts = get_dashboard_alerts(savings, credit_cards, txns)
+
+    expected_cc_total = sum(
+        float(c.get("expected_bill") or 0) for c in card_forecasts
+    )
+    if expected_cc_total > 0:
+        alerts.append({
+            "kind": "info",
+            "title": "Expected credit-card bills",
+            "message": f"Upcoming statement bills are {inr_filter(expected_cc_total)} based on current billing-cycle spending.",
+        })
 
     # Outstanding loans by person — all-time, like net worth, not scoped to
     # the period tabs. Only people with a nonzero balance are shown; fully
@@ -2576,11 +3028,17 @@ def dashboard():
         source_values=list(spend_by_source.values()),
         recent=recent,
         wealth=wealth,
+        wealth_unlocked=net_worth_is_unlocked(),
         outstanding_loans=outstanding_loans,
         fixed_expenses=fixed_expenses,
         fixed_total=fixed_total,
+        fixed_investment_total=fixed_investment_total,
         fixed_paid_total=fixed_paid_total,
         fixed_remaining=fixed_remaining,
+        card_forecasts=card_forecasts,
+        expected_cc_total=expected_cc_total,
+        upcoming_commitments=upcoming_commitments,
+        safe_to_spend=safe_to_spend,
         alerts=alerts,
         report_from=datetime.now(APP_TZ).date().replace(day=1).isoformat(),
         report_to=datetime.now(APP_TZ).date().isoformat(),
