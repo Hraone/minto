@@ -268,7 +268,7 @@
   <div class="form-section">
 
     <label class="form-label">
-      Category
+      Transaction type <span style="font-weight:400; color:var(--muted-2);">(required)</span>
     </label>
 
     <div class="chip-group">
@@ -283,6 +283,7 @@
           value="{{ c }}"
           onclick="toggleSubCategory()"
           {% if c == "expense" %}checked{% endif %}
+          required
         >
 
         {{ 'Lent' if c == 'lending' else c|capitalize }}
@@ -302,7 +303,7 @@
     >
 
       <label class="form-label">
-        Expense category
+        Expense category <span style="font-weight:400; color:var(--muted-2);">(required)</span>
       </label>
 
       <div class="chip-group" id="expense-category-chips">
@@ -339,7 +340,7 @@
     >
 
       <label class="form-label">
-        Investment category
+        Investment category <span style="font-weight:400; color:var(--muted-2);">(required)</span>
       </label>
 
       <div class="chip-group" id="investment-category-chips">
@@ -432,7 +433,7 @@
   <div class="form-section">
 
     <label class="form-label">
-      Account
+      Account <span style="font-weight:400; color:var(--muted-2);">(required)</span>
     </label>
 
     {% if savings_sources or cc_sources %}
@@ -547,31 +548,19 @@
 
 <script>
 
+function setRequiredForGroup(selector, required) {
+  document.querySelectorAll(selector).forEach(input => {
+    input.required = required;
+  });
+}
+
 function toggleSubCategory() {
+  const selectedCategory = document.querySelector('input[name="category"]:checked');
+  const expenseBlock = document.getElementById("expense-category-block");
+  const investmentBlock = document.getElementById("investment-category-block");
+  const lendingBlock = document.getElementById("lending-category-block");
 
-  const selectedCategory =
-    document.querySelector(
-      'input[name="category"]:checked'
-    );
-
-  const expenseBlock =
-    document.getElementById(
-      "expense-category-block"
-    );
-
-  const investmentBlock =
-    document.getElementById(
-      "investment-category-block"
-    );
-
-  const lendingBlock =
-    document.getElementById(
-      "lending-category-block"
-    );
-
-  if (!selectedCategory) {
-    return;
-  }
+  if (!selectedCategory) return;
 
   const isExpense = selectedCategory.value === "expense";
   const isInvestment = selectedCategory.value === "investment";
@@ -581,39 +570,24 @@ function toggleSubCategory() {
   investmentBlock.style.display = isInvestment ? "block" : "none";
   lendingBlock.style.display = isLending ? "block" : "none";
 
-  /*
-   * Clear the sub-category selection whenever the
-   * user switches away from expense/investment/lending.
-   */
+  setRequiredForGroup('input[name="expense_category"]', isExpense);
+  setRequiredForGroup('input[name="investment_category"]', isInvestment);
+  document.getElementById("counterparty").required = isLending;
 
   if (!isExpense) {
-    document
-      .querySelectorAll('input[name="expense_category"]')
-      .forEach(input => { input.checked = false; });
+    document.querySelectorAll('input[name="expense_category"]').forEach(input => { input.checked = false; });
   }
-
   if (!isInvestment) {
-    document
-      .querySelectorAll('input[name="investment_category"]')
-      .forEach(input => { input.checked = false; });
+    document.querySelectorAll('input[name="investment_category"]').forEach(input => { input.checked = false; });
   }
-
   if (!isLending) {
     document.getElementById("counterparty").value = "";
   }
-
 }
 
-
 function toggleSourceType() {
-
-  const selected = document.querySelector(
-    'input[name="source_type_filter"]:checked'
-  );
-
-  if (!selected) {
-    return;
-  }
+  const selected = document.querySelector('input[name="source_type_filter"]:checked');
+  if (!selected) return;
 
   const savingsBlock = document.getElementById("savings-source-block");
   const ccBlock = document.getElementById("cc-source-block");
@@ -622,17 +596,11 @@ function toggleSourceType() {
   savingsBlock.style.display = isSavings ? "block" : "none";
   ccBlock.style.display = isSavings ? "none" : "block";
 
-  /*
-   * Clear any selected source in whichever block just got
-   * hidden, so a stale pick from the other type can't be
-   * submitted invisibly.
-   */
+  setRequiredForGroup('#savings-source-block input[name="source_id"]', isSavings);
+  setRequiredForGroup('#cc-source-block input[name="source_id"]', !isSavings);
 
   const hiddenBlock = isSavings ? ccBlock : savingsBlock;
-  hiddenBlock
-    .querySelectorAll('input[name="source_id"]')
-    .forEach(input => { input.checked = false; });
-
+  hiddenBlock.querySelectorAll('input[name="source_id"]').forEach(input => { input.checked = false; });
 }
 
 
