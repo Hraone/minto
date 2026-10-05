@@ -1527,6 +1527,7 @@ def entry():
         investment_category = request.form.get("investment_category") or None
         counterparty = (request.form.get("counterparty") or "").strip() or None
         source_id = request.form.get("source_id") or None
+        source_type_filter = request.form.get("source_type_filter")
         notes = (request.form.get("notes") or "").strip() or None
         raw_date = request.form.get("transaction_date") or None
 
@@ -1538,10 +1539,16 @@ def entry():
             problem = "Choose In or Out and a transaction type."
         elif category == "expense" and not expense_category:
             problem = "Choose an expense category."
+        elif category == "expense" and expense_category not in get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES):
+            problem = "Choose a valid expense category."
         elif category == "investment" and not investment_category:
             problem = "Choose an investment category."
+        elif category == "investment" and investment_category not in get_categories(client, user_id, "investment", FIXED_INVESTMENT_CATEGORIES):
+            problem = "Choose a valid investment category."
         elif category == "lending" and not counterparty:
             problem = "Add who the money was lent to or came back from."
+        elif source_type_filter not in ("savings", "credit_card"):
+            problem = "Choose whether this entry uses cash/bank or a card."
         elif raw_date and parse_iso_date(raw_date) is None:
             problem = "That date doesn't look right."
         elif category in ("expense", "income", "investment", "lending", "transfer") and not source_id:
@@ -1561,6 +1568,12 @@ def entry():
                 )
                 if not source_rows:
                     problem = "Pick one of your active accounts."
+                elif (
+                    (source_type_filter == "savings" and source_rows[0]["source_type"] not in ("savings", "cash"))
+                    or
+                    (source_type_filter == "credit_card" and source_rows[0]["source_type"] != "credit_card")
+                ):
+                    problem = "Choose an account matching the selected source type."
             except (TypeError, ValueError):
                 problem = "Pick one of your accounts."
         if problem:
