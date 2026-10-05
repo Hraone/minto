@@ -1941,6 +1941,79 @@ def withdraw_cash():
 
 
 
+@app.route("/bank-transfer", methods=["GET", "POST"])
+@login_required
+def bank_transfer():
+    """Move money between two of your own bank accounts. Recorded as two linked
+    transfer entries (out of one, into the other), so both balances update and
+    it never shows up as spending or income."""
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    sources = (
+        client.table("user_sources")
+        .select("*")
+        .eq("active", True)
+        .eq("source_type", "savings")
+        .order("name")
+        .execute()
+        .data
+    )
+
+    def render_form():
+        return render_template("bank_transfer.html", bank_sources=sources, form=request.form)
+
+    if request.method == "POST":
+        amount = parse_money(request.form.get("amount"))
+        from_source_id = request.form.get("from_source_id")
+        to_source_id = request.form.get("to_source_id")
+        notes = (request.form.get("notes") or "").strip() or None
+        bank_ids = {str(s["id"]) for s in sources}
+
+        if amount is None:
+            flash("Enter an amount greater than zero.")
+            return render_form()
+        if from_source_id not in bank_ids or to_source_id not in bank_ids:
+            flash("Pick the bank account to send from and the one to send to.")
+            return render_form()
+        if from_source_id == to_source_id:
+            flash("Choose two different bank accounts.")
+            return render_form()
+
+        transfer_group = str(uuid.uuid4())
+        description = notes or "Bank transfer"
+
+        def leg(direction, source_id):
+            return insert_entry_and_transaction(client, user_id, description, {
+                "direction": direction,
+                "category": "transfer",
+                "source_id": int(source_id),
+                "amount": amount,
+                "description": description,
+                "raw_text": description,
+                "transfer_group": transfer_group,
+            })
+
+        out_entry_id = None
+        try:
+            out_entry_id = leg("out", from_source_id)
+            leg("in", to_source_id)
+        except Exception:
+            # Without the second leg, don't leave a dangling half-transfer.
+            if out_entry_id is not None:
+                try:
+                    client.table("entries").delete().eq("id", out_entry_id).eq("user_id", user_id).execute()
+                except Exception:
+                    pass
+            flash("Couldn't record the bank transfer. Please try again.")
+            return render_form()
+
+        flash("Bank transfer recorded. Both account balances updated.")
+        return redirect(url_for("sources"))
+
+    return render_form()
+
+
 def compute_source_balances(client, user_id):
     """All-time balances/outstanding per source. Not period-scoped —
     these are running totals since the source was created, not tied to
@@ -2154,7 +2227,15 @@ def fixed_expenses():
         name = request.form.get("name", "").strip()[:60]
         amount = parse_money(request.form.get("amount"))
         category = (request.form.get("category") or "other").strip()
-        kind = "investment" if category in investment_categories else "expense"
+        # The form posts "kind:category" (for example "investment:sip"), so a
+        # name like "Other" that exists in both lists can never be mistaken
+        # for the wrong one. A plain value (older page) counts as an expense.
+        kind, _, picked = category.partition(":")
+        if not picked:
+            kind, picked = "expense", category
+        if kind not in ("expense", "investment"):
+            kind, picked = "expense", category
+        category = picked
         source_id = request.form.get("source_id") or None
         try:
             due_day = int(request.form.get("due_day", "").strip())
@@ -2164,24 +2245,34 @@ def fixed_expenses():
                    .in_("source_type", ["savings", "cash"]).execute().data}
         if not name or amount is None or not 1 <= due_day <= 31:
             flash("Couldn't add that fixed expense. Check the name, amount and due day.")
-        elif category not in categories:
+        elif category not in (investment_categories if kind == "investment" else expense_categories):
             flash("Pick one of the listed categories.")
         elif source_id and (not source_id.isdigit() or int(source_id) not in pay_ids):
             flash("Pick one of your bank or cash accounts.")
         else:
+            row = {
+                "user_id": user_id,
+                "name": name,
+                "amount": amount,
+                "due_day": due_day,
+                "category": category,
+                "kind": kind,
+                "source_id": int(source_id) if source_id else None,
+            }
             try:
-                client.table("fixed_expenses").insert({
-                    "user_id": user_id,
-                    "name": name,
-                    "amount": amount,
-                    "due_day": due_day,
-                    "category": category,
-                    "kind": kind,
-                    "source_id": int(source_id) if source_id else None,
-                }).execute()
-                flash(f"Added {name} as a monthly fixed expense.")
+                try:
+                    client.table("fixed_expenses").insert(row).execute()
+                except Exception:
+                    if kind != "expense":
+                        raise
+                    # Database not updated with the "kind" column yet: plain
+                    # expenses still save without it.
+                    row.pop("kind")
+                    client.table("fixed_expenses").insert(row).execute()
+                flash(f"Added {name} as a monthly {'SIP / investment' if kind == 'investment' else 'fixed expense'}.")
             except Exception:
-                flash("Couldn't add that fixed expense. Please try again.")
+                flash("Couldn't add that. Please try again."
+                      + (" Run the latest database update first." if kind == "investment" else ""))
         return redirect(url_for("fixed_expenses"))
 
     today = datetime.now(APP_TZ).date()
@@ -2261,8 +2352,8 @@ def pay_fixed_expense(fixed_expense_id):
             client, user_id, f"{entry_label}: {expense['name']}", {
                 "direction": "out",
                 "category": expense.get("kind") or "expense",
-                "expense_category": expense.get("category") or "other",
-                "investment_category": expense.get("category") or "other",
+                "expense_category": None if is_investment else (expense.get("category") or "other"),
+                "investment_category": (expense.get("category") or "other") if is_investment else None,
                 "source_id": int(source_id),
                 "amount": float(expense["amount"]),
                 "description": expense["name"],
