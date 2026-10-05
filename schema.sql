@@ -422,3 +422,101 @@ ON public.transactions (user_id, transaction_date DESC);
 
 CREATE INDEX IF NOT EXISTS transactions_user_source_date_idx
 ON public.transactions (user_id, source_id, transaction_date DESC);
+
+
+-- ---------------------------------------------------------------------------
+-- Credit-card loan / EMI tracking
+-- A CC loan is attached to one credit card. The card's existing outstanding
+-- remains the authoritative total card debt; this table identifies the
+-- portion that is a recurring loan/EMI and helps forecast its monthly payment.
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.credit_card_loans (
+    id bigserial PRIMARY KEY,
+
+    user_id uuid NOT NULL
+        REFERENCES auth.users(id)
+        ON DELETE CASCADE,
+
+    source_id integer NOT NULL
+        REFERENCES public.user_sources(id)
+        ON DELETE CASCADE,
+
+    name text NOT NULL DEFAULT 'Credit card loan',
+
+    original_amount numeric NOT NULL
+        CHECK (original_amount > 0),
+
+    outstanding_amount numeric NOT NULL
+        CHECK (outstanding_amount >= 0),
+
+    monthly_emi numeric NOT NULL
+        CHECK (monthly_emi > 0),
+
+    start_date date NOT NULL DEFAULT current_date,
+
+    active boolean NOT NULL DEFAULT true,
+
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+
+    UNIQUE (user_id, source_id)
+);
+
+ALTER TABLE public.credit_card_loans ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own credit card loans"
+ON public.credit_card_loans;
+
+CREATE POLICY "own credit card loans"
+ON public.credit_card_loans
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS credit_card_loans_user_idx
+ON public.credit_card_loans (user_id, active);
+
+CREATE INDEX IF NOT EXISTS credit_card_loans_source_idx
+ON public.credit_card_loans (user_id, source_id);
+
+
+-- Each CC loan payment is linked to the same bank -> card transfer group
+-- created by Pay CC Bill, allowing the loan history to be audited without
+-- treating the payment itself as a new expense.
+CREATE TABLE IF NOT EXISTS public.credit_card_loan_payments (
+    id bigserial PRIMARY KEY,
+
+    loan_id bigint NOT NULL
+        REFERENCES public.credit_card_loans(id)
+        ON DELETE CASCADE,
+
+    user_id uuid NOT NULL
+        REFERENCES auth.users(id)
+        ON DELETE CASCADE,
+
+    amount numeric NOT NULL
+        CHECK (amount > 0),
+
+    payment_date date NOT NULL DEFAULT current_date,
+
+    transfer_group uuid,
+
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.credit_card_loan_payments ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own credit card loan payments"
+ON public.credit_card_loan_payments;
+
+CREATE POLICY "own credit card loan payments"
+ON public.credit_card_loan_payments
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS credit_card_loan_payments_user_idx
+ON public.credit_card_loan_payments (user_id, payment_date DESC);
+
+CREATE INDEX IF NOT EXISTS credit_card_loan_payments_loan_idx
+ON public.credit_card_loan_payments (loan_id, payment_date DESC);
