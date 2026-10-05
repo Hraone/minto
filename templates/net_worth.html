@@ -98,7 +98,7 @@
     <div class="nw-breakdown">
       <div class="nw-stat"><small>Bank & Cash</small><strong class="tnum">{{ wealth.total_savings|inr }}</strong></div>
       <div class="nw-stat"><small>Investments</small><strong class="tnum">{{ wealth.total_invested|inr }}</strong></div>
-      <div class="nw-stat"><small>Other assets</small><strong class="tnum">{{ wealth.manual_assets + wealth.total_lent|inr }}</strong></div>
+      <div class="nw-stat"><small>Other assets</small><strong class="tnum">{{ (wealth.manual_assets + wealth.total_lent)|inr }}</strong></div>
       <div class="nw-stat"><small>Liabilities</small><strong class="tnum">{{ (wealth.total_cc_debt + wealth.manual_liabilities)|inr }}</strong></div>
     </div>
   </div>
