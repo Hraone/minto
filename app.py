@@ -414,6 +414,25 @@ def net_worth_password_hash_exists():
         return False
 
 
+def get_net_worth_snapshots(limit=12):
+    service = get_service_client()
+    if service is None:
+        return []
+    try:
+        return (
+            service.table("net_worth_snapshots")
+            .select("*")
+            .eq("user_id", session["user_id"])
+            .order("snapshot_date", desc=True)
+            .limit(limit)
+            .execute()
+            .data
+        )
+    except Exception:
+        app.logger.exception("Could not load Net Worth snapshots")
+        return []
+
+
 def get_net_worth_manual_items():
     service = get_service_client()
     if service is None:
@@ -1409,6 +1428,24 @@ def net_worth():
                     flash("Couldn't add that item. Please run the database update first.")
             return redirect(url_for("net_worth"))
 
+        if action == "save-snapshot":
+            try:
+                savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+                items = get_net_worth_manual_items()
+                snapshot_wealth = compute_net_worth(all_txns, savings, credit_cards, items)
+                snapshot_date = parse_iso_date(request.form.get("snapshot_date")) or datetime.now(APP_TZ).date()
+                service.table("net_worth_snapshots").upsert({
+                    "user_id": user_id,
+                    "snapshot_date": snapshot_date.isoformat(),
+                    "net_worth": snapshot_wealth["net_worth"],
+                    "notes": (request.form.get("snapshot_notes") or "").strip()[:300] or None,
+                }).execute()
+                flash(f"Net Worth snapshot saved for {snapshot_date.strftime('%d %b %Y')}.")
+            except Exception:
+                app.logger.exception("Could not save Net Worth snapshot")
+                flash("Couldn't save the snapshot. Please run the database update first.")
+            return redirect(url_for("net_worth"))
+
         if action == "delete-item":
             item_id = request.form.get("item_id")
             if item_id and item_id.isdigit():
@@ -1426,6 +1463,7 @@ def net_worth():
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
     wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items) if unlocked else None
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns)
+    snapshots = get_net_worth_snapshots() if unlocked else []
     return render_template(
         "net_worth.html",
         password_configured=password_configured,
@@ -1433,6 +1471,7 @@ def net_worth():
         wealth=wealth,
         manual_items=manual_items,
         card_forecasts=card_forecasts,
+        snapshots=snapshots,
     )
 
 
