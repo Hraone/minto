@@ -52,6 +52,27 @@
     overflow-wrap: anywhere;
   }
 
+  .fx-add-toggle {
+    margin: 0 0 14px;
+    padding: 10px 15px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .fx-add-toggle:hover {
+    background: var(--primary-hover);
+  }
+
+  .fx-add-card[hidden] {
+    display: none;
+  }
+
   .fx-card {
     padding: 18px;
     margin-bottom: 12px;
@@ -253,7 +274,16 @@
   </div>
   {% endfor %}
 
-  <div class="fx-card">
+  <button
+    type="button"
+    class="fx-add-toggle"
+    id="fx-add-toggle"
+    aria-expanded="false"
+    aria-controls="fx-add-card">
+    + Add a fixed expense
+  </button>
+
+  <div class="fx-card fx-add-card" id="fx-add-card" hidden>
     <h3>Add a fixed expense</h3>
     <form method="post" action="{{ url_for('fixed_expenses') }}">
       <div class="fx-grid">
@@ -301,4 +331,24 @@
   </div>
 
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const toggle = document.getElementById("fx-add-toggle");
+  const card = document.getElementById("fx-add-card");
+
+  if (!toggle || !card) return;
+
+  toggle.addEventListener("click", function () {
+    const open = card.hidden;
+    card.hidden = !open;
+    toggle.setAttribute("aria-expanded", String(open));
+    toggle.textContent = open ? "− Close Add Fixed Expense" : "+ Add a fixed expense";
+
+    if (open) {
+      document.getElementById("fx-name").focus();
+    }
+  });
+});
+</script>
 {% endblock %}
