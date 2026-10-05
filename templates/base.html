@@ -1140,7 +1140,7 @@
       <a class="nav-link {{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed</a>
       <div class="nav-menu" id="navTransfers">
         <a
-          class="nav-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash'] else '' }}"
+          class="nav-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer'] else '' }}"
           href="{{ url_for('pay_cc_bill') }}"
           role="button"
           aria-haspopup="true"
@@ -1154,6 +1154,7 @@
         <div class="nav-dropdown" id="navTransfersMenu" role="menu" hidden>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
         </div>
       </div>
       <a class="nav-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">Reports</a>
@@ -1348,12 +1349,13 @@
       <div class="tab-sheet" id="transfersSheet" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed</a>
       </div>
       <a
         href="{{ url_for('pay_cc_bill') }}"
         role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'fixed_expenses'] else '' }}"
+        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer', 'fixed_expenses'] else '' }}"
         aria-haspopup="true"
         aria-expanded="false"
         aria-controls="transfersSheet"

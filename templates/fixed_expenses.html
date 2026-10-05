@@ -274,13 +274,13 @@
           <select id="fx-category" name="category">
             <optgroup label="Expenses">
               {% for c in expense_categories %}
-              <option value="{{ c }}" {{ 'selected' if c == 'bills' else '' }}>{{ c|replace('_', ' ')|title }}</option>
+              <option value="expense:{{ c }}" {{ 'selected' if c == 'bills' else '' }}>{{ c|replace('_', ' ')|title }}</option>
               {% endfor %}
             </optgroup>
             <optgroup label="Investments">
               {% for c in investment_categories %}
               {% if c != 'other' %}
-              <option value="{{ c }}">{{ c|replace('_', ' ')|title }}</option>
+              <option value="investment:{{ c }}">{{ c|upper if c == 'sip' else c|replace('_', ' ')|title }}</option>
               {% endif %}
               {% endfor %}
             </optgroup>
