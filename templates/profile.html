@@ -415,6 +415,10 @@
     <div class="profile-links">
       <a href="{{ url_for('reports') }}">Download a report</a>
       <a href="{{ url_for('fixed_expenses') }}">Fixed expenses</a>
+      <a href="{{ url_for('net_worth') }}" class="profile-link-row">
+        <span>Protected Net Worth</span>
+        <small>Private</small>
+      </a>
       <a href="{{ url_for('info') }}" class="profile-link-row">
         <span>Face ID or fingerprint login</span>
         <small class="{{ 'on' if biometric_enabled else '' }}">{{ 'On' if biometric_enabled else 'Off' }}</small>
