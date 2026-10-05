@@ -581,7 +581,7 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
             due = item.get("due_date")
             if isinstance(due, datetime):
                 due = due.date()
-            if not due or item.get("paid") or due < today or due > cutoff:
+            if not due or item.get("paid") or due > cutoff:
                 continue
             commitments.append({
                 "kind": "investment" if item.get("kind") == "investment" else "fixed",
@@ -1472,6 +1472,7 @@ def net_worth():
         manual_items=manual_items,
         card_forecasts=card_forecasts,
         snapshots=snapshots,
+        today=datetime.now(APP_TZ).date().isoformat(),
     )
 
 
@@ -2926,14 +2927,18 @@ def inr_filter(value):
 
 @app.template_filter("nice_date")
 def nice_date(value):
-    """'2026-09-23' -> '23 Sep', or '23 Sep 2025' if not this year — used to
-    show a transaction's actual date in the Recent Transactions list."""
+    """Format ISO date strings and Python date/datetime values for UI."""
     if not value:
         return ""
-    try:
-        d = datetime.strptime(value, "%Y-%m-%d").date()
-    except (ValueError, TypeError):
-        return value
+    if isinstance(value, datetime):
+        d = value.date()
+    elif isinstance(value, date):
+        d = value
+    else:
+        try:
+            d = datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            return str(value)
     this_year = datetime.now(APP_TZ).date().year
     return d.strftime("%d %b" if d.year == this_year else "%d %b %Y")
 
