@@ -209,6 +209,59 @@
     margin-top: 1px;
   }
 
+  .cc-cycle-form {
+    margin-top: 13px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .cc-cycle-form p {
+    margin: 0 0 10px;
+    font-size: 11.5px;
+    line-height: 1.5;
+    color: var(--muted-2);
+  }
+
+  .cc-cycle-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .cc-cycle-grid label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .cc-cycle-grid input {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 38px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+  }
+
+  .cc-cycle-save {
+    margin-top: 10px;
+    min-height: 36px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--primary);
+    color: var(--primary-contrast);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
   /* CC limit bar */
 
   .limit-bar-track {
@@ -351,6 +404,20 @@
 
         <label for="outstanding">Current outstanding balance <span style="font-weight:400; color:var(--muted-2);">(optional)</span></label>
         <input type="number" step="0.01" id="outstanding" name="outstanding" placeholder="0.00">
+
+        <div class="cc-cycle-form" style="border-top:0; padding-top:4px;">
+          <p>Set the statement day so Minto can forecast the next bill from transactions in the current cycle.</p>
+          <div class="cc-cycle-grid">
+            <div>
+              <label for="statement_day">Statement day</label>
+              <input type="number" id="statement_day" name="statement_day" min="1" max="31" placeholder="5">
+            </div>
+            <div>
+              <label for="payment_due_days">Days until payment due</label>
+              <input type="number" id="payment_due_days" name="payment_due_days" min="0" max="60" placeholder="20">
+            </div>
+          </div>
+        </div>
       </div>
 
       <button type="submit">Add Account</button>
@@ -456,6 +523,32 @@
             <div class="figure-label">outstanding</div>
           </div>
         </div>
+
+        {% if s.statement_day %}
+        <div class="cc-cycle-form">
+          <p>Cycle: statement on day {{ s.statement_day }} · payment due {{ s.payment_due_days }} day{{ "" if s.payment_due_days == 1 else "s" }} later</p>
+        </div>
+        {% else %}
+        <div class="cc-cycle-form">
+          <p>Billing cycle not configured. Configure it below to forecast your next bill.</p>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('update_card_cycle', source_id=s.id) }}" class="cc-cycle-form">
+          <div class="cc-cycle-grid">
+            <div>
+              <label for="statement_day_{{ s.id }}">Statement day</label>
+              <input type="number" id="statement_day_{{ s.id }}" name="statement_day" min="1" max="31"
+                     value="{{ s.statement_day or '' }}" placeholder="5" required>
+            </div>
+            <div>
+              <label for="payment_due_days_{{ s.id }}">Days until due</label>
+              <input type="number" id="payment_due_days_{{ s.id }}" name="payment_due_days" min="0" max="60"
+                     value="{{ s.payment_due_days if s.payment_due_days is not none else '' }}" placeholder="20" required>
+            </div>
+          </div>
+          <button type="submit" class="cc-cycle-save">Save billing cycle</button>
+        </form>
 
         {% if s.limit %}
         <div class="limit-bar-track">
