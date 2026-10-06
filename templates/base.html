@@ -585,14 +585,9 @@
       -moz-appearance: textfield;
     }
 
-    /* The native calendar icon on date inputs renders dark by default in
-       every browser — invisible against a dark-mode input without this. */
-    input[type="date"]::-webkit-calendar-picker-indicator {
-      cursor: pointer;
-    }
-
-    [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
-      filter: invert(1);
+    .minto-date-input {
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
     }
 
     input::placeholder,
@@ -1590,6 +1585,87 @@
         try { sessionStorage.removeItem("minto-mode-shift"); } catch (err) {}
       }
     });
+
+    // Minto date standard: every user-facing date is DD-MON-YYYY.
+    // Forms submit ISO values after the browser-side format has been validated,
+    // so the database/API contract remains YYYY-MM-DD.
+    (function () {
+      var MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
+                    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+      function pad2(n) { return String(n).padStart(2, "0"); }
+
+      window.formatMintoDate = function (value) {
+        if (value instanceof Date && !isNaN(value.getTime())) {
+          return pad2(value.getDate()) + "-" + MONTHS[value.getMonth()] + "-" + value.getFullYear();
+        }
+
+        var s = String(value || "").trim();
+        var iso = s.match(/^\d{4}-\d{2}-\d{2}$/);
+        if (iso) {
+          var p = iso[0].split("-");
+          var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+          if (!isNaN(d.getTime()) &&
+              d.getFullYear() === Number(p[0]) &&
+              d.getMonth() === Number(p[1]) - 1 &&
+              d.getDate() === Number(p[2])) {
+            return pad2(d.getDate()) + "-" + MONTHS[d.getMonth()] + "-" + d.getFullYear();
+          }
+        }
+
+        var parts = s.toUpperCase().split("-");
+        if (parts.length === 3 && /^\d{1,2}$/.test(parts[0]) && /^[A-Z]{3}$/.test(parts[1]) && /^\d{4}$/.test(parts[2])) {
+          return pad2(Number(parts[0])) + "-" + parts[1] + "-" + parts[2];
+        }
+        return s;
+      };
+
+      window.isoMintoDate = function (value) {
+        var parts = String(value || "").trim().toUpperCase().split("-");
+        if (parts.length !== 3 || !/^\d{2}$/.test(parts[0]) || !/^[A-Z]{3}$/.test(parts[1]) || !/^\d{4}$/.test(parts[2])) {
+          return "";
+        }
+        var month = MONTHS.indexOf(parts[1]) + 1;
+        var day = Number(parts[0]);
+        var year = Number(parts[2]);
+        if (!month || !day || !year) return "";
+        var d = new Date(year, month - 1, day);
+        if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return "";
+        return year + "-" + pad2(month) + "-" + pad2(day);
+      };
+
+      document.querySelectorAll("input[data-minto-date]").forEach(function (input) {
+        input.value = window.formatMintoDate(input.value);
+        input.addEventListener("input", function () {
+          input.value = input.value.toUpperCase();
+          input.setCustomValidity("");
+        });
+        input.addEventListener("blur", function () {
+          input.value = window.formatMintoDate(input.value);
+        });
+      });
+
+      document.addEventListener("submit", function (event) {
+        var form = event.target;
+        if (!form || !form.querySelectorAll) return;
+        var invalid = false;
+        form.querySelectorAll("input[data-minto-date]").forEach(function (input) {
+          var iso = window.isoMintoDate(input.value);
+          if (!iso) {
+            input.setCustomValidity("Use DD-MON-YYYY, for example 06-OCT-2026.");
+            invalid = true;
+          } else {
+            input.setCustomValidity("");
+            input.value = iso;
+          }
+        });
+        if (invalid) {
+          event.preventDefault();
+          var bad = form.querySelector("input[data-minto-date]:invalid");
+          if (bad) bad.reportValidity();
+        }
+      });
+    })();
 
     // Loader: a spinner while a form saves, a thin bar while a page loads.
     (function () {
