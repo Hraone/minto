@@ -2883,6 +2883,7 @@ def trip_detail(trip_id):
         "trip_detail.html",
         trip=trip,
         friends=friends,
+        people=people,
         expenses=filtered_expenses,
         all_expense_count=len(expenses),
         filtered_expense_count=len(filtered_expenses),
