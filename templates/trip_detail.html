@@ -3,571 +3,122 @@
 {% block title %}{{ trip.name }} · Minto{% endblock %}
 
 {% block content %}
-
 <style>
-  .trip-wrapper {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 6px 0 50px;
-  }
-
-  .back-link {
-    display: inline-block;
-    margin-bottom: 14px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--muted);
-    text-decoration: none;
-  }
-
-  .back-link:hover {
-    color: var(--text);
-  }
-
-  .trip-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 22px;
-  }
-
-  .trip-head h2 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: 800;
-    letter-spacing: -0.7px;
-    overflow-wrap: anywhere;
-  }
-
-  .trip-head p {
-    margin: 5px 0 0;
-    font-size: 13px;
-  }
-
-  .trip-head form {
-    width: auto;
-    flex-shrink: 0;
-  }
-
-  .mini-btn {
-    width: auto;
-    margin: 0;
-    padding: 9px 14px;
-    font-size: 13px;
-    font-weight: 700;
-    border-radius: 10px;
-    background: transparent;
-    color: var(--muted);
-    border: 1px solid var(--border);
-  }
-
-  .mini-btn:hover {
-    background: var(--danger-bg);
-    color: var(--negative);
-    border-color: var(--danger-border);
-    transform: none;
-    box-shadow: none;
-  }
-
-  .stat-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 22px;
-  }
-
-  .stat-row.two {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .stat {
-    padding: 18px 20px;
-    background: var(--surface-translucent);
-    border: 1px solid var(--shadow-card);
-    border-radius: 16px;
-    box-shadow: 0 10px 28px var(--shadow-soft);
-  }
-
-  .stat-label {
-    font-size: 13px;
-    font-weight: 650;
-    color: var(--muted);
-  }
-
-  .stat-value {
-    margin-top: 6px;
-    font-size: 22px;
-    font-weight: 800;
-    letter-spacing: -0.4px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .section-card {
-    padding: 26px;
-    margin-bottom: 22px;
-    background: var(--surface-translucent);
-    border: 1px solid var(--shadow-card);
-    border-radius: 20px;
-    box-shadow: 0 12px 34px var(--shadow-soft);
-  }
-
-  .section-card h3 {
-    margin: 0 0 4px;
-    font-size: 16px;
-    font-weight: 700;
-  }
-
-  .section-card .sub {
-    margin: 0 0 14px;
-    font-size: 13px;
-  }
-
-  .section-card .chip-group {
-    margin-top: 0;
-  }
-
-  .section-card .chip {
-    margin: 0;
-  }
-
-  .people-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 0 0 16px;
-  }
-
-  .person {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 8px 8px 14px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--input-bg);
-    font-size: 13.5px;
-    font-weight: 600;
-    color: var(--text-secondary);
-  }
-
-  .person.you {
-    padding-right: 14px;
-  }
-
-  .person form {
-    width: auto;
-    margin: 0;
-    display: flex;
-  }
-
-  .person-x {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--muted-2);
-  }
-
-  .person-x svg {
-    width: 13px;
-    height: 13px;
-  }
-
-  .person-x:hover {
-    background: var(--danger-bg);
-    color: var(--negative);
-    transform: none;
-    box-shadow: none;
-  }
-
-  .inline-form {
-    display: flex;
-    gap: 8px;
-  }
-
-  .inline-form input {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .inline-form button {
-    width: auto;
-    margin: 0;
-    padding: 0 20px;
-    flex-shrink: 0;
-  }
-
-  .amount-input {
-    position: relative;
-  }
-
-  .amount-symbol {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--muted);
-    font-size: 18px;
-    font-weight: 600;
-    pointer-events: none;
-  }
-
-  .amount-input input {
-    padding: 15px 18px 15px 38px;
-    font-size: 20px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .field-row {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
-  }
-
-  .split-block {
-    display: none;
-    margin-top: 12px;
-  }
-
-  .split-block.visible {
-    display: block;
-  }
-
-  .custom-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 8px;
-  }
-
-  .custom-row span {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-secondary);
-    overflow-wrap: anywhere;
-  }
-
-  .custom-row input {
-    width: 130px;
-    flex-shrink: 0;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .custom-sum {
-    margin: 10px 0 0;
-    font-size: 12.5px;
-    color: var(--muted);
-  }
-
-  .custom-sum.bad {
-    color: var(--negative);
-  }
-
-  .custom-sum.ok {
-    color: var(--positive);
-  }
-
-  /* Settle up */
-
-  .balance-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 14px;
-    margin-bottom: 18px;
-  }
-
-  .balance-table th {
-    text-align: right;
-    padding: 0 0 8px;
-    font-size: 12px;
-    font-weight: 650;
-    color: var(--muted-2);
-  }
-
-  .balance-table th:first-child,
-  .balance-table td:first-child {
-    text-align: left;
-  }
-
-  .balance-table td {
-    padding: 10px 0;
-    text-align: right;
-    border-top: 1px solid var(--surface-subtle-border);
-    font-variant-numeric: tabular-nums;
-  }
-
-  .balance-table td:first-child {
-    font-weight: 700;
-  }
-
-  .net-positive { color: var(--positive); font-weight: 700; }
-  .net-negative { color: var(--negative); font-weight: 700; }
-  .net-zero { color: var(--muted-2); }
-
-  .payments-heading {
-    margin: 0 0 8px;
-    font-size: 13px;
-    font-weight: 650;
-    color: var(--text-secondary);
-  }
-
-  .payment-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .payment-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 13px 16px;
-    border: 1px solid var(--surface-subtle-border);
-    border-radius: 12px;
-    background: var(--surface-subtle);
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .payment-amount {
-    flex-shrink: 0;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .settled-note {
-    margin: 0;
-    padding: 13px 16px;
-    border: 1px solid var(--surface-subtle-border);
-    border-radius: 12px;
-    background: var(--surface-subtle);
-    font-size: 14px;
-    color: var(--text-secondary);
-  }
-
-  /* Expense history */
-
-  .expense-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .expense-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 12px;
-    padding: 14px 16px;
-    border: 1px solid var(--surface-subtle-border);
-    border-radius: 12px;
-  }
-
-  .expense-main {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .expense-desc {
-    font-size: 14px;
-    font-weight: 700;
-    overflow-wrap: anywhere;
-  }
-
-  .expense-meta {
-    margin-top: 3px;
-    font-size: 12px;
-    color: var(--muted-2);
-    line-height: 1.5;
-  }
-
-  .expense-amount {
-    flex-shrink: 0;
-    font-size: 14.5px;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .expense-item form {
-    width: auto;
-    margin: 0;
-    flex-shrink: 0;
-  }
-
-  .expense-delete {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    margin: 0;
-    padding: 0;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--muted-2);
-  }
-
-  .expense-delete svg {
-    width: 15px;
-    height: 15px;
-  }
-
-  .expense-delete:hover {
-    background: var(--danger-bg);
-    color: var(--negative);
-    transform: none;
-    box-shadow: none;
-  }
-
-  .empty-note {
-    margin: 0;
-    padding: 18px 0 4px;
-    text-align: center;
-    color: var(--muted-2);
-    font-size: 13px;
-  }
-
-  @media (max-width: 600px) {
-    .section-card { padding: 22px 18px; }
-    .trip-head h2 { font-size: 25px; }
-    .stat-row { grid-template-columns: 1fr; }
-    .stat-row.two { grid-template-columns: 1fr 1fr; }
-    .field-row { grid-template-columns: 1fr; }
-    .custom-row input { width: 110px; }
-
-    .inline-form {
-      flex-direction: column;
-    }
-
-    .inline-form button {
-      padding: 13px 16px;
-    }
-
-    /* A wide 4-column table doesn't fit a phone screen — turn each row into
-       its own small card instead of letting the columns overlap or squeeze. */
-    .balance-table thead {
-      display: none;
-    }
-
-    .balance-table, .balance-table tbody, .balance-table tr, .balance-table td {
-      display: block;
-      width: 100%;
-    }
-
-    .balance-table tr {
-      padding: 10px 0;
-      border-top: 1px solid var(--surface-subtle-border);
-    }
-
-    .balance-table tr:first-child {
-      border-top: 0;
-    }
-
-    .balance-table td {
-      padding: 3px 0;
-      border-top: 0;
-    }
-
-    .balance-table td:first-child {
-      font-size: 15px;
-      padding-bottom: 4px;
-    }
-
-    .balance-table td:not(:first-child) {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .balance-table td:not(:first-child)::before {
-      content: attr(data-label);
-      color: var(--muted-2);
-      font-weight: 650;
-    }
-  }
+  .trip-wrapper{max-width:760px;margin:0 auto;padding:6px 0 50px}
+  .back-link{display:inline-block;margin-bottom:14px;font-size:13px;font-weight:650;color:var(--muted);text-decoration:none}
+  .trip-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .trip-head h2{margin:0;font-size:29px;font-weight:800;letter-spacing:-.7px;overflow-wrap:anywhere}
+  .trip-sub{margin:5px 0 0;font-size:13px;line-height:1.55}
+  .trip-head form{width:auto;flex-shrink:0}
+  .head-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+  .mini-btn{width:auto;margin:0;padding:9px 13px;font-size:12.5px;font-weight:700;border-radius:10px;background:transparent;color:var(--muted);border:1px solid var(--border)}
+  .mini-btn:hover{background:var(--surface-subtle);transform:none;box-shadow:none}
+  .danger-btn:hover{background:var(--danger-bg);color:var(--negative);border-color:var(--danger-border)}
+  .pill{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:750;border:1px solid var(--border);background:var(--input-bg);color:var(--text-secondary)}
+  .pill.active{color:var(--positive)}
+  .pill.completed{color:var(--muted)}
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+  .stat{padding:16px 17px;background:var(--surface-translucent);border:1px solid var(--shadow-card);border-radius:16px;box-shadow:0 10px 28px var(--shadow-soft)}
+  .stat-label{font-size:12px;font-weight:650;color:var(--muted)}
+  .stat-value{margin-top:5px;font-size:20px;font-weight:800;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+  .stat-note{margin-top:4px;font-size:11px;color:var(--muted-2)}
+  .section-card{padding:24px;margin-bottom:18px;background:var(--surface-translucent);border:1px solid var(--shadow-card);border-radius:20px;box-shadow:0 12px 34px var(--shadow-soft)}
+  .section-card h3{margin:0 0 4px;font-size:16px;font-weight:700}
+  .sub{margin:0 0 14px;font-size:13px;line-height:1.5}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .people-list{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 15px}
+  .person{display:inline-flex;align-items:center;gap:6px;padding:8px 8px 8px 13px;border:1px solid var(--border);border-radius:10px;background:var(--input-bg);font-size:13px;font-weight:650;color:var(--text-secondary)}
+  .person.you{padding-right:13px}
+  .person form{width:auto;margin:0;display:flex}
+  .person-x{display:flex;align-items:center;justify-content:center;width:24px;height:24px;margin:0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted-2)}
+  .person-x:hover{background:var(--danger-bg);color:var(--negative);transform:none;box-shadow:none}
+  .inline-form{display:flex;gap:8px}.inline-form input{flex:1;min-width:0}.inline-form button{width:auto;margin:0;padding:0 20px;flex-shrink:0}
+  .amount-input{position:relative}.amount-symbol{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:18px;font-weight:600;pointer-events:none}
+  .amount-input input{padding:15px 18px 15px 38px;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .split-block{display:none;margin-top:12px}.split-block.visible{display:block}
+  .custom-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  .custom-row span{font-size:14px;font-weight:600;color:var(--text-secondary);overflow-wrap:anywhere}.custom-row input{width:130px;flex-shrink:0}
+  .custom-sum{margin:10px 0 0;font-size:12.5px;color:var(--muted)}.custom-sum.bad{color:var(--negative)}.custom-sum.ok{color:var(--positive)}
+  .toolbar{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .toolbar .control{flex:1;min-width:150px}.toolbar .control.search{flex:1.6}
+  .toolbar button{width:auto;margin:0;padding:13px 16px;flex-shrink:0}
+  .clear-link{display:inline-flex;align-items:center;padding:12px 4px;font-size:12.5px;color:var(--muted);text-decoration:none}
+  .summary-strip{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:15px}
+  .summary-item{padding:11px 12px;border:1px solid var(--surface-subtle-border);border-radius:12px;background:var(--surface-subtle)}
+  .summary-item .k{font-size:11.5px;color:var(--muted-2)}.summary-item .v{margin-top:3px;font-size:14px;font-weight:750;font-variant-numeric:tabular-nums}
+  .budget-bar{height:8px;border-radius:999px;background:var(--surface-subtle-border);overflow:hidden;margin-top:9px}
+  .budget-fill{height:100%;width:{{ budget_pct or 0 }}%;background:currentColor;color:var(--positive)}
+  .budget-fill.over{color:var(--negative)}
+  .balance-table{width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px}
+  .balance-table th{text-align:right;padding:0 0 8px;font-size:12px;font-weight:650;color:var(--muted-2)}
+  .balance-table th:first-child,.balance-table td:first-child{text-align:left}
+  .balance-table td{padding:10px 0;text-align:right;border-top:1px solid var(--surface-subtle-border);font-variant-numeric:tabular-nums}
+  .balance-table td:first-child{font-weight:700}
+  .net-positive{color:var(--positive);font-weight:700}.net-negative{color:var(--negative);font-weight:700}.net-zero{color:var(--muted-2)}
+  .payment-list,.expense-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .payment-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 15px;border:1px solid var(--surface-subtle-border);border-radius:12px;background:var(--surface-subtle);font-size:13.5px;font-weight:600}
+  .payment-amount,.expense-amount{flex-shrink:0;font-weight:800;font-variant-numeric:tabular-nums}
+  .settlement-controls{margin-top:14px;padding-top:14px;border-top:1px solid var(--surface-subtle-border)}
+  .settlement-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-top:1px solid var(--surface-subtle-border)}
+  .settlement-row:first-child{border-top:0}
+  .settlement-copy{min-width:0}.settlement-copy strong{font-size:13.5px}.settlement-copy small{display:block;margin-top:2px;color:var(--muted-2);font-size:11.5px}
+  .status-pill{padding:4px 8px;border-radius:999px;font-size:10.5px;font-weight:800;border:1px solid var(--border)}
+  .status-pill.paid{color:var(--positive)}.status-pill.pending{color:var(--muted)}
+  .expense-item{display:flex;align-items:flex-start;gap:12px;padding:14px 15px;border:1px solid var(--surface-subtle-border);border-radius:12px}
+  .expense-main{flex:1;min-width:0}.expense-desc{font-size:14px;font-weight:700;overflow-wrap:anywhere}
+  .expense-meta{margin-top:3px;font-size:12px;color:var(--muted-2);line-height:1.55}
+  .expense-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+  .icon-btn{display:flex;align-items:center;justify-content:center;width:30px;height:30px;margin:0;padding:0;border:0;border-radius:8px;background:transparent;color:var(--muted-2)}
+  .icon-btn:hover{background:var(--surface-subtle);color:var(--text);transform:none;box-shadow:none}
+  .icon-btn.danger:hover{background:var(--danger-bg);color:var(--negative)}
+  .icon-btn svg{width:15px;height:15px}
+  .empty-note{margin:0;padding:18px 0 4px;text-align:center;color:var(--muted-2);font-size:13px}
+  @media (max-width:700px){.stat-row{grid-template-columns:repeat(2,1fr)}.field-row{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr}.toolbar{display:grid;grid-template-columns:1fr}.toolbar .control,.toolbar .control.search{min-width:0}.toolbar button{width:100%}.head-actions{justify-content:flex-start}.trip-head h2{font-size:25px}}
+  @media (max-width:500px){.section-card{padding:21px 17px}.stat{padding:15px}.stat-value{font-size:18px}.balance-table thead{display:none}.balance-table,.balance-table tbody,.balance-table tr,.balance-table td{display:block;width:100%}.balance-table tr{padding:10px 0;border-top:1px solid var(--surface-subtle-border)}.balance-table tr:first-child{border-top:0}.balance-table td{padding:3px 0;border:0}.balance-table td:first-child{font-size:15px;padding-bottom:4px}.balance-table td:not(:first-child){display:flex;justify-content:space-between}.balance-table td:not(:first-child)::before{content:attr(data-label);color:var(--muted-2);font-weight:650}}
 </style>
 
 <div class="trip-wrapper">
-
-  <a class="back-link" href="{{ url_for('trips') }}">All trips</a>
+  <a class="back-link" href="{{ url_for('trips') }}">← All trips</a>
 
   <div class="trip-head">
     <div>
+      <div style="margin-bottom:7px;"><span class="pill {{ trip.status }}">{{ trip.status_label }}</span></div>
       <h2>{{ trip.name }}</h2>
-      <p>
-        {% if trip.is_group %}
-        Group trip with {{ friends|length }} member{{ "s" if friends|length != 1 else "" }}
-        {% else %}
-        Solo trip
-        {% endif %}
+      <p class="trip-sub">
+        {% if trip.destination %}{{ trip.destination }}{% endif %}
+        {% if trip.destination and date_summary.start %} · {% endif %}
+        {% if date_summary.start %}{{ date_summary.start|nice_date }}{% if date_summary.end %} → {{ date_summary.end|nice_date }}{% endif %}{% endif %}
+        {% if not trip.destination and not date_summary.start %}{% if trip.is_group %}Group trip with {{ friends|length }} member{{ "s" if friends|length != 1 else "" }}{% else %}Solo trip{% endif %}{% endif %}
       </p>
     </div>
-    <form method="post" action="{{ url_for('delete_trip', trip_id=trip.id) }}"
-          onsubmit="return confirm('Delete this trip and all of its expenses? This cannot be undone.');">
-      <button type="submit" class="mini-btn">Delete trip</button>
-    </form>
+    <div class="head-actions">
+      <button type="button" class="mini-btn" onclick="document.getElementById('trip-settings').scrollIntoView({behavior:'smooth'})">Edit trip</button>
+      <form method="post" action="{{ url_for('delete_trip', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip and all of its expenses? This cannot be undone.');">
+        <button type="submit" class="mini-btn danger-btn">Delete</button>
+      </form>
+    </div>
   </div>
 
-  <div class="stat-row {{ '' if trip.is_group else 'two' }}">
-    <div class="stat">
-      <div class="stat-label">Trip total</div>
-      <div class="stat-value">{{ (total)|inr }}</div>
-    </div>
-    {% if trip.is_group %}
-    <div class="stat">
-      <div class="stat-label">You paid</div>
-      <div class="stat-value">{{ (people_rows[0].paid)|inr }}</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Your share</div>
-      <div class="stat-value">{{ (your_share)|inr }}</div>
-    </div>
-    {% else %}
-    <div class="stat">
-      <div class="stat-label">Expenses</div>
-      <div class="stat-value">{{ expenses|length }}</div>
-    </div>
-    {% endif %}
+  <div class="stat-row">
+    <div class="stat"><div class="stat-label">Spent</div><div class="stat-value">{{ total|inr }}</div>{% if budget %}<div class="stat-note">{{ budget_over|inr if budget_over else budget_remaining|inr }} {{ "over" if budget_over else "left" }}</div>{% endif %}</div>
+    <div class="stat"><div class="stat-label">Budget</div><div class="stat-value">{% if budget %}{{ budget|inr }}{% else %}—{% endif %}</div>{% if budget %}<div class="budget-bar"><div class="budget-fill{% if budget_over %} over{% endif %}"></div></div>{% endif %}</div>
+    <div class="stat"><div class="stat-label">Days</div><div class="stat-value">{% if date_summary.days %}{{ date_summary.days }}{% else %}—{% endif %}</div><div class="stat-note">{% if date_summary.days_left is not none %}{{ date_summary.days_left }} left{% else %}Set trip dates{% endif %}</div></div>
+    <div class="stat"><div class="stat-label">Expenses</div><div class="stat-value">{{ all_expense_count }}</div>{% if trip.is_group %}<div class="stat-note">group split enabled</div>{% endif %}</div>
   </div>
 
   {% if trip.is_group %}
-  <!-- Members -->
   <div class="section-card">
-    <h3>Members</h3>
-    <p class="sub">Add everyone who shares costs before recording expenses.</p>
-
+    <h3>People</h3><p class="sub">Everyone in the split.</p>
     <div class="people-list">
       <span class="person you">You</span>
       {% for f in friends %}
-      <span class="person">
-        {{ f.name }}
+      <span class="person">{{ f.name }}
         <form method="post" action="{{ url_for('remove_trip_friend', trip_id=trip.id, friend_id=f.id) }}">
-          <button type="submit" class="person-x" aria-label="Remove {{ f.name }}" title="Remove">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-          </button>
+          <button type="submit" class="person-x" aria-label="Remove {{ f.name }}" title="Remove">×</button>
         </form>
       </span>
       {% endfor %}
     </div>
-
     <form method="post" action="{{ url_for('add_trip_friends', trip_id=trip.id) }}" class="inline-form">
       <input type="text" name="friends" placeholder="Add names, separated by commas" aria-label="Add members">
       <button type="submit">Add</button>
@@ -575,231 +126,145 @@
   </div>
   {% endif %}
 
-  <!-- Add Expense -->
+  <div class="section-card">
+    <h3>Trip settings</h3><p class="sub">Keep the trip plan and lifecycle status up to date.</p>
+    <form method="post" action="{{ url_for('update_trip', trip_id=trip.id) }}" id="trip-settings">
+      <label for="trip-name">Trip name</label><input type="text" id="trip-name" name="name" value="{{ trip.name }}" required maxlength="80">
+      <div class="field-row">
+        <div><label for="destination">Destination</label><input type="text" id="destination" name="destination" value="{{ trip.destination or '' }}" maxlength="120"></div>
+        <div><label for="budget">Budget</label><input type="number" id="budget" name="budget" value="{{ trip.budget or '' }}" min="0" step="0.01"></div>
+      </div>
+      <div class="field-row">
+        <div><label for="start_date">Start date</label><input type="text" id="start_date" name="start_date" class="minto-date-input" data-minto-date value="{{ date_summary.start|nice_date if date_summary.start else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
+        <div><label for="end_date">End date</label><input type="text" id="end_date" name="end_date" class="minto-date-input" data-minto-date value="{{ date_summary.end|nice_date if date_summary.end else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
+      </div>
+      <label for="trip-status">Status</label>
+      <select id="trip-status" name="status">
+        <option value="planned" {% if trip.status=="planned" %}selected{% endif %}>Planned</option>
+        <option value="active" {% if trip.status=="active" %}selected{% endif %}>Active</option>
+        <option value="completed" {% if trip.status=="completed" %}selected{% endif %}>Completed</option>
+        <option value="archived" {% if trip.status=="archived" %}selected{% endif %}>Archived</option>
+      </select>
+      <button type="submit">Save trip details</button>
+    </form>
+  </div>
+
   <div class="section-card">
     <h3>Add Expense</h3>
-    <p class="sub">
-      {% if trip.is_group %}Record what was spent, who paid, and how it is split.{% else %}Record what you spent on this trip.{% endif %}
-    </p>
-
+    <p class="sub">{% if trip.is_group %}Record what was spent, who paid, the category, and how it is split.{% else %}Record what you spent on this trip.{% endif %}</p>
     <form method="post" action="{{ url_for('add_trip_expense', trip_id=trip.id) }}" id="expense-form">
-
-      <label for="description" style="margin-top: 0;">What was it for?</label>
-      <input type="text" id="description" name="description" placeholder="e.g. Hotel, dinner, cab" required maxlength="120">
-
+      <label for="description">What was it for?</label>
+      <input type="text" id="description" name="description" placeholder="e.g. Hotel, dinner, toll" required maxlength="120">
       <div class="field-row">
-        <div>
-          <label for="amount">Amount</label>
-          <div class="amount-input">
-            <span class="amount-symbol">₹</span>
-            <input type="number" step="0.01" min="0.01" id="amount" name="amount" placeholder="0.00" required oninput="updateCustomSum()">
-          </div>
-        </div>
-        <div>
-          <label for="expense_date">Date</label>
-          <input type="text" id="expense_date" name="expense_date" class="minto-date-input" data-minto-date
-                 value="{{ today|nice_date }}" placeholder="DD-MON-YYYY"
-                 pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11"
-                 inputmode="text" autocomplete="off" required>
-        </div>
+        <div><label for="amount">Amount</label><div class="amount-input"><span class="amount-symbol">₹</span><input type="number" step="0.01" min="0.01" id="amount" name="amount" placeholder="0.00" required oninput="updateCustomSum()"></div></div>
+        <div><label for="category">Category</label><select id="category" name="category">{% for key,label in trip_expense_categories %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
       </div>
+      <label for="expense_date">Date</label>
+      <input type="text" id="expense_date" name="expense_date" class="minto-date-input" data-minto-date value="{{ today|nice_date }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off" required>
 
       {% if trip.is_group %}
-
-      <label>Paid by</label>
-      <div class="chip-group">
-        <label class="chip">
-          <input type="radio" name="paid_by" value="you" checked>
-          You
-        </label>
-        {% for f in friends %}
-        <label class="chip">
-          <input type="radio" name="paid_by" value="{{ f.id }}">
-          {{ f.name }}
-        </label>
-        {% endfor %}
+      <label>Paid by</label><div class="chip-group">
+        <label class="chip"><input type="radio" name="paid_by" value="you" checked> You</label>
+        {% for f in friends %}<label class="chip"><input type="radio" name="paid_by" value="{{ f.id }}"> {{ f.name }}</label>{% endfor %}
       </div>
-
-      <label>Split</label>
-      <div class="chip-group">
-        <label class="chip">
-          <input type="radio" name="split_type" value="equal" checked onclick="toggleSplitBlocks()">
-          Equally, everyone
-        </label>
-        <label class="chip">
-          <input type="radio" name="split_type" value="subset" onclick="toggleSplitBlocks()">
-          Equally, some people
-        </label>
-        <label class="chip">
-          <input type="radio" name="split_type" value="custom" onclick="toggleSplitBlocks()">
-          Exact amounts
-        </label>
+      <label>Split</label><div class="chip-group">
+        <label class="chip"><input type="radio" name="split_type" value="equal" checked onclick="toggleSplitBlocks()"> Equally, everyone</label>
+        <label class="chip"><input type="radio" name="split_type" value="subset" onclick="toggleSplitBlocks()"> Equally, some people</label>
+        <label class="chip"><input type="radio" name="split_type" value="custom" onclick="toggleSplitBlocks()"> Exact amounts</label>
       </div>
-
-      <div id="split-subset" class="split-block">
-        <div class="chip-group">
-          <label class="chip">
-            <input type="checkbox" name="split_with" value="you" checked>
-            You
-          </label>
-          {% for f in friends %}
-          <label class="chip">
-            <input type="checkbox" name="split_with" value="{{ f.id }}" checked>
-            {{ f.name }}
-          </label>
-          {% endfor %}
-        </div>
-      </div>
-
+      <div id="split-subset" class="split-block"><div class="chip-group">
+        <label class="chip"><input type="checkbox" name="split_with" value="you" checked> You</label>
+        {% for f in friends %}<label class="chip"><input type="checkbox" name="split_with" value="{{ f.id }}" checked> {{ f.name }}</label>{% endfor %}
+      </div></div>
       <div id="split-custom" class="split-block">
-        <div class="custom-row">
-          <span>You</span>
-          <input type="number" step="0.01" min="0" name="share_you" placeholder="0.00" oninput="updateCustomSum()">
-        </div>
-        {% for f in friends %}
-        <div class="custom-row">
-          <span>{{ f.name }}</span>
-          <input type="number" step="0.01" min="0" name="share_{{ f.id }}" placeholder="0.00" oninput="updateCustomSum()">
-        </div>
-        {% endfor %}
+        <div class="custom-row"><span>You</span><input type="number" step="0.01" min="0" name="share_you" placeholder="0.00" oninput="updateCustomSum()"></div>
+        {% for f in friends %}<div class="custom-row"><span>{{ f.name }}</span><input type="number" step="0.01" min="0" name="share_{{ f.id }}" placeholder="0.00" oninput="updateCustomSum()"></div>{% endfor %}
         <p class="custom-sum" id="custom-sum">Amounts must add up to the expense total.</p>
       </div>
-
       {% endif %}
-
       <button type="submit">Add Expense</button>
-
     </form>
   </div>
 
   {% if trip.is_group %}
-  <!-- Settle Up -->
   <div class="section-card">
-    <h3>Settle Up</h3>
-    <p class="sub">The fewest payments that clear every balance.</p>
+    <h3>Settle Up</h3><p class="sub">Current balances use all trip expenses. Recorded paid settlements reduce them.</p>
+    {% if all_expense_count %}
+    <table class="balance-table"><thead><tr><th>Person</th><th>Paid</th><th>Share</th><th>Balance</th></tr></thead><tbody>
+      {% for p in people_rows %}<tr><td>{{ p.name }}</td><td data-label="Paid">{{ p.paid|inr }}</td><td data-label="Share">{{ p.owed|inr }}</td><td data-label="Balance">{% if p.net > 0 %}<span class="net-positive">gets {{ p.net|inr }}</span>{% elif p.net < 0 %}<span class="net-negative">owes {{ (-p.net)|inr }}</span>{% else %}<span class="net-zero">settled</span>{% endif %}</td></tr>{% endfor %}
+    </tbody></table>
 
-    {% if expenses %}
+    <div class="payments-heading" style="font-size:13px;font-weight:650;margin-bottom:8px;">Suggested payments</div>
+    {% if settlements %}<ul class="payment-list">{% for s in settlements %}<li class="payment-item"><span>{% if s.from=="You" %}You pay {{ s.to }}{% elif s.to=="You" %}{{ s.from }} pays you{% else %}{{ s.from }} pays {{ s.to }}{% endif %}</span><span class="payment-amount">{{ s.amount|inr }}</span></li>{% endfor %}</ul>{% else %}<p class="empty-note">Everyone is settled up.</p>{% endif %}
 
-    <table class="balance-table">
-      <thead>
-        <tr>
-          <th>Person</th>
-          <th>Paid</th>
-          <th>Share</th>
-          <th>Balance</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in people_rows %}
-        <tr>
-          <td>{{ p.name }}</td>
-          <td data-label="Paid">{{ (p.paid)|inr }}</td>
-          <td data-label="Share">{{ (p.owed)|inr }}</td>
-          <td data-label="Balance">
-            {% if p.net > 0 %}
-            <span class="net-positive">gets back {{ (p.net)|inr }}</span>
-            {% elif p.net < 0 %}
-            <span class="net-negative">owes {{ (-p.net)|inr }}</span>
-            {% else %}
-            <span class="net-zero">settled</span>
-            {% endif %}
-          </td>
-        </tr>
+    <div class="settlement-controls">
+      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Record a settlement</div>
+      <form method="post" action="{{ url_for('add_trip_settlement', trip_id=trip.id) }}">
+        <div class="field-row">
+          <div><label for="from_person">From</label><select id="from_person" name="from_person">{% for name in people.values() %}<option value="{{ name }}">{{ name }}</option>{% endfor %}</select></div>
+          <div><label for="to_person">To</label><select id="to_person" name="to_person">{% for name in people.values() %}<option value="{{ name }}">{{ name }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="field-row">
+          <div><label for="settle-amount">Amount</label><input type="number" id="settle-amount" name="amount" min="0.01" step="0.01" required></div>
+          <div><label for="settle-date">Date</label><input type="text" id="settle-date" name="settlement_date" class="minto-date-input" data-minto-date value="{{ today|nice_date }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off" required></div>
+        </div>
+        <label for="settlement-status">Status</label><select id="settlement-status" name="status"><option value="pending">Pending</option><option value="paid">Paid</option></select>
+        <button type="submit">Record settlement</button>
+      </form>
+
+      {% if trip_settlements %}
+      <div style="margin-top:18px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Settlement history</div>
+        {% for s in trip_settlements %}
+        <div class="settlement-row">
+          <div class="settlement-copy"><strong>{{ s.from_person }} → {{ s.to_person }} · {{ s.amount|inr }}</strong><small>{{ s.settlement_date|nice_date }}{% if s.paid_at %} · Paid{% endif %}</small></div>
+          <div style="display:flex;align-items:center;gap:8px;"><span class="status-pill {{ s.status }}">{{ s.status|capitalize }}</span>{% if s.status=="pending" %}<form method="post" action="{{ url_for('update_trip_settlement_status', trip_id=trip.id, settlement_id=s.id) }}" style="width:auto;margin:0;"><input type="hidden" name="status" value="paid"><button type="submit" class="mini-btn" style="padding:6px 9px;">Mark paid</button></form>{% else %}<form method="post" action="{{ url_for('update_trip_settlement_status', trip_id=trip.id, settlement_id=s.id) }}" style="width:auto;margin:0;"><input type="hidden" name="status" value="pending"><button type="submit" class="mini-btn" style="padding:6px 9px;">Undo</button></form>{% endif %}</div>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-
-    {% if settlements %}
-    <div class="payments-heading">Payments to settle everything</div>
-    <ul class="payment-list">
-      {% for s in settlements %}
-      <li class="payment-item">
-        <span>
-          {% if s.from == "You" %}You pay {{ s.to }}
-          {% elif s.to == "You" %}{{ s.from }} pays you
-          {% else %}{{ s.from }} pays {{ s.to }}{% endif %}
-        </span>
-        <span class="payment-amount">{{ (s.amount)|inr }}</span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <p class="settled-note">Everyone is settled up.</p>
-    {% endif %}
-
-    {% else %}
-    <p class="empty-note">Add an expense to see who owes whom.</p>
-    {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% else %}<p class="empty-note">Add an expense to start settling.</p>{% endif %}
   </div>
   {% endif %}
 
-  <!-- History -->
   <div class="section-card">
-    <h3>Expenses</h3>
+    <h3>Expense history</h3>
+    <p class="sub">Showing {{ filtered_expense_count }} of {{ all_expense_count }} expenses.</p>
+    <form method="get" class="toolbar">
+      <div class="control search"><label for="q">Search</label><input type="text" id="q" name="q" value="{{ filter_q }}" placeholder="Hotel, dinner, fuel…"></div>
+      <div class="control"><label for="category-filter">Category</label><select id="category-filter" name="category"><option value="">All categories</option>{% for key,label in trip_expense_categories %}<option value="{{ key }}" {% if filter_category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      {% if trip.is_group %}<div class="control"><label for="payer-filter">Paid by</label><select id="payer-filter" name="payer"><option value="">Everyone</option>{% for name in people.values() %}<option value="{{ name }}" {% if filter_payer==name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>{% endif %}
+      <div class="control"><label for="from-filter">From</label><input type="text" id="from-filter" name="from" class="minto-date-input" data-minto-date value="{{ filter_from|nice_date if filter_from else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
+      <div class="control"><label for="to-filter">To</label><input type="text" id="to-filter" name="to" class="minto-date-input" data-minto-date value="{{ filter_to|nice_date if filter_to else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
+      <button type="submit">Filter</button>
+      {% if filter_q or filter_category or filter_payer or filter_from or filter_to %}<a class="clear-link" href="{{ url_for('trip_detail', trip_id=trip.id) }}">Clear</a>{% endif %}
+    </form>
 
     {% if expenses %}
-    <ul class="expense-list" style="margin-top: 14px;">
+    <ul class="expense-list" style="margin-top:15px;">
       {% for e in expenses %}
       <li class="expense-item">
-        <div class="expense-main">
-          <div class="expense-desc">{{ e.description }}</div>
-          <div class="expense-meta">
-            {{ e.expense_date|nice_date }}
-            {% if trip.is_group %}
-            · Paid by {{ e.paid_by }}
-            <br>
-            {% for s in e.splits %}{{ s.participant_name }} {{ (s.share_amount)|inr }}{% if not loop.last %} · {% endif %}{% endfor %}
-            {% endif %}
-          </div>
+        <div class="expense-main"><div class="expense-desc">{{ e.description }}</div><div class="expense-meta">{{ e.expense_date|nice_date }} · {{ e.category|capitalize }}{% if trip.is_group %} · Paid by {{ e.paid_by }}<br>{% for s in e.splits %}{{ s.participant_name }} {{ s.share_amount|inr }}{% if not loop.last %} · {% endif %}{% endfor %}{% endif %}</div></div>
+        <div class="expense-amount">{{ e.amount|inr }}</div>
+        <div class="expense-actions">
+          <a class="icon-btn" href="{{ url_for('edit_trip_expense', trip_id=trip.id, expense_id=e.id) }}" aria-label="Edit expense" title="Edit">✎</a>
+          <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}" onsubmit="return confirm('Delete this expense?');"><button type="submit" class="icon-btn danger" aria-label="Delete expense" title="Delete">×</button></form>
         </div>
-        <div class="expense-amount">{{ (e.amount)|inr }}</div>
-        <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}"
-              onsubmit="return confirm('Delete this expense?');">
-          <button type="submit" class="expense-delete" aria-label="Delete expense" title="Delete">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-            </svg>
-          </button>
-        </form>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="empty-note">No expenses recorded yet.</p>
+    <p class="empty-note">{% if all_expense_count %}No expenses match these filters.{% else %}No expenses recorded yet.{% endif %}</p>
     {% endif %}
   </div>
-
 </div>
 
 {% if trip.is_group %}
 <script>
-function toggleSplitBlocks() {
-  const type = document.querySelector('input[name="split_type"]:checked').value;
-  document.getElementById("split-subset").classList.toggle("visible", type === "subset");
-  document.getElementById("split-custom").classList.toggle("visible", type === "custom");
-  updateCustomSum();
-}
-
-function updateCustomSum() {
-  const label = document.getElementById("custom-sum");
-  if (!label) return;
-
-  const total = parseFloat(document.getElementById("amount").value) || 0;
-  let assigned = 0;
-  document.querySelectorAll('#split-custom input[type="number"]').forEach(function (input) {
-    assigned += parseFloat(input.value) || 0;
-  });
-
-  // Compare in whole paise so 0.1 + 0.2 style float noise never reads as a mismatch.
-  const matches = Math.round(assigned * 100) === Math.round(total * 100);
-  label.textContent = "Assigned ₹" + assigned.toFixed(2) + " of ₹" + total.toFixed(2);
-  label.classList.toggle("ok", matches && total > 0);
-  label.classList.toggle("bad", !matches);
-}
-
-document.addEventListener("DOMContentLoaded", toggleSplitBlocks);
+function toggleSplitBlocks(){const type=document.querySelector('input[name="split_type"]:checked')?.value;document.getElementById("split-subset").classList.toggle("visible",type==="subset");document.getElementById("split-custom").classList.toggle("visible",type==="custom");updateCustomSum();}
+function updateCustomSum(){const label=document.getElementById("custom-sum");if(!label)return;const total=parseFloat(document.getElementById("amount").value)||0;let assigned=0;document.querySelectorAll('#split-custom input[type="number"]').forEach(i=>assigned+=parseFloat(i.value)||0);const matches=Math.round(assigned*100)===Math.round(total*100);label.textContent="Assigned ₹"+assigned.toFixed(2)+" of ₹"+total.toFixed(2);label.classList.toggle("ok",matches&&total>0);label.classList.toggle("bad",!matches);}
+document.addEventListener("DOMContentLoaded",toggleSplitBlocks);
 </script>
 {% endif %}
-
 {% endblock %}
