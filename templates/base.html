@@ -1361,25 +1361,39 @@
       Add
     </a>
 
-    <a class="tab-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-        <line x1="1" y1="10" x2="23" y2="10"></line>
-      </svg>
-      Accounts
-    </a>
+    <div class="tab-menu" id="accountsMenu">
+      <div class="tab-sheet" id="accountsSheet" role="menu" hidden>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">Budgets</a>
+      </div>
+      <a
+        href="{{ url_for('sources') }}"
+        role="button"
+        class="tab-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses', 'budgets'] else '' }}"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="accountsSheet"
+        onclick="toggleAccountsMenu(event)"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="4" width="22" height="16" rx="2"></rect>
+          <line x1="1" y1="10" x2="23" y2="10"></line>
+        </svg>
+        Accounts
+      </a>
+    </div>
 
     <div class="tab-menu" id="transfersMenu">
       <div class="tab-sheet" id="transfersSheet" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed</a>
       </div>
       <a
         href="{{ url_for('pay_cc_bill') }}"
         role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer', 'fixed_expenses'] else '' }}"
+        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer'] else '' }}"
         aria-haspopup="true"
         aria-expanded="false"
         aria-controls="transfersSheet"
@@ -1486,6 +1500,25 @@
       }
     });
 
+    function toggleAccountsMenu(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var sheet = document.getElementById("accountsSheet");
+      var btn = event.currentTarget;
+      var open = sheet.hasAttribute("hidden");
+      if (open) { sheet.removeAttribute("hidden"); } else { sheet.setAttribute("hidden", ""); }
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function closeAccountsMenu() {
+      var menu = document.getElementById("accountsMenu");
+      var sheet = document.getElementById("accountsSheet");
+      if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
+      sheet.setAttribute("hidden", "");
+      var b = menu.querySelector(".tab-link");
+      if (b) b.setAttribute("aria-expanded", "false");
+    }
+
     function toggleTransfersMenu(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -1499,11 +1532,16 @@
     document.addEventListener("click", function (e) {
       var menu = document.getElementById("transfersMenu");
       var sheet = document.getElementById("transfersSheet");
-      if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
-      if (!menu.contains(e.target)) {
+      if (menu && sheet && !sheet.hasAttribute("hidden") && !menu.contains(e.target)) {
         sheet.setAttribute("hidden", "");
         var b = menu.querySelector(".tab-link");
         if (b) b.setAttribute("aria-expanded", "false");
+      }
+
+      var accounts = document.getElementById("accountsMenu");
+      var accountSheet = document.getElementById("accountsSheet");
+      if (accounts && accountSheet && !accountSheet.hasAttribute("hidden") && !accounts.contains(e.target)) {
+        closeAccountsMenu();
       }
     });
 
