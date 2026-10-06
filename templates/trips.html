@@ -3,199 +3,124 @@
 {% block title %}Trips · Minto{% endblock %}
 
 {% block content %}
-
 <style>
-  .trips-wrapper {
-    max-width: 680px;
-    margin: 0 auto;
-    padding: 6px 0 50px;
-  }
-
-  .trips-header h2 {
-    margin: 0;
-    font-size: 28px;
-    font-weight: 800;
-    letter-spacing: -0.7px;
-  }
-
-  .trips-header p {
-    margin: 6px 0 24px;
-    font-size: 14px;
-  }
-
-  .trip-card {
-    padding: 28px;
-    margin-bottom: 26px;
-    background: var(--surface-translucent);
-    border: 1px solid var(--shadow-card);
-    border-radius: 20px;
-    box-shadow: 0 12px 34px var(--shadow-soft);
-  }
-
-  .trip-card h3 {
-    margin: 0 0 4px;
-    font-size: 16px;
-    font-weight: 700;
-  }
-
-  .trip-card .hint {
-    margin: 0 0 6px;
-    font-size: 13px;
-  }
-
-  .trip-card .chip-group {
-    margin-top: 0;
-  }
-
-  .trip-card .chip {
-    margin: 0;
-  }
-
-  .friends-field {
-    display: none;
-  }
-
-  .friends-field.visible {
-    display: block;
-  }
-
-  .trip-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .trip-link {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 14px;
-    padding: 16px 18px;
-    border: 1px solid var(--surface-subtle-border);
-    border-radius: 14px;
-    text-decoration: none;
-    color: var(--text);
-    transition: border-color 0.15s ease, background 0.15s ease;
-  }
-
-  .trip-link:hover {
-    border-color: var(--border-strong);
-    background: var(--surface-subtle);
-  }
-
-  .trip-name {
-    font-size: 15px;
-    font-weight: 700;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .trip-meta {
-    margin-top: 3px;
-    font-size: 12px;
-    color: var(--muted-2);
-  }
-
-  .trip-total {
-    flex-shrink: 0;
-    font-size: 15px;
-    font-weight: 800;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .empty-trips {
-    padding: 26px 0 6px;
-    text-align: center;
-    color: var(--muted-2);
-    font-size: 13px;
-  }
-
-  @media (max-width: 600px) {
-    .trip-card { padding: 22px 18px; }
-    .trips-header h2 { font-size: 25px; }
-  }
+  .trips-wrapper { max-width: 760px; margin: 0 auto; padding: 6px 0 50px; }
+  .trips-header h2 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.7px; }
+  .trips-header p { margin: 6px 0 24px; font-size: 14px; }
+  .trip-card { padding: 26px; margin-bottom: 22px; background: var(--surface-translucent); border: 1px solid var(--shadow-card); border-radius: 20px; box-shadow: 0 12px 34px var(--shadow-soft); }
+  .trip-card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
+  .hint { margin: 0; font-size: 12.5px; color: var(--muted-2); }
+  .friends-field { display: none; }
+  .friends-field.visible { display: block; }
+  .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .trip-list { list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:10px; }
+  .trip-link { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:17px 18px; border:1px solid var(--surface-subtle-border); border-radius:15px; text-decoration:none; color:var(--text); transition:.15s ease; }
+  .trip-link:hover { border-color:var(--border-strong); background:var(--surface-subtle); }
+  .trip-name { font-size:15px; font-weight:750; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .trip-meta { margin-top:4px; font-size:12px; color:var(--muted-2); line-height:1.5; }
+  .trip-right { flex-shrink:0; text-align:right; }
+  .trip-total { font-size:15px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .trip-budget { margin-top:4px; font-size:11.5px; color:var(--muted-2); }
+  .pill { display:inline-flex; align-items:center; padding:4px 8px; border-radius:999px; font-size:11px; font-weight:750; border:1px solid var(--border); background:var(--input-bg); color:var(--text-secondary); }
+  .pill.active { color:var(--positive); }
+  .trip-empty { padding:24px 0 4px; text-align:center; color:var(--muted-2); font-size:13px; }
+  @media (max-width:600px){ .trip-card{padding:22px 18px}.trips-header h2{font-size:25px}.field-row{grid-template-columns:1fr}.trip-link{align-items:flex-start}.trip-right{min-width:95px} }
 </style>
 
 <div class="trips-wrapper">
-
   <div class="trips-header">
     <h2>Trips</h2>
-    <p>Split shared costs with members, or keep a running total for a solo trip.</p>
+    <p>Plan the trip, record spending, and settle shared costs without mixing them into your personal finances.</p>
   </div>
 
   <div class="trip-card">
     <h3>New trip</h3>
+    <p class="hint" style="margin-bottom:16px;">Set the basics now. You can edit them later.</p>
 
     <form method="post">
-
       <label for="trip-name">Trip name</label>
-      <input type="text" id="trip-name" name="name" placeholder="e.g. Goa, October" required maxlength="80">
+      <input type="text" id="trip-name" name="name" placeholder="e.g. Mumbai → Varanasi" required maxlength="80">
+
+      <div class="field-row">
+        <div>
+          <label for="destination">Destination</label>
+          <input type="text" id="destination" name="destination" placeholder="e.g. Ayodhya, Varanasi" maxlength="120">
+        </div>
+        <div>
+          <label for="budget">Trip budget</label>
+          <input type="number" id="budget" name="budget" min="0" step="0.01" placeholder="e.g. 30000">
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div>
+          <label for="start_date">Start date</label>
+          <input type="text" id="start_date" name="start_date" class="minto-date-input" data-minto-date
+                 placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11"
+                 inputmode="text" autocomplete="off">
+        </div>
+        <div>
+          <label for="end_date">End date</label>
+          <input type="text" id="end_date" name="end_date" class="minto-date-input" data-minto-date
+                 placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11"
+                 inputmode="text" autocomplete="off">
+        </div>
+      </div>
 
       <label>Who is it for?</label>
       <div class="chip-group">
-        <label class="chip">
-          <input type="radio" name="trip_type" value="group" checked onclick="toggleFriendsField()">
-          With members
-        </label>
-        <label class="chip">
-          <input type="radio" name="trip_type" value="solo" onclick="toggleFriendsField()">
-          Just me
-        </label>
+        <label class="chip"><input type="radio" name="trip_type" value="group" checked onclick="toggleFriendsField()"> With members</label>
+        <label class="chip"><input type="radio" name="trip_type" value="solo" onclick="toggleFriendsField()"> Just me</label>
       </div>
 
       <div id="friends-field" class="friends-field visible">
         <label for="friends">Members</label>
-        <input type="text" id="friends" name="friends" placeholder="Names separated by commas, e.g. Rohan, Priya, Aman">
-        <p class="hint" style="margin-top: 8px; font-size: 12px; color: var(--muted-2);">
-          You are always included. You can add more people later.
-        </p>
+        <input type="text" id="friends" name="friends" placeholder="Rohan, Priya, Aman">
+        <p class="hint" style="margin-top:8px;">You are always included. Members can be added later.</p>
       </div>
 
       <button type="submit">Create trip</button>
-
     </form>
   </div>
 
   <div class="trip-card">
     <h3>Your trips</h3>
-
     {% if trips %}
-    <ul class="trip-list" style="margin-top: 14px;">
+    <ul class="trip-list">
       {% for t in trips %}
       <li>
         <a class="trip-link" href="{{ url_for('trip_detail', trip_id=t.id) }}">
-          <div style="min-width: 0;">
+          <div style="min-width:0;">
+            <div style="margin-bottom:6px;"><span class="pill {{ t.status }}">{{ t.status_label }}</span></div>
             <div class="trip-name">{{ t.name }}</div>
             <div class="trip-meta">
-              {% if t.is_group %}
-              You and {{ t.friend_count }} member{{ "s" if t.friend_count != 1 else "" }}
-              {% else %}
-              Solo
-              {% endif %}
+              {% if t.destination %}{{ t.destination }}{% endif %}
+              {% if t.destination and t.date_summary.start %} · {% endif %}
+              {% if t.date_summary.start %}{{ t.date_summary.start|nice_date }}{% if t.date_summary.end %} → {{ t.date_summary.end|nice_date }}{% endif %}{% endif %}
+              {% if not t.destination and not t.date_summary.start %}{% if t.is_group %}You and {{ t.friend_count }} member{{ "s" if t.friend_count != 1 else "" }}{% else %}Solo{% endif %}{% endif %}
             </div>
           </div>
-          <div class="trip-total">{{ (t.total)|inr }}</div>
+          <div class="trip-right">
+            <div class="trip-total">{{ (t.total)|inr }}</div>
+            {% if t.budget_remaining is not none %}
+            <div class="trip-budget">{{ (t.budget_remaining)|inr }} left</div>
+            {% endif %}
+          </div>
         </a>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <div class="empty-trips">No trips yet. Create one above to start recording expenses.</div>
+    <div class="trip-empty">No trips yet. Create one above to start.</div>
     {% endif %}
   </div>
-
 </div>
 
 <script>
 function toggleFriendsField() {
-  const isGroup = document.querySelector('input[name="trip_type"]:checked').value === "group";
-  document.getElementById("friends-field").classList.toggle("visible", isGroup);
+  const selected = document.querySelector('input[name="trip_type"]:checked');
+  document.getElementById("friends-field").classList.toggle("visible", selected && selected.value === "group");
 }
 document.addEventListener("DOMContentLoaded", toggleFriendsField);
 </script>
-
 {% endblock %}
