@@ -763,8 +763,8 @@
     {% if fixed_expenses %}
     <a class="fixed-card" href="{{ url_for('fixed_expenses') }}">
       <div class="fixed-left">
-        <small>Fixed expenses still to pay this month</small>
-        <strong class="tnum">{{ fixed_total|inr }}</strong>
+        <small>Commitments still to pay this month</small>
+        <strong class="tnum">{{ (fixed_total + fixed_investment_total)|inr }}</strong>
         <small>Bank after fixed expenses and SIP commitments: {{ fixed_remaining|inr }}</small>
       </div>
       <span class="fixed-link">Manage</span>
