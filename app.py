@@ -3309,7 +3309,6 @@ def dashboard():
         fixed_total=fixed_total,
         fixed_investment_total=fixed_investment_total,
         fixed_paid_total=fixed_paid_total,
-        fixed_remaining=fixed_remaining,
         card_forecasts=card_forecasts,
         expected_cc_total=expected_cc_total,
         upcoming_commitments=upcoming_commitments,
