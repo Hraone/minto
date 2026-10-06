@@ -977,6 +977,9 @@ def profile():
         profile_emoji=profile_emoji,
         profile_emojis=PROFILE_EMOJIS,
         biometric_enabled=biometric_enabled,
+        monthly_salary=profile_data.get("monthly_salary") or "",
+        salary_day=profile_data.get("salary_day") or "",
+        reminder_days_before=profile_data.get("reminder_days_before") or 5,
     )
 
 
@@ -989,6 +992,40 @@ def update_profile_emoji():
         flash("Profile emoji updated.")
     else:
         flash("Please choose a valid profile emoji.")
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile/money-plan", methods=["POST"])
+@login_required
+def update_money_plan():
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    salary = parse_money(request.form.get("monthly_salary"))
+    try:
+        salary_day = int(request.form.get("salary_day", "").strip()) if request.form.get("salary_day", "").strip() else None
+        reminder_days = int(request.form.get("reminder_days_before", "5").strip())
+    except ValueError:
+        salary_day, reminder_days = None, 0
+
+    if salary is None:
+        flash("Enter your monthly salary.")
+    elif salary_day is None or not 1 <= salary_day <= 31:
+        flash("Choose a salary day between 1 and 31.")
+    elif not 1 <= reminder_days <= 30:
+        flash("Reminder days must be between 1 and 30.")
+    else:
+        try:
+            client.table("profiles").upsert({
+                "id": user_id,
+                "monthly_salary": salary,
+                "salary_day": salary_day,
+                "reminder_days_before": reminder_days,
+            }).execute()
+            flash("Money plan settings updated.")
+        except Exception:
+            app.logger.exception("Could not save money plan")
+            flash("Couldn't save your money plan settings. Please run the latest database update first.")
     return redirect(url_for("profile"))
 
 
@@ -2641,6 +2678,99 @@ def compute_net_worth(all_txns, savings, credit_cards, manual_items=None):
     }
 
 
+def get_salary_cycle(profile_data, today=None):
+    """Return the user's current salary-cycle dates without treating future
+    salary as money already available."""
+    today = today or datetime.now(APP_TZ).date()
+    salary = float(profile_data.get("monthly_salary") or 0)
+    salary_day = profile_data.get("salary_day")
+    if not salary or not salary_day:
+        return None
+
+    salary_day = int(salary_day)
+
+    def salary_date(year, month):
+        return date(
+            year,
+            month,
+            min(salary_day, calendar.monthrange(year, month)[1]),
+        )
+
+    current_salary = salary_date(today.year, today.month)
+    if today >= current_salary:
+        cycle_start = current_salary
+        if today.month == 12:
+            next_salary = salary_date(today.year + 1, 1)
+        else:
+            next_salary = salary_date(today.year, today.month + 1)
+    else:
+        if today.month == 1:
+            cycle_start = salary_date(today.year - 1, 12)
+        else:
+            cycle_start = salary_date(today.year, today.month - 1)
+        next_salary = current_salary
+
+    return {
+        "monthly_salary": salary,
+        "salary_day": salary_day,
+        "cycle_start": cycle_start,
+        "next_salary": next_salary,
+        "days_to_salary": max((next_salary - today).days, 0),
+    }
+
+
+def get_category_budget_status(client, user_id, all_txns, today=None):
+    """Current-month budget status. Missing budgets are simply omitted."""
+    today = today or datetime.now(APP_TZ).date()
+    month_start = today.replace(day=1)
+    try:
+        budgets = (
+            client.table("category_budgets")
+            .select("*")
+            .eq("user_id", user_id)
+            .eq("month_start", month_start.isoformat())
+            .order("category")
+            .execute()
+            .data
+        )
+    except Exception:
+        app.logger.exception("Category budgets unavailable")
+        return []
+
+    spent = defaultdict(float)
+    for txn in all_txns:
+        d = parse_iso_date(txn.get("transaction_date"))
+        if (
+            d
+            and d.year == today.year
+            and d.month == today.month
+            and txn.get("category") == "expense"
+            and txn.get("amount")
+        ):
+            spent[txn.get("expense_category") or "other"] += float(txn["amount"])
+
+    status = []
+    for budget in budgets:
+        limit = float(budget.get("amount") or 0)
+        used = spent.get(budget.get("category"), 0.0)
+        status.append({
+            **budget,
+            "spent": round(used, 2),
+            "remaining": round(limit - used, 2),
+            "percent": round((used / limit) * 100, 1) if limit else 0,
+        })
+    return status
+
+
+def get_due_soon_commitments(commitments, today=None, days_before=5):
+    today = today or datetime.now(APP_TZ).date()
+    horizon = today + timedelta(days=max(int(days_before or 5), 1))
+    return [
+        item for item in commitments
+        if item.get("due_date") and today <= item["due_date"] <= horizon
+    ]
+
+
 def get_dashboard_alerts(savings, credit_cards, txns):
     """Plain, threshold-based notices for the top of Overview."""
     alerts = []
@@ -2739,6 +2869,65 @@ def _get_fixed_expenses_for_month(client, user_id, year=None, month=None):
         item["payment"] = paid
         result.append(item)
     return result
+
+
+@app.route("/budgets", methods=["GET", "POST"])
+@login_required
+def budgets():
+    client = get_user_client()
+    user_id = session["user_id"]
+    today = datetime.now(APP_TZ).date()
+    month_start = today.replace(day=1)
+
+    expense_categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
+
+    if request.method == "POST":
+        category = (request.form.get("category") or "").strip()
+        amount = parse_money(request.form.get("amount"))
+
+        if category not in expense_categories:
+            flash("Pick a valid expense category.")
+            return redirect(url_for("budgets"))
+        if amount is None:
+            flash("Enter a budget amount greater than zero.")
+            return redirect(url_for("budgets"))
+
+        try:
+            client.table("category_budgets").upsert({
+                "user_id": user_id,
+                "month_start": month_start.isoformat(),
+                "category": category,
+                "amount": amount,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }, on_conflict="user_id,month_start,category").execute()
+            flash(f"{category.replace('_', ' ').title()} budget saved for {today.strftime('%B %Y')}.")
+        except Exception:
+            app.logger.exception("Could not save category budget")
+            flash("Couldn't save the budget. Please run the latest database update first.")
+        return redirect(url_for("budgets"))
+
+    savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    status = get_category_budget_status(client, user_id, all_txns, today)
+    return render_template(
+        "budgets.html",
+        today=today,
+        month_label=today.strftime("%B %Y"),
+        categories=expense_categories,
+        budgets=status,
+    )
+
+
+@app.route("/budgets/<int:budget_id>/delete", methods=["POST"])
+@login_required
+def delete_budget(budget_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    try:
+        client.table("category_budgets").delete().eq("id", budget_id).eq("user_id", user_id).execute()
+        flash("Budget removed.")
+    except Exception:
+        flash("Couldn't remove that budget.")
+    return redirect(url_for("budgets"))
 
 
 @app.route("/fixed-expenses", methods=["GET", "POST"])
@@ -3207,6 +3396,11 @@ def dashboard():
 
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
     manual_items = get_net_worth_manual_items() if net_worth_is_unlocked() else []
+    try:
+        profile_settings_rows = client.table("profiles").select("monthly_salary, salary_day, reminder_days_before").eq("id", user_id).limit(1).execute().data
+        profile_settings = profile_settings_rows[0] if profile_settings_rows else {}
+    except Exception:
+        profile_settings = {}
     wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items)
 
     # Fixed monthly commitments plus expected CC statements form the dashboard's
@@ -3219,6 +3413,15 @@ def dashboard():
     except Exception:
         app.logger.exception("Upcoming commitments could not be loaded")
         upcoming_commitments = []
+
+    salary_cycle = get_salary_cycle(profile_settings, today)
+    category_budgets = get_category_budget_status(client, user_id, all_txns, today)
+    reminder_days_before = int(profile_settings.get("reminder_days_before") or 5)
+    due_soon_commitments = get_due_soon_commitments(
+        upcoming_commitments,
+        today,
+        reminder_days_before,
+    )
 
     # Safe to Spend reserves only commitments still due during the current
     # calendar month. Future-month expenses should not reduce this month's
@@ -3258,6 +3461,10 @@ def dashboard():
     safe_spend_bank_cash = sum(float(s.get("balance") or 0) for s in savings)
     safe_spend_committed = sum(float(x.get("amount") or 0) for x in safe_spend_commitments)
     safe_spend_shortfall = max(round(safe_spend_committed - safe_spend_bank_cash, 2), 0.0)
+    safe_to_spend_after_salary = (
+        round(safe_to_spend + salary_cycle["monthly_salary"], 2)
+        if salary_cycle else None
+    )
     safe_spend_fixed = sum(
         float(x.get("amount") or 0)
         for x in safe_spend_commitments
@@ -3321,6 +3528,11 @@ def dashboard():
         safe_spend_fixed=safe_spend_fixed,
         safe_spend_investments=safe_spend_investments,
         safe_spend_cc=safe_spend_cc,
+        salary_cycle=salary_cycle,
+        safe_to_spend_after_salary=safe_to_spend_after_salary,
+        category_budgets=category_budgets,
+        due_soon_commitments=due_soon_commitments,
+        reminder_days_before=reminder_days_before,
         alerts=alerts,
         report_from=datetime.now(APP_TZ).date().replace(day=1).isoformat(),
         report_to=datetime.now(APP_TZ).date().isoformat(),
