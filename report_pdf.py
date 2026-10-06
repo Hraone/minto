@@ -129,7 +129,7 @@ def pretty(label):
 
 
 def fdate(d):
-    return d.strftime("%d %b %Y")
+    return d.strftime("%d-%b-%Y").upper()
 
 
 def _nice_axis(max_value):
