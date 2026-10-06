@@ -360,6 +360,121 @@
     font-weight: 750;
   }
 
+  .money-plan-card,
+  .budget-dashboard-card {
+    margin: 0 0 18px;
+    padding: 20px 22px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+
+  .money-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-top: 14px;
+  }
+
+  .money-plan-stat {
+    padding: 12px;
+    border-radius: 13px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--surface-subtle-border);
+  }
+
+  .money-plan-stat small {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .money-plan-stat strong {
+    display: block;
+    margin-top: 4px;
+    color: var(--text);
+    font-size: 16px;
+  }
+
+  .dashboard-link {
+    display: inline-flex;
+    margin-top: 12px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .budget-dashboard-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .budget-dashboard-row {
+    display: grid;
+    grid-template-columns: minmax(90px, 1fr) minmax(100px, 2fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .budget-dashboard-row small {
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .budget-dashboard-bar {
+    height: 7px;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    overflow: hidden;
+  }
+
+  .budget-dashboard-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: var(--positive);
+  }
+
+  .budget-dashboard-fill.over {
+    background: var(--negative);
+  }
+
+  .due-soon-card {
+    margin: 0 0 18px;
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-subtle);
+  }
+
+  .due-soon-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 10px;
+  }
+
+  .due-soon-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 11px;
+    border: 1px solid var(--surface-subtle-border);
+    border-radius: 11px;
+    background: var(--surface);
+  }
+
+  .due-soon-row strong {
+    display: block;
+    font-size: 12.5px;
+  }
+
+  .due-soon-row small {
+    color: var(--muted-2);
+    font-size: 10.5px;
+  }
+
   .safe-spend-card {
   margin: 0 0 28px;
   padding: 24px;
@@ -793,6 +908,53 @@
 
   </div>
 
+  {% if salary_cycle %}
+  <div class="money-plan-card">
+    <div class="section-heading-row">
+      <h3>Monthly money plan</h3>
+      <a class="dashboard-link" style="margin-top:0;" href="{{ url_for('profile') }}">Edit</a>
+    </div>
+    <div class="money-plan-grid">
+      <div class="money-plan-stat">
+        <small>Monthly salary</small>
+        <strong class="tnum">{{ salary_cycle.monthly_salary|inr }}</strong>
+      </div>
+      <div class="money-plan-stat">
+        <small>Next salary</small>
+        <strong>{{ salary_cycle.next_salary|nice_date }}</strong>
+      </div>
+      <div class="money-plan-stat">
+        <small>Days to salary</small>
+        <strong>{{ salary_cycle.days_to_salary }}</strong>
+      </div>
+    </div>
+    <div class="safe-spend-note">
+      Future salary is not counted as current cash. After the next salary, your current Safe to Spend would be about
+      <strong class="tnum">{{ safe_to_spend_after_salary|inr }}</strong>.
+    </div>
+  </div>
+  {% endif %}
+
+  {% if due_soon_commitments %}
+  <div class="due-soon-card">
+    <div class="section-heading-row" style="margin-bottom:0;">
+      <h3>Due soon</h3>
+      <span>Next {{ reminder_days_before }} days</span>
+    </div>
+    <div class="due-soon-list">
+      {% for item in due_soon_commitments %}
+      <div class="due-soon-row">
+        <div>
+          <strong>{{ "💳 " if item.kind == "credit_card" else ("🔄 " if item.kind == "investment" else "📅 ") }}{{ item.name }}</strong>
+          <small>{{ item.due_date|nice_date }}</small>
+        </div>
+        <strong class="tnum">{{ item.amount|inr }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <div class="safe-spend-card">
     <div class="safe-spend-label">Safe to spend</div>
     <div class="safe-spend-value tnum">{{ safe_to_spend|inr }}</div>
@@ -858,6 +1020,9 @@
             {% if card.cc_loan %}
               · Loan EMI {{ card.loan_emi|inr }} · Loan left {{ card.loan_outstanding|inr }}
             {% endif %}
+            {% if card.limit %}
+              · Available {{ card.limit_left|inr }} ({{ card.limit_pct }}% used)
+            {% endif %}
           </small>
         </div>
         <div class="tnum">
@@ -891,6 +1056,26 @@
           <small>{{ item.due_date|nice_date }}</small>
         </div>
         <div class="commitment-amount tnum">{{ item.amount|inr }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if category_budgets %}
+  <div class="budget-dashboard-card">
+    <div class="section-heading-row">
+      <h3>Category budgets</h3>
+      <a class="dashboard-link" style="margin-top:0;" href="{{ url_for('budgets') }}">Manage</a>
+    </div>
+    <div class="budget-dashboard-list">
+      {% for b in category_budgets[:5] %}
+      <div class="budget-dashboard-row">
+        <small>{{ b.category|replace('_',' ')|title }}</small>
+        <div class="budget-dashboard-bar">
+          <div class="budget-dashboard-fill {{ 'over' if b.percent > 100 else '' }}" style="width: {{ [b.percent,100]|min }}%;"></div>
+        </div>
+        <small class="tnum">{{ b.spent|inr }} / {{ b.amount|inr }}</small>
       </div>
       {% endfor %}
     </div>
