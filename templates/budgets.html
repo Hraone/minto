@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}Budgets · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .budget-page { max-width: 680px; margin: 0 auto; padding: 24px 16px 60px; }
+  .budget-head h2 { margin:0; font-size:28px; font-weight:800; }
+  .budget-head p { margin:6px 0 18px; color:var(--muted); font-size:13px; }
+  .budget-card { padding:18px; margin-bottom:14px; border:1px solid var(--border); border-radius:18px; background:var(--surface); }
+  .budget-card h3 { margin:0 0 12px; font-size:15px; }
+  .budget-form { display:grid; grid-template-columns:1fr 180px auto; gap:10px; align-items:end; }
+  .budget-form label { display:block; margin:0 0 6px; font-size:12px; color:var(--muted); }
+  .budget-form select, .budget-form input {
+    width:100%; box-sizing:border-box; min-height:42px; padding:10px 12px;
+    border:1px solid var(--border); border-radius:11px; background:var(--surface);
+    color:var(--text); font:inherit; font-size:14px;
+  }
+  .budget-btn { min-height:42px; width:auto; margin:0; padding:0 15px; border:0; border-radius:11px;
+    background:var(--positive); color:#fff; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+  .budget-row { padding:13px 0; border-top:1px solid var(--border); }
+  .budget-row:first-child { border-top:0; }
+  .budget-row-top { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+  .budget-name { font-size:13px; font-weight:700; color:var(--text); }
+  .budget-meta { font-size:11px; color:var(--muted); }
+  .budget-bar { height:7px; margin-top:9px; border-radius:999px; background:var(--surface-alt); overflow:hidden; }
+  .budget-fill { height:100%; border-radius:999px; background:var(--positive); }
+  .budget-fill.over { background:var(--negative); }
+  .budget-row-bottom { display:flex; justify-content:space-between; gap:10px; margin-top:7px; font-size:11px; color:var(--muted); }
+  .budget-row-bottom strong { color:var(--text); }
+  .budget-remove { width:auto; min-height:30px; margin:8px 0 0; padding:0 10px; border:1px solid var(--border); border-radius:9px; background:transparent; color:var(--negative); font:inherit; font-size:11px; cursor:pointer; }
+  .budget-empty { color:var(--muted); font-size:13px; margin:0; }
+  @media (max-width:600px) {
+    .budget-form { grid-template-columns:1fr 1fr; }
+    .budget-form .budget-btn { grid-column:1 / -1; width:100%; }
+  }
+</style>
+
+<div class="budget-page">
+  <div class="budget-head">
+    <h2>Budgets</h2>
+    <p>Simple monthly spending limits for {{ month_label }}. Only expense transactions are counted.</p>
+  </div>
+
+  <div class="budget-card">
+    <h3>Add or update a budget</h3>
+    <form method="post" class="budget-form">
+      <div>
+        <label for="budget-category">Category</label>
+        <select id="budget-category" name="category" required>
+          {% for c in categories %}
+          <option value="{{ c }}">{{ c|replace('_',' ')|title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="budget-amount">Monthly limit</label>
+        <input type="number" id="budget-amount" name="amount" min="1" step="0.01" placeholder="5000" required>
+      </div>
+      <button class="budget-btn" type="submit">Save Budget</button>
+    </form>
+  </div>
+
+  <div class="budget-card">
+    <h3>This month</h3>
+    {% if budgets %}
+      {% for b in budgets %}
+      <div class="budget-row">
+        <div class="budget-row-top">
+          <div>
+            <div class="budget-name">{{ b.category|replace('_',' ')|title }}</div>
+            <div class="budget-meta">{{ b.spent|inr }} spent of {{ b.amount|inr }}</div>
+          </div>
+          <strong class="tnum">{{ b.remaining|inr if b.remaining >= 0 else ('−' ~ ((-b.remaining)|inr)) }}</strong>
+        </div>
+        <div class="budget-bar">
+          <div class="budget-fill {{ 'over' if b.percent > 100 else '' }}" style="width: {{ [b.percent,100]|min }}%;"></div>
+        </div>
+        <div class="budget-row-bottom">
+          <span>{{ b.percent }}% used</span>
+          {% if b.remaining >= 0 %}
+            <span>{{ b.remaining|inr }} left</span>
+          {% else %}
+            <span>Over by {{ (-b.remaining)|inr }}</span>
+          {% endif %}
+        </div>
+        <form method="post" action="{{ url_for('delete_budget', budget_id=b.id) }}">
+          <button class="budget-remove" type="submit">Remove budget</button>
+        </form>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p class="budget-empty">No budgets set yet. Start with Food, Shopping or Travel.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
