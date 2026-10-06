@@ -369,6 +369,13 @@
       color: var(--positive);
     }
 
+    .profile-dropdown {
+      left: auto;
+      right: 0;
+      min-width: 190px;
+    }
+
+
     .nav-link.active {
       background: var(--surface-alt);
       color: var(--text);
@@ -1136,8 +1143,26 @@
 
       <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Overview</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed</a>
+
+      <div class="nav-menu" id="navAccounts">
+        <a
+          class="nav-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses'] else '' }}"
+          href="{{ url_for('sources') }}"
+          role="button"
+          aria-haspopup="true"
+          aria-expanded="false"
+          aria-controls="navAccountsMenu"
+          onclick="toggleNavAccounts(event)"
+        >
+          Accounts
+          <svg class="nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        </a>
+        <div class="nav-dropdown" id="navAccountsMenu" role="menu" hidden>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed Expenses</a>
+        </div>
+      </div>
+
       <div class="nav-menu" id="navTransfers">
         <a
           class="nav-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer'] else '' }}"
@@ -1157,8 +1182,8 @@
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
         </div>
       </div>
+
       <a class="nav-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">Reports</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About</a>
 
     </div>
 
@@ -1194,31 +1219,29 @@
     {% endif %}
 
     {% if session.get('user_id') and app_mode != 'trip' %}
-    <a
-      class="user-avatar"
-      href="{{ url_for('profile') }}"
-      aria-label="Profile: {{ nav_name }}"
-      title="{{ nav_name }}"
-    >{{ profile_emoji }}</a>
+    <div class="nav-menu profile-menu" id="navProfile">
+      <a
+        class="user-avatar"
+        href="{{ url_for('profile') }}"
+        role="button"
+        aria-haspopup="true"
+        aria-expanded="false"
+        aria-controls="navProfileMenu"
+        aria-label="Open profile menu"
+        title="{{ nav_name }}"
+        onclick="toggleNavProfile(event)"
+      >{{ profile_emoji }}</a>
+      <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
+        <a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>
+        <a role="menuitem" href="{{ url_for('logout') }}">Log Out</a>
+      </div>
+    </div>
     {% endif %}
 
     {% if session.get('user_id') and app_mode == 'trip' %}
     <span class="user-avatar static" title="{{ nav_name }}">{{ profile_emoji }}</span>
-    {% endif %}
-
-    {% if session.get('user_id') and app_mode != 'trip' %}
-    <a
-      class="theme-toggle about-icon {{ 'active' if request.endpoint == 'info' else '' }}"
-      href="{{ url_for('info') }}"
-      aria-label="About"
-      title="About"
-    >
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
-    </a>
     {% endif %}
 
     {% if session.get('user_id') %}
@@ -1384,6 +1407,48 @@
   {% endif %}
 
   <script>
+    function toggleNavAccounts(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var menu = document.getElementById("navAccountsMenu");
+      var trigger = event.currentTarget;
+      var opening = menu.hasAttribute("hidden");
+      closeNavTransfers();
+      closeNavProfile();
+      if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
+      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+    }
+
+    function closeNavAccounts() {
+      var wrap = document.getElementById("navAccounts");
+      var menu = document.getElementById("navAccountsMenu");
+      if (!wrap || !menu || menu.hasAttribute("hidden")) return;
+      menu.setAttribute("hidden", "");
+      var t = wrap.querySelector(".nav-link");
+      if (t) t.setAttribute("aria-expanded", "false");
+    }
+
+    function toggleNavProfile(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var menu = document.getElementById("navProfileMenu");
+      var trigger = event.currentTarget;
+      var opening = menu.hasAttribute("hidden");
+      closeNavTransfers();
+      closeNavAccounts();
+      if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
+      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+    }
+
+    function closeNavProfile() {
+      var wrap = document.getElementById("navProfile");
+      var menu = document.getElementById("navProfileMenu");
+      if (!wrap || !menu || menu.hasAttribute("hidden")) return;
+      menu.setAttribute("hidden", "");
+      var t = wrap.querySelector(".user-avatar");
+      if (t) t.setAttribute("aria-expanded", "false");
+    }
+
     function toggleNavTransfers(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -1404,12 +1469,20 @@
     }
 
     document.addEventListener("click", function (e) {
-      var wrap = document.getElementById("navTransfers");
-      if (wrap && !wrap.contains(e.target)) closeNavTransfers();
+      var transferWrap = document.getElementById("navTransfers");
+      var accountWrap = document.getElementById("navAccounts");
+      var profileWrap = document.getElementById("navProfile");
+      if (transferWrap && !transferWrap.contains(e.target)) closeNavTransfers();
+      if (accountWrap && !accountWrap.contains(e.target)) closeNavAccounts();
+      if (profileWrap && !profileWrap.contains(e.target)) closeNavProfile();
     });
 
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") closeNavTransfers();
+      if (e.key === "Escape") {
+        closeNavTransfers();
+        closeNavAccounts();
+        closeNavProfile();
+      }
     });
 
     function toggleTransfersMenu(event) {
