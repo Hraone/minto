@@ -1146,7 +1146,7 @@
 
       <div class="nav-menu" id="navAccounts">
         <a
-          class="nav-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses'] else '' }}"
+          class="nav-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses', 'budgets'] else '' }}"
           href="{{ url_for('sources') }}"
           role="button"
           aria-haspopup="true"
