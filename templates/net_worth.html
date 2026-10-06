@@ -124,115 +124,132 @@
   </div>
 
   <div class="nw-two-col">
-    <div class="nw-card">
-      <h3>+ Add asset / previous data</h3>
-      <p>Add wealth that existed before you started using Minto: old mutual funds, FD, RD, gold, vehicle, property, etc.</p>
-      <form method="post" class="nw-form">
-        <input type="hidden" name="action" value="add-item">
-        <input type="hidden" name="item_type" value="asset">
-        <input name="name" maxlength="80" placeholder="e.g. Mutual funds before Minto" required>
-        <select name="category" required>
-          <option value="investment">Investment</option>
-          <option value="fixed_deposit">Fixed deposit</option>
-          <option value="recurring_deposit">Recurring deposit</option>
-          <option value="gold">Gold</option>
-          <option value="vehicle">Vehicle</option>
-          <option value="property">Property</option>
-          <option value="cash">Cash</option>
-          <option value="ppf_nps">PPF / NPS</option>
-          <option value="loan_receivable">Money lent / receivable</option>
-          <option value="other">Other</option>
-        </select>
-        <input type="number" name="amount" step="0.01" min="0" placeholder="Current value" required>
-        <input type="date" name="as_of_date" value="{{ today if today is defined else '' }}">
-        <input name="notes" maxlength="300" placeholder="Optional note">
-        <button type="submit">Add Asset</button>
-      </form>
+    <details class="nw-card nw-collapsible">
+      <summary><h3>+ Add asset / previous data</h3></summary>
+      <div class="nw-collapsible-content">
+        <p>Add wealth that existed before you started using Minto: old mutual funds, FD, RD, gold, vehicle, property, etc.</p>
+        <form method="post" class="nw-form">
+          <input type="hidden" name="action" value="add-item">
+          <input type="hidden" name="item_type" value="asset">
+          <input name="name" maxlength="80" placeholder="e.g. Mutual funds before Minto" required>
+          <select name="category" required>
+            <option value="investment">Investment</option>
+            <option value="fixed_deposit">Fixed deposit</option>
+            <option value="recurring_deposit">Recurring deposit</option>
+            <option value="gold">Gold</option>
+            <option value="vehicle">Vehicle</option>
+            <option value="property">Property</option>
+            <option value="cash">Cash</option>
+            <option value="ppf_nps">PPF / NPS</option>
+            <option value="loan_receivable">Money lent / receivable</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="number" name="amount" step="0.01" min="0" placeholder="Current value" required>
+          <input type="date" name="as_of_date" value="{{ today if today is defined else '' }}">
+          <input name="notes" maxlength="300" placeholder="Optional note">
+          <button type="submit">Add Asset</button>
+        </form>
       </div>
     </details>
 
     <details class="nw-card nw-collapsible">
       <summary><h3>− Add liability</h3></summary>
       <div class="nw-collapsible-content">
-      <p>Add liabilities that aren't represented by Minto's credit-card balance, such as an old home/personal loan.</p>
-      <form method="post" class="nw-form">
-        <input type="hidden" name="action" value="add-item">
-        <input type="hidden" name="item_type" value="liability">
-        <input name="name" maxlength="80" placeholder="e.g. Home loan" required>
-        <select name="category" required>
-          <option value="loan_payable">Loan payable</option>
-          <option value="other">Other</option>
-        </select>
-        <input type="number" name="amount" step="0.01" min="0" placeholder="Outstanding amount" required>
-        <input type="date" name="as_of_date" value="{{ today if today is defined else '' }}">
-        <input name="notes" maxlength="300" placeholder="Optional note">
-        <button type="submit">Add Liability</button>
-      </form>
-    </div>
-  </div>
-
-  <div class="nw-card">
-    <h3>Manual Net Worth Data</h3>
-    {% if manual_items %}
-    <div class="nw-list">
-      {% for item in manual_items %}
-      <div class="nw-item">
-        <div>
-          <strong>{{ item.name }}</strong>
-          <small>{{ item.category|replace('_',' ')|title }} · {{ item.as_of_date }}</small>
-        </div>
-        <div class="amount tnum {{ 'positive' if item.item_type == 'asset' else 'negative' }}">
-          {{ item.amount|inr }}
-        </div>
-        <form method="post">
-          <input type="hidden" name="action" value="delete-item">
-          <input type="hidden" name="item_id" value="{{ item.id }}">
-          <button class="nw-delete" type="submit">Remove</button>
+        <p>Add liabilities that aren't represented by Minto's credit-card balance, such as an old home/personal loan.</p>
+        <form method="post" class="nw-form">
+          <input type="hidden" name="action" value="add-item">
+          <input type="hidden" name="item_type" value="liability">
+          <input name="name" maxlength="80" placeholder="e.g. Home loan" required>
+          <select name="category" required>
+            <option value="loan_payable">Loan payable</option>
+            <option value="other">Other</option>
+          </select>
+          <input type="number" name="amount" step="0.01" min="0" placeholder="Outstanding amount" required>
+          <input type="date" name="as_of_date" value="{{ today if today is defined else '' }}">
+          <input name="notes" maxlength="300" placeholder="Optional note">
+          <button type="submit">Add Liability</button>
         </form>
       </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <p cla<details class="nw-card nw-collapsible">
-    <summary><h3>Net Worth History</h3></summary><div class="nw-collapsible-content">
-    <p>Save a snapshot whenever you want to record a point in time, including your pre-Minto starting position.</p>
-    <form method="post" class="nw-form" style="grid-template-columns:180px 1fr auto; align-items:end;">
-      <input type="hidden" name="action" value="save-snapshot">
-      <div><label for="snapshot_date" style="display:block;font-size:11px;color:var(--muted);margin-bottom:5px;">Date</label>
-        <input id="snapshot_date" type="date" name="snapshot_date" value="{{ today if today is defined else '' }}" required></div>
-      <div><label for="snapshot_notes" style="display:block;font-size:11px;color:var(--muted);margin-bottom:5px;">Note</label>
-        <input id="snapshot_notes" name="snapshot_notes" maxlength="300" placeholder="e.g. Minto starting point"></div>
-      <button type="submit" class="nw-btn">Save Snapshot</button>
-    </form>
+    </details>
+  </div>
 
-    {% if snapshots %}
-    <div class="nw-list" style="margin-top:14px;">
-      {% for snapshot in snapshots %}
-      <div class="nw-item">
-        <div>
-          <strong>{{ snapshot.snapshot_date }}</strong>
-          <small>{{ snapshot.notes or 'Net Worth snapshot' }}</small>
+  <details class="nw-card nw-collapsible">
+    <summary><h3>Manual Net Worth Data</h3></summary>
+    <div class="nw-collapsible-content">
+      {% if manual_items %}
+      <div class="nw-list">
+        {% for item in manual_items %}
+        <div class="nw-item">
+          <div>
+            <strong>{{ item.name }}</strong>
+            <small>{{ item.category|replace('_',' ')|title }} · {{ item.as_of_date }}</small>
+          </div>
+          <div class="amount tnum {{ 'positive' if item.item_type == 'asset' else 'negative' }}">
+            {{ item.amount|inr }}
+          </div>
+          <form method="post">
+            <input type="hidden" name="action" value="delete-item">
+            <input type="hidden" name="item_id" value="{{ item.id }}">
+            <button class="nw-delete" type="submit">Remove</button>
+          </form>
         </div>
-        <div class="amount tnum">{{ snapshot.net_worth|inr }}</div>
-        <div></div>
+        {% endfor %}
       </div>
-      {% endfor %}
+      {% else %}
+      <p class="nw-muted">No manual assets or liabilities yet.</p>
+      {% endif %}
     </div>
-    {% else %}
-    <p class="nw-muted">No snapshots saved yet.</p>
-    {% endif %}
-  </div<details class="nw-card nw-collapsible">
-    <summary><h3>Change Net Worth password</h3></summary><div class="nw-collapsible-content">
-    <form method="post" class="nw-form">
-      <input type="hidden" name="action" value="change-password">
-      <input type="password" name="current_password" placeholder="Current password" required>
-      <input type="password" name="new_password" minlength="8" placeholder="New password" required>
-      <input type="password" name="confirm_password" minlength="8" placeholder="Confirm new password" required>
-      <button type="submit">Change Password</button>
-    </form>
-    <div class="nw-note">The unlock automatically expires after 15 minutes or when you lock it.</div>
-  </div
+  </details>
 
+  <details class="nw-card nw-collapsible">
+    <summary><h3>Net Worth History</h3></summary>
+    <div class="nw-collapsible-content">
+      <p>Save a snapshot whenever you want to record a point in time, including your pre-Minto starting position.</p>
+      <form method="post" class="nw-form" style="grid-template-columns:180px 1fr auto; align-items:end;">
+        <input type="hidden" name="action" value="save-snapshot">
+        <div>
+          <label for="snapshot_date" style="display:block;font-size:11px;color:var(--muted);margin-bottom:5px;">Date</label>
+          <input id="snapshot_date" type="date" name="snapshot_date" value="{{ today if today is defined else '' }}" required>
+        </div>
+        <div>
+          <label for="snapshot_notes" style="display:block;font-size:11px;color:var(--muted);margin-bottom:5px;">Note</label>
+          <input id="snapshot_notes" name="snapshot_notes" maxlength="300" placeholder="e.g. Minto starting point">
+        </div>
+        <button type="submit" class="nw-btn">Save Snapshot</button>
+      </form>
+
+      {% if snapshots %}
+      <div class="nw-list" style="margin-top:14px;">
+        {% for snapshot in snapshots %}
+        <div class="nw-item">
+          <div>
+            <strong>{{ snapshot.snapshot_date }}</strong>
+            <small>{{ snapshot.notes or 'Net Worth snapshot' }}</small>
+          </div>
+          <div class="amount tnum">{{ snapshot.net_worth|inr }}</div>
+          <div></div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="nw-muted">No snapshots saved yet.</p>
+      {% endif %}
+    </div>
+  </details>
+
+  <details class="nw-card nw-collapsible">
+    <summary><h3>Change Net Worth password</h3></summary>
+    <div class="nw-collapsible-content">
+      <form method="post" class="nw-form">
+        <input type="hidden" name="action" value="change-password">
+        <input type="password" name="current_password" placeholder="Current password" required>
+        <input type="password" name="new_password" minlength="8" placeholder="New Net Worth password" required>
+        <input type="password" name="confirm_password" minlength="8" placeholder="Confirm new password" required>
+        <button type="submit">Change Password</button>
+      </form>
+      <div class="nw-note">The unlock automatically expires after 15 minutes or when you lock it.</div>
+    </div>
+  </details>
   {% endif %}
 </div>
 {% endblock %}
