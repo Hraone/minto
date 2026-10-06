@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block title %}Edit expense · {{ trip.name }} · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .edit-wrapper{max-width:720px;margin:0 auto;padding:6px 0 50px}
+  .section-card{padding:26px;background:var(--surface-translucent);border:1px solid var(--shadow-card);border-radius:20px;box-shadow:0 12px 34px var(--shadow-soft)}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .amount-input{position:relative}.amount-symbol{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:18px;pointer-events:none}
+  .amount-input input{padding-left:38px;font-size:20px;font-weight:700}
+  .split-block{display:none;margin-top:12px}.split-block.visible{display:block}
+  .custom-row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}.custom-row span{font-size:14px;font-weight:600}.custom-row input{width:130px}
+  .custom-sum{margin:10px 0 0;font-size:12.5px;color:var(--muted)}.custom-sum.bad{color:var(--negative)}.custom-sum.ok{color:var(--positive)}
+  .back-link{display:inline-block;margin-bottom:14px;font-size:13px;color:var(--muted);text-decoration:none}
+  @media(max-width:600px){.field-row{grid-template-columns:1fr}.section-card{padding:22px 18px}.custom-row input{width:110px}}
+</style>
+<div class="edit-wrapper">
+  <a class="back-link" href="{{ url_for('trip_detail', trip_id=trip.id) }}">← Back to {{ trip.name }}</a>
+  <div class="section-card">
+    <h2 style="margin:0 0 6px;font-size:27px;letter-spacing:-.6px;">Edit expense</h2>
+    <p style="margin:0 0 20px;font-size:13px;color:var(--muted);">Update the expense without changing your personal account balances.</p>
+    <form method="post">
+      <label for="description">What was it for?</label><input type="text" id="description" name="description" value="{{ expense.description }}" required maxlength="120">
+      <div class="field-row">
+        <div><label for="amount">Amount</label><div class="amount-input"><span class="amount-symbol">₹</span><input type="number" id="amount" name="amount" value="{{ expense.amount }}" min="0.01" step="0.01" required oninput="updateCustomSum()"></div></div>
+        <div><label for="category">Category</label><select id="category" name="category">{% for key,label in trip_expense_categories %}<option value="{{ key }}" {% if expense.category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
+      </div>
+      <label for="expense_date">Date</label><input type="text" id="expense_date" name="expense_date" class="minto-date-input" data-minto-date value="{{ expense.expense_date|nice_date }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off" required>
+
+      {% if trip.is_group %}
+      <label>Paid by</label><div class="chip-group">{% for key,name in people.items() %}<label class="chip"><input type="radio" name="paid_by" value="{{ key }}" {% if expense.paid_by==name %}checked{% endif %}> {{ name }}</label>{% endfor %}</div>
+      <label>Split</label><div class="chip-group">
+        <label class="chip"><input type="radio" name="split_type" value="equal" {% if not splits %}checked{% endif %} onclick="toggleSplitBlocks()"> Equally, everyone</label>
+        <label class="chip"><input type="radio" name="split_type" value="subset" onclick="toggleSplitBlocks()"> Equally, some people</label>
+        <label class="chip"><input type="radio" name="split_type" value="custom" {% if splits %}checked{% endif %} onclick="toggleSplitBlocks()"> Exact amounts</label>
+      </div>
+      <div id="split-subset" class="split-block"><div class="chip-group">{% for key,name in people.items() %}<label class="chip"><input type="checkbox" name="split_with" value="{{ key }}"> {{ name }}</label>{% endfor %}</div></div>
+      <div id="split-custom" class="split-block">
+        {% for key,name in people.items() %}
+        {% set current = 0 %}
+        {% for s in splits %}{% if s.participant_name==name %}{% set current = s.share_amount %}{% endif %}{% endfor %}
+        <div class="custom-row"><span>{{ name }}</span><input type="number" step="0.01" min="0" name="share_{{ key }}" value="{{ current or '' }}" oninput="updateCustomSum()"></div>
+        {% endfor %}
+        <p class="custom-sum" id="custom-sum">Amounts must add up to the expense total.</p>
+      </div>
+      {% endif %}
+      <button type="submit">Save expense</button>
+    </form>
+  </div>
+</div>
+
+{% if trip.is_group %}
+<script>
+function toggleSplitBlocks(){const type=document.querySelector('input[name="split_type"]:checked')?.value;document.getElementById("split-subset").classList.toggle("visible",type==="subset");document.getElementById("split-custom").classList.toggle("visible",type==="custom");updateCustomSum();}
+function updateCustomSum(){const label=document.getElementById("custom-sum");if(!label)return;const total=parseFloat(document.getElementById("amount").value)||0;let assigned=0;document.querySelectorAll('#split-custom input[type="number"]').forEach(i=>assigned+=parseFloat(i.value)||0);const matches=Math.round(assigned*100)===Math.round(total*100);label.textContent="Assigned ₹"+assigned.toFixed(2)+" of ₹"+total.toFixed(2);label.classList.toggle("ok",matches&&total>0);label.classList.toggle("bad",!matches);}
+document.addEventListener("DOMContentLoaded",toggleSplitBlocks);
+</script>
+{% endif %}
+{% endblock %}
