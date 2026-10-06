@@ -1536,7 +1536,7 @@ def net_worth():
                     "net_worth": snapshot_wealth["net_worth"],
                     "notes": (request.form.get("snapshot_notes") or "").strip()[:300] or None,
                 }).execute()
-                flash(f"Net Worth snapshot saved for {snapshot_date.strftime('%d %b %Y')}.")
+                flash(f"Net Worth snapshot saved for {snapshot_date.strftime('%d-%b-%Y').upper()}.")
             except Exception:
                 app.logger.exception("Could not save Net Worth snapshot")
                 flash("Couldn't save the snapshot. Please run the database update first.")
