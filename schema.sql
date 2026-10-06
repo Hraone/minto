@@ -529,3 +529,66 @@ ON public.credit_card_loan_payments (user_id, payment_date DESC);
 
 CREATE INDEX IF NOT EXISTS credit_card_loan_payments_loan_idx
 ON public.credit_card_loan_payments (loan_id, payment_date DESC);
+
+
+-- ---------------------------------------------------------------------------
+-- Monthly money plan / salary cycle
+-- ---------------------------------------------------------------------------
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS monthly_salary numeric;
+
+ALTER TABLE public.profiles
+DROP CONSTRAINT IF EXISTS profiles_monthly_salary_check;
+
+ALTER TABLE public.profiles
+ADD CONSTRAINT profiles_monthly_salary_check
+CHECK (monthly_salary IS NULL OR (monthly_salary > 0 AND monthly_salary <= 100000000));
+
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS salary_day integer;
+
+ALTER TABLE public.profiles
+DROP CONSTRAINT IF EXISTS profiles_salary_day_check;
+
+ALTER TABLE public.profiles
+ADD CONSTRAINT profiles_salary_day_check
+CHECK (salary_day IS NULL OR salary_day BETWEEN 1 AND 31);
+
+ALTER TABLE public.profiles
+ADD COLUMN IF NOT EXISTS reminder_days_before integer NOT NULL DEFAULT 5;
+
+ALTER TABLE public.profiles
+DROP CONSTRAINT IF EXISTS profiles_reminder_days_before_check;
+
+ALTER TABLE public.profiles
+ADD CONSTRAINT profiles_reminder_days_before_check
+CHECK (reminder_days_before BETWEEN 1 AND 30);
+
+
+-- ---------------------------------------------------------------------------
+-- Simple monthly category budgets
+-- ---------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS public.category_budgets (
+    id bigserial PRIMARY KEY,
+    user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    month_start date NOT NULL,
+    category text NOT NULL,
+    amount numeric NOT NULL CHECK (amount > 0),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, month_start, category)
+);
+
+ALTER TABLE public.category_budgets ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "own category budgets"
+ON public.category_budgets;
+
+CREATE POLICY "own category budgets"
+ON public.category_budgets
+FOR ALL
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+CREATE INDEX IF NOT EXISTS category_budgets_user_month_idx
+ON public.category_budgets (user_id, month_start);
