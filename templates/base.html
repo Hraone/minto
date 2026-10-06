@@ -1160,6 +1160,7 @@
         <div class="nav-dropdown" id="navAccountsMenu" role="menu" hidden>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed Expenses</a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">Budgets</a>
         </div>
       </div>
 
