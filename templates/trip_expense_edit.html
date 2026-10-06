@@ -38,9 +38,9 @@
       <div id="split-subset" class="split-block"><div class="chip-group">{% for key,name in people.items() %}<label class="chip"><input type="checkbox" name="split_with" value="{{ key }}"> {{ name }}</label>{% endfor %}</div></div>
       <div id="split-custom" class="split-block">
         {% for key,name in people.items() %}
-        {% set current = 0 %}
-        {% for s in splits %}{% if s.participant_name==name %}{% set current = s.share_amount %}{% endif %}{% endfor %}
-        <div class="custom-row"><span>{{ name }}</span><input type="number" step="0.01" min="0" name="share_{{ key }}" value="{{ current or '' }}" oninput="updateCustomSum()"></div>
+        {% set current = namespace(value='') %}
+        {% for s in splits %}{% if s.participant_name==name %}{% set current.value = s.share_amount %}{% endif %}{% endfor %}
+        <div class="custom-row"><span>{{ name }}</span><input type="number" step="0.01" min="0" name="share_{{ key }}" value="{{ current.value }}" oninput="updateCustomSum()"></div>
         {% endfor %}
         <p class="custom-sum" id="custom-sum">Amounts must add up to the expense total.</p>
       </div>
