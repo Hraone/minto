@@ -322,8 +322,33 @@ def parse_money(raw, *, allow_zero=False, default=None):
 
 
 def parse_iso_date(raw):
+    """Parse Minto dates from ISO (YYYY-MM-DD) or UI (DD-MON-YYYY) input."""
+    if raw is None:
+        return None
+    value = str(raw).strip()
+    if not value:
+        return None
+
     try:
-        return date.fromisoformat(str(raw).strip())
+        return date.fromisoformat(value)
+    except (TypeError, ValueError):
+        pass
+
+    parts = value.upper().split("-")
+    if len(parts) != 3 or len(parts[0]) not in (1, 2) or len(parts[1]) != 3 or len(parts[2]) != 4:
+        return None
+
+    months = {
+        "JAN": 1, "FEB": 2, "MAR": 3, "APR": 4,
+        "MAY": 5, "JUN": 6, "JUL": 7, "AUG": 8,
+        "SEP": 9, "OCT": 10, "NOV": 11, "DEC": 12,
+    }
+    month = months.get(parts[1])
+    if month is None:
+        return None
+
+    try:
+        return date(int(parts[2]), month, int(parts[0]))
     except (TypeError, ValueError):
         return None
 
@@ -903,7 +928,7 @@ def _format_member_since(created):
     if not created:
         return None
     if hasattr(created, "strftime"):
-        return created.strftime("%d %b %Y")
+        return created.strftime("%d-%b-%Y").upper()
     return str(created)[:10]
 
 
@@ -3326,8 +3351,7 @@ def nice_date(value):
             d = datetime.strptime(str(value)[:10], "%Y-%m-%d").date()
         except (ValueError, TypeError):
             return str(value)
-    this_year = datetime.now(APP_TZ).date().year
-    return d.strftime("%d %b" if d.year == this_year else "%d %b %Y")
+    return d.strftime("%d-%b-%Y").upper()
 
 
 def get_period_start(period):
