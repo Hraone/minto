@@ -180,17 +180,110 @@
 
       color: var(--text);
       background:
-        radial-gradient(
-          circle at top left,
-          var(--bg-gradient-1) 0%,
-          var(--bg-gradient-2) 45%,
-          var(--bg-gradient-3) 100%
-        );
+        radial-gradient(circle at 12% 8%, var(--bg-gradient-1) 0, transparent 32%),
+        radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--positive) 4%, transparent) 0, transparent 26%),
+        linear-gradient(180deg, var(--bg-gradient-2) 0%, var(--background) 58%, var(--bg-gradient-3) 100%);
       background-attachment: fixed;
 
       transition: background 0.25s ease, color 0.25s ease;
 
       -webkit-font-smoothing: antialiased;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* A very light paper grain / ledger treatment. It stays behind the app
+       chrome so the interface still feels clean rather than decorative. */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      z-index: -2;
+      pointer-events: none;
+      opacity: 0.34;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          transparent 0,
+          transparent 31px,
+          color-mix(in srgb, var(--text) 3%, transparent) 32px
+        ),
+        repeating-linear-gradient(
+          90deg,
+          transparent 0,
+          transparent 31px,
+          color-mix(in srgb, var(--text) 2%, transparent) 32px
+        ),
+        radial-gradient(
+          circle at 20% 20%,
+          color-mix(in srgb, var(--text) 3%, transparent) 0 0.7px,
+          transparent 0.8px
+        );
+      background-size: auto, auto, 7px 7px;
+    }
+
+    /* Faint finance watermark: intentionally subtle, so it reads as a
+       financial notebook / ledger motif instead of looking like a banner. */
+    body::after {
+      content: "₹";
+      position: fixed;
+      right: -34px;
+      bottom: 8vh;
+      z-index: -1;
+      pointer-events: none;
+      font-size: min(34vw, 420px);
+      line-height: 0.8;
+      font-weight: 800;
+      color: var(--positive);
+      opacity: 0.025;
+      transform: rotate(-8deg);
+      user-select: none;
+    }
+
+    /* Ledger edge on major cards: a tiny financial-report cue without
+       changing the existing Minto card language. */
+    .summary-card,
+    .chart-card,
+    .recent-card,
+    .safe-spend-card,
+    .commitments-section,
+    .money-plan-card,
+    .due-soon-card,
+    .budget-dashboard-card,
+    .fixed-card,
+    .wealth-hero,
+    .wealth-card,
+    .net-worth-locked {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .summary-card::after,
+    .chart-card::after,
+    .recent-card::after,
+    .safe-spend-card::after,
+    .commitments-section::after,
+    .money-plan-card::after,
+    .due-soon-card::after,
+    .budget-dashboard-card::after,
+    .fixed-card::after,
+    .wealth-hero::after,
+    .wealth-card::after,
+    .net-worth-locked::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      height: 2px;
+      background: linear-gradient(
+        90deg,
+        transparent 0%,
+        color-mix(in srgb, var(--positive) 18%, transparent) 18%,
+        color-mix(in srgb, var(--positive) 8%, transparent) 50%,
+        transparent 82%
+      );
+      pointer-events: none;
     }
 
     /* Respect people who've asked their OS to cut down on motion */
@@ -588,6 +681,19 @@
     .minto-date-input {
       text-transform: uppercase;
       letter-spacing: 0.02em;
+    }
+
+    /* Paper-like fields: soft ink border + warm ledger surface. */
+    input,
+    select,
+    textarea {
+      box-shadow: inset 0 1px 0 color-mix(in srgb, white 55%, transparent);
+    }
+
+    [data-theme="dark"] input,
+    [data-theme="dark"] select,
+    [data-theme="dark"] textarea {
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
     }
 
     input::placeholder,
