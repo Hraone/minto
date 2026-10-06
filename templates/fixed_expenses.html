@@ -239,7 +239,7 @@
         <p class="fx-meta">
           {{ (x.category or 'other')|replace('_', ' ')|title }}
           {% if x.kind == 'investment' %} · Investment{% endif %}
-          · due {{ x.due_date.strftime('%d %b') }}
+          · due {{ x.due_date|nice_date }}
           {% if x.user_sources %}· {{ x.user_sources.name }}{% endif %}
         </p>
         {% if x.paid %}
