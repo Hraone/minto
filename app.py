@@ -3250,7 +3250,10 @@ def dashboard():
         if not x["paid"] and (x.get("kind") or "expense") == "investment"
     )
     fixed_paid_total = sum(float(x["amount"] or 0) for x in fixed_expenses if x["paid"])
-    fixed_remaining = float(wealth["total_savings"]) - fixed_total - fixed_investment_total
+    fixed_commitments_total = fixed_total + fixed_investment_total
+    fixed_bank_cash = float(wealth["total_savings"])
+    fixed_remaining = max(round(fixed_bank_cash - fixed_commitments_total, 2), 0.0)
+    fixed_shortfall = max(round(fixed_commitments_total - fixed_bank_cash, 2), 0.0)
     safe_to_spend = compute_safe_to_spend(savings, safe_spend_commitments)
     safe_spend_bank_cash = sum(float(s.get("balance") or 0) for s in savings)
     safe_spend_committed = sum(float(x.get("amount") or 0) for x in safe_spend_commitments)
@@ -3311,6 +3314,9 @@ def dashboard():
         expected_cc_total=expected_cc_total,
         upcoming_commitments=upcoming_commitments,
         safe_to_spend=safe_to_spend,
+        fixed_commitments_total=fixed_commitments_total,
+        fixed_remaining=fixed_remaining,
+        fixed_shortfall=fixed_shortfall,
         safe_spend_bank_cash=safe_spend_bank_cash,
         safe_spend_shortfall=safe_spend_shortfall,
         safe_spend_fixed=safe_spend_fixed,
