@@ -1148,7 +1148,7 @@ def update_profile_username():
     except Exception as exc:
         message = str(exc).lower()
         if "duplicate" in message or "unique" in message:
-            flash("That username is already in use. Try another one.")
+            flash("That username is already taken. Try another one.")
         else:
             app.logger.exception("Could not save username")
             flash("Couldn't save your username. Please try again.")
@@ -1157,6 +1157,29 @@ def update_profile_username():
     if keep_editor_open:
         redirect_args["edit_username"] = "1"
     return redirect(url_for("profile", **redirect_args))
+
+
+@app.route("/profile/username/availability", methods=["GET"])
+@login_required
+def check_profile_username_availability():
+    username = (request.args.get("username") or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
+        return jsonify(ok=False, error="invalid_username"), 400
+
+    try:
+        result = get_user_client().rpc(
+            "minto_username_is_available", {"p_username": username}
+        ).execute().data
+        if isinstance(result, list):
+            result = result[0] if result else None
+        if isinstance(result, dict):
+            result = result.get("minto_username_is_available", result.get("available"))
+        if not isinstance(result, bool):
+            raise ValueError("Username availability RPC returned an invalid result")
+        return jsonify(ok=True, available=result)
+    except Exception:
+        app.logger.exception("Could not check username availability")
+        return jsonify(ok=False, error="check_unavailable"), 503
 
 
 @app.route("/profile/default-expense-account", methods=["POST"])
@@ -4541,3 +4564,4 @@ def health():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
