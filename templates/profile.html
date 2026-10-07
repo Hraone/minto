@@ -78,18 +78,23 @@
 
   .profile-avatar-button {
     flex: none;
-    width: 60px;
-    height: 60px;
+    width: 64px;
+    height: 64px;
     padding: 0;
-    border: 0;
+    border: 1px solid var(--border);
     border-radius: 50%;
-    background: var(--positive);
-    color: #fff;
-    font-size: 26px;
-    font-weight: 700;
+    background: var(--surface-subtle);
+    color: var(--text);
     cursor: pointer;
     position: relative;
-    box-shadow: none;
+    box-shadow: 0 4px 12px var(--shadow-soft);
+    overflow: hidden;
+  }
+
+  .profile-avatar-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 
   .profile-avatar-button:hover {
@@ -526,53 +531,62 @@
     outline-offset: 3px;
   }
 
-  .emoji-picker {
-    display: flex;
-    gap: 8px;
-    overflow-x: auto;
-    flex-wrap: nowrap;
-    padding: 4px 2px 8px;
-    scrollbar-width: thin;
-    -webkit-overflow-scrolling: touch;
+  .avatar-picker {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 10px;
+    padding: 4px 2px 2px;
   }
 
-  .emoji-picker::-webkit-scrollbar {
-    height: 4px;
-  }
-
-  .emoji-option {
+  .avatar-option {
     position: relative;
-    flex: 0 0 auto;
-    margin: 0 !important;
+    min-width: 0;
   }
 
-  .emoji-option input {
+  .avatar-option input {
     position: absolute;
     opacity: 0;
     pointer-events: none;
   }
 
-  .emoji-option label {
-    width: 44px;
-    height: 44px;
-    min-height: 44px !important;
+  .avatar-option label {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    min-height: 0 !important;
     margin: 0 !important;
     padding: 0 !important;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     border: 1px solid var(--border);
     border-radius: 50%;
     background: var(--surface);
     cursor: pointer;
-    font-size: 24px !important;
     box-sizing: border-box;
+    overflow: hidden;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
   }
 
-  .emoji-option input:checked + label {
+  .avatar-option label:hover {
+    transform: translateY(-2px);
+    border-color: var(--muted);
+  }
+
+  .avatar-option input:checked + label {
     border-color: var(--positive);
-    background: var(--surface-subtle);
-    box-shadow: inset 0 0 0 2px var(--positive);
+    box-shadow: inset 0 0 0 2px var(--positive), 0 5px 14px var(--shadow-soft);
+    transform: translateY(-2px);
+  }
+
+  .avatar-option svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  @media (max-width: 520px) {
+    .avatar-picker {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
   }
 
   .profile-save {
@@ -637,8 +651,10 @@
 
   <div class="profile-card">
     <div class="profile-head">
-      <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile emoji">
-        {{ profile_emoji }}
+      <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile avatar">
+        <svg class="profile-avatar-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+          <use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use>
+        </svg>
       </button>
 
       <div style="min-width:0; flex:1;">
@@ -668,15 +684,19 @@
 
     <div class="profile-emoji-editor" id="profile-emoji-editor" hidden>
       <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
-        <div class="emoji-picker">
-          {% for emoji in profile_emojis %}
-          <div class="emoji-option">
-            <input type="radio" id="profile-emoji-{{ loop.index }}" name="profile_emoji" value="{{ emoji }}" {% if profile_emoji == emoji %}checked{% endif %}>
-            <label for="profile-emoji-{{ loop.index }}" aria-label="Choose {{ emoji }}">{{ emoji }}</label>
+        <div class="avatar-picker" aria-label="Choose a profile avatar">
+          {% for avatar in profile_avatars %}
+          <div class="avatar-option">
+            <input type="radio" id="profile-avatar-{{ loop.index }}" name="profile_avatar" value="{{ avatar }}" {% if profile_avatar == avatar %}checked{% endif %}>
+            <label for="profile-avatar-{{ loop.index }}" aria-label="Choose avatar {{ loop.index }}">
+              <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+                <use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ avatar }}"></use>
+              </svg>
+            </label>
           </div>
           {% endfor %}
         </div>
-        <button type="submit" class="profile-save">Save emoji</button>
+        <button type="submit" class="profile-save">Save avatar</button>
       </form>
     </div>
 
