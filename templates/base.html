@@ -1781,10 +1781,9 @@
       });
     })();
 
-    // Optional casual-copy layer. Only individual text nodes whose complete
-    // visible text matches one of the entries below are changed. No parent
-    // textContent is ever replaced, so nested icons/SVGs and controls survive
-    // unlimited Classic <-> Casual switches.
+    // Optional casual-copy layer. The original text is stored on each
+    // individual text node, so toggling this mode any number of times cannot
+    // confuse a real "You" label with a casual "You" replacement.
     (function () {
       var COPY = {
         "Overview": "Home",
@@ -1813,38 +1812,39 @@
         "Settlement history": "Past splits"
       };
 
-      var REVERSE = {};
-      Object.keys(COPY).forEach(function (classic) {
-        REVERSE[COPY[classic]] = classic;
-      });
+      var originals = new WeakMap();
 
       function applyGenZCopy() {
         var casual = document.documentElement.getAttribute("data-genz-mode") === "on";
-        var target = casual ? COPY : REVERSE;
         var walker = document.createTreeWalker(
           document.body,
           NodeFilter.SHOW_TEXT,
-          {
-            acceptNode: function (node) {
-              var parent = node.parentElement;
-              if (!parent || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
-              if (parent.closest && parent.closest(
-                "script,style,noscript,input,textarea,select,option,.user-generated-copy"
-              )) return NodeFilter.FILTER_REJECT;
-              return NodeFilter.FILTER_ACCEPT;
-            }
-          }
+          null,
+          false
         );
 
         var node;
         while ((node = walker.nextNode())) {
-          var raw = node.nodeValue;
-          var leading = raw.match(/^\s*/)[0];
-          var trailing = raw.match(/\s*$/)[0];
-          var value = raw.trim();
+          var parent = node.parentElement;
+          if (!parent || !node.nodeValue.trim()) continue;
 
-          if (target[value]) {
-            node.nodeValue = leading + target[value] + trailing;
+          if (parent.closest && parent.closest(
+            "script,style,noscript,input,textarea,select,option,.user-generated-copy"
+          )) continue;
+
+          if (!originals.has(node)) {
+            originals.set(node, node.nodeValue);
+          }
+
+          var original = originals.get(node);
+          var value = original.trim();
+
+          if (casual && COPY[value]) {
+            var leading = original.match(/^\s*/)[0];
+            var trailing = original.match(/\s*$/)[0];
+            node.nodeValue = leading + COPY[value] + trailing;
+          } else {
+            node.nodeValue = original;
           }
         }
       }
