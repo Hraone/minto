@@ -101,7 +101,7 @@ The formula is liquid cash/cash-source balance less commitments due during the c
 - Savings and cash balances are opening balance + inflows − outflows. Credit-card outstanding is max(opening balance + outflows − inflows, 0). Rows with affects_source_balance = false do not move account balances (app.py:3561).
 - Transfers are represented by paired legs and excluded from income/spending totals. Card payments reduce bank/cash and card outstanding without counting as spending. Dashboard and PDF both exclude transfer, lending, trip payment and trip settlement categories from ordinary money-in/out totals (app.py:4340, report_pdf.py:81).
 - parse_money() rejects negative values, non-finite values, required zeroes and values over ₹100,000,000, then rounds to two decimals. A very small positive amount can round to 0.00 and still be accepted; positive-only inputs should reject amounts that round to zero.
-- PDF transaction reads page through results and use inclusive ISO date ranges. No PDF was built in this environment because report dependencies are not installed.
+- PDF transaction reads page through results and use inclusive ISO date ranges. PDF rendering was not exercised.
 
 ### Safe to Spend
 
@@ -250,7 +250,7 @@ PASS is used only for executed checks. Static review is WARNING; unavailable pro
 - SVG XML parse: 24 unique avatar symbols from avatar-01 through avatar-24.
 - Each manifest icon path was checked against repository files: all 3 are absent.
 - Source scan found no innerHTML, outerHTML, insertAdjacentHTML, document.write, eval or new Function. This does not prove all browser behavior safe.
-- This workspace lacks Flask/Jinja/reportlab runtime dependencies to import the app or build a PDF. No production URL, Supabase credentials, deployment settings or browser session were available. Jinja compilation, route integration, live RLS, migration execution, PDF rendering, visual breakpoints, accessibility tree and production smoke/regression checks remain NOT TESTABLE.
+- This workspace lacks Flask, Jinja and Supabase Python dependencies, so the web app could not be imported. ReportLab is installed, but PDF rendering was not exercised. No production URL, Supabase credentials, deployment settings or browser session were available. Jinja compilation, route integration, live RLS, migration execution, PDF rendering, visual breakpoints, accessibility tree and production smoke/regression checks remain NOT TESTABLE.
 - No tests were added. The audit branch fixes are narrow source changes; the existing 9 trip tests were rerun.
 
 ## Recommended order
