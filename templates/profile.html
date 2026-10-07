@@ -33,7 +33,31 @@
   .friend-action { width:auto;margin:0;padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--positive);color:#fff;font-size:11px;font-weight:700;white-space:nowrap; }
   .friend-action.secondary { background:var(--surface);color:var(--text); }
   .friend-empty { padding:10px 12px;border-radius:10px;background:var(--surface-subtle);color:var(--muted);font-size:13px; }
-  @media (max-width:520px) { .friend-row{flex-wrap:wrap}.friend-actions{width:100%;padding-left:44px}.friend-actions form{flex:1}.friend-actions button{width:100%}.friend-action-form{margin-left:auto} }
+  #friends { width:100%;max-width:100%;min-width:0;box-sizing:border-box; }
+  #friends .minto-username-form,#friends .friend-search-form { width:100%;min-width:0; }
+  .minto-username-view,.minto-username-controls,.friend-search-row { display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:9px;min-width:0; }
+  .minto-username-view { padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle); }
+  .minto-username-copy { min-width:0; }
+  .minto-username-label { display:block;margin-bottom:4px;color:var(--muted);font-size:12px; }
+  .minto-username-label small { color:var(--muted-2);font-size:inherit; }
+  .minto-username-current { display:block;overflow-wrap:anywhere;color:var(--text);font-size:14px; }
+  .minto-username-form[hidden],.minto-username-view[hidden] { display:none; }
+  .minto-username-controls input { min-width:0;max-width:100%; }
+  .minto-username-actions { display:flex;align-items:center;gap:7px; }
+  #friends .profile-save { width:auto;max-width:100%;margin:0;white-space:nowrap; }
+  .minto-username-help { margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.45; }
+  .friend-search-row input { min-width:0;max-width:100%; }
+  @media (max-width:520px) {
+    .friend-row { flex-wrap:wrap; }
+    .friend-actions { width:100%;padding-left:44px; }
+    .friend-actions form { flex:1; }
+    .friend-actions button { width:100%; }
+    .friend-action-form { margin-left:auto; }
+    .minto-username-controls,.friend-search-row { grid-template-columns:minmax(0,1fr); }
+    .minto-username-actions { justify-content:flex-start; }
+    .minto-username-actions button { flex:1; }
+    #friends .friend-search-row .profile-save { width:100%; }
+  }
 
   .profile-head {
     display: flex;
@@ -740,20 +764,34 @@
   <section class="profile-card" id="friends" style="padding:22px;">
     <h3 style="margin:0 0 6px;">Minto Friends</h3>
     <p class="profile-email" style="margin:0 0 14px;">Use your username to connect accounts. Email addresses and account IDs stay private.</p>
-    <form method="post" action="{{ url_for('update_profile_username') }}" style="margin-bottom:18px;">
-      <label for="minto-username">Your username</label>
-      <div class="field-row">
-        <input type="text" id="minto-username" name="username" value="{{ username }}" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username" placeholder="e.g. rohan_mehta" required>
-        <button type="submit" class="profile-save" style="margin:0;">Save username</button>
+    <div class="minto-username-setting" style="margin-bottom:18px;">
+      {% if username %}
+      <div class="minto-username-view" id="minto-username-view" {% if edit_username %}hidden{% endif %}>
+        <div class="minto-username-copy">
+          <span class="minto-username-label">Your username <small>(your unique name)</small></span>
+          <strong class="minto-username-current">@{{ username }}</strong>
+        </div>
+        <button type="button" class="friend-action secondary" id="minto-username-edit" aria-controls="minto-username-form" aria-expanded="false">Edit</button>
       </div>
-      <p class="profile-email" style="margin:7px 0 0;">3–24 characters: letters, numbers, and underscores.</p>
-    </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('update_profile_username') }}" class="minto-username-form" id="minto-username-form" {% if username and not edit_username %}hidden{% endif %}>
+        <label for="minto-username">Your username <span>(your unique name)</span></label>
+        <div class="minto-username-controls">
+          <input type="text" id="minto-username" name="username" value="{{ username }}" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username" placeholder="e.g. rohan_mehta" required>
+          <div class="minto-username-actions">
+            <button type="submit" class="profile-save">Save username</button>
+            {% if username %}<button type="button" class="friend-action secondary" id="minto-username-cancel">Cancel</button>{% endif %}
+          </div>
+        </div>
+        <p class="minto-username-help">3–24 characters: letters, numbers, and underscores.</p>
+      </form>
+    </div>
 
-    <form method="get" action="{{ url_for('profile') }}#friends" style="margin-bottom:14px;">
+    <form method="get" action="{{ url_for('profile') }}#friends" class="friend-search-form" style="margin-bottom:14px;">
       <label for="friend-search">Find a Minto user</label>
-      <div class="field-row">
+      <div class="friend-search-row">
         <input type="text" id="friend-search" name="friend_q" value="{{ friend_query }}" minlength="2" maxlength="24" pattern="[a-zA-Z0-9_]{2,24}" placeholder="Search by username" autocomplete="off">
-        <button type="submit" class="profile-save" style="margin:0;">Search</button>
+        <button type="submit" class="profile-save">Search</button>
       </div>
     </form>
     {% if friend_query %}
@@ -917,6 +955,10 @@
       const nameCancel = document.getElementById('profile-name-cancel');
       const avatarTrigger = document.getElementById('profile-avatar-trigger');
       const emojiEditor = document.getElementById('profile-emoji-editor');
+      const usernameView = document.getElementById('minto-username-view');
+      const usernameTrigger = document.getElementById('minto-username-edit');
+      const usernameEditor = document.getElementById('minto-username-form');
+      const usernameCancel = document.getElementById('minto-username-cancel');
 
       function setHidden(el, hidden) {
         if (!el) return;
@@ -950,6 +992,27 @@
           const open = emojiEditor.hidden;
           setHidden(emojiEditor, !open);
           if (open) emojiEditor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+      }
+
+      if (usernameTrigger && usernameView && usernameEditor) {
+        usernameTrigger.addEventListener('click', function () {
+          setHidden(usernameView, true);
+          setHidden(usernameEditor, false);
+          usernameTrigger.setAttribute('aria-expanded', 'true');
+          const input = usernameEditor.querySelector('input[name="username"]');
+          if (input) {
+            input.focus();
+            input.select();
+          }
+        });
+      }
+
+      if (usernameCancel && usernameView && usernameEditor) {
+        usernameCancel.addEventListener('click', function () {
+          setHidden(usernameEditor, true);
+          setHidden(usernameView, false);
+          if (usernameTrigger) usernameTrigger.setAttribute('aria-expanded', 'false');
         });
       }
     })();
