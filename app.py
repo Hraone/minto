@@ -4,6 +4,7 @@ import smtplib
 import secrets
 import uuid
 import json
+import re
 import time
 import base64
 from functools import wraps
@@ -20,11 +21,12 @@ from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
 from report_pdf import build_report_pdf
+from trip_accounting import calculate_trip_balances, suggested_settlements, trip_payables_for_user
 
 load_dotenv()
 
 app = Flask(__name__)
-MINTO_VERSION = "1.5.0"
+MINTO_VERSION = "2.0.0"
 app.secret_key = os.environ["SECRET_KEY"]
 # How long a logged-in session survives with no activity at all — separate
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
@@ -55,12 +57,8 @@ def add_no_cache_headers(response):
 
 
 MODES = ("personal", "trip")
-# Keep profile choices to expressive face emojis only. The actual glyph
-# rendering follows the user's platform emoji font (including Apple's on Apple
-# devices), so Minto avoids mixing in random animals/objects as avatars.
-# Profile avatars are illustrated Minto SVG avatars rather than random
-# Unicode emojis. Keep the legacy DB column name ("profile_emoji") for
-# backwards compatibility with existing profiles.
+# Profile avatars are illustrated Minto SVG avatars. Keep the legacy database
+# column name for compatibility and translate existing emoji values on login.
 PROFILE_AVATARS = [f"avatar-{i:02d}" for i in range(1, 25)]
 LEGACY_PROFILE_EMOJI_MAP = {
     "😀": "avatar-01", "😃": "avatar-02", "😄": "avatar-03", "😁": "avatar-04",
@@ -82,6 +80,8 @@ TRIP_MODE_ENDPOINTS = {
     "trips", "trip_detail", "trip_home", "update_trip", "add_trip_friends", "remove_trip_friend",
     "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "delete_trip",
     "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
+    "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
+    "record_trip_settlement_receipt", "linked_transaction",
     "logout", "login", "signup", "favicon", "health", "static",
     "service_worker", "web_manifest",
 }
@@ -161,13 +161,12 @@ def load_biometric_flag(client, user_id):
 
 
 def load_profile_avatar(client, user_id):
-    """Return the saved illustrated profile avatar, migrating legacy emoji values."""
+    """Load an illustrated avatar, migrating a previously saved emoji value."""
     try:
         rows = client.table("profiles").select("profile_emoji").eq("id", user_id).execute().data
         saved = rows[0].get("profile_emoji") if rows else None
         if saved in PROFILE_AVATARS:
             return saved
-
         avatar = LEGACY_PROFILE_EMOJI_MAP.get(saved, "avatar-01")
         client.table("profiles").upsert({"id": user_id, "profile_emoji": avatar}).execute()
         return avatar
@@ -645,6 +644,8 @@ def get_credit_card_forecasts(credit_cards, all_txns, today=None, cc_loans=None)
                     continue
                 if txn.get("is_previous_card_bill"):
                     continue
+                if txn.get("affects_source_balance") is False:
+                    continue
                 if txn.get("category") == "transfer":
                     continue
                 amount = float(txn.get("amount") or 0)
@@ -990,6 +991,28 @@ def _format_member_since(created):
     return str(created)[:10]
 
 
+def load_friend_center(client, query=""):
+    """Load public friend data through RPCs that never return account UUIDs."""
+    empty = {"friends": [], "incoming_requests": [], "outgoing_requests": [], "friend_search": []}
+    try:
+        empty["friends"] = client.rpc("list_minto_friends").execute().data or []
+        empty["incoming_requests"] = client.rpc(
+            "list_minto_friend_requests", {"p_direction": "incoming"}
+        ).execute().data or []
+        empty["outgoing_requests"] = client.rpc(
+            "list_minto_friend_requests", {"p_direction": "outgoing"}
+        ).execute().data or []
+        normalized = (query or "").strip().lower()
+        if len(normalized) >= 2:
+            empty["friend_search"] = client.rpc(
+                "search_minto_users", {"p_query": normalized}
+            ).execute().data or []
+    except Exception:
+        # An unapplied migration should not make Profile or Personal Mode fail.
+        app.logger.exception("Could not load the Minto Friends section")
+    return empty
+
+
 @app.route("/profile")
 @login_required
 def profile():
@@ -1000,14 +1023,10 @@ def profile():
 
     def count(table):
         try:
-            return (
-                client.table(table)
-                .select("id", count="exact")
-                .eq("user_id", user_id)
-                .limit(1)
-                .execute()
-                .count
-            )
+            query = client.table(table).select("id", count="exact")
+            if table != "trips":
+                query = query.eq("user_id", user_id)
+            return query.limit(1).execute().count
         except Exception:
             return None
 
@@ -1043,6 +1062,18 @@ def profile():
     profile_avatar = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_AVATARS else load_profile_avatar(client, user_id)
     biometric_enabled = bool(profile_data.get("biometric_enabled"))
     genz_mode = bool(profile_data.get("genz_mode"))
+    try:
+        expense_accounts = (
+            client.table("user_sources")
+            .select("id,name,source_type")
+            .eq("active", True)
+            .order("name")
+            .execute()
+            .data
+        )
+    except Exception:
+        expense_accounts = []
+    friend_center = load_friend_center(client, request.args.get("friend_q", ""))
     session["display_name"] = name  # keeps the top bar in step
     session["profile_avatar"] = profile_avatar
     session["theme"] = theme
@@ -1065,7 +1096,119 @@ def profile():
         salary_day=profile_data.get("salary_day") or "",
         reminder_days_before=profile_data.get("reminder_days_before") or 5,
         genz_mode=genz_mode,
+        username=profile_data.get("username") or "",
+        expense_accounts=expense_accounts,
+        default_expense_source_id=profile_data.get("default_expense_source_id"),
+        friend_query=request.args.get("friend_q", "").strip(),
+        **friend_center,
     )
+
+
+@app.route("/profile/username", methods=["POST"])
+@login_required
+def update_profile_username():
+    username = (request.form.get("username") or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
+        flash("Usernames must be 3–24 characters using letters, numbers, or underscores.")
+        return redirect(url_for("profile", _anchor="friends"))
+    try:
+        get_user_client().table("profiles").upsert({
+            "id": session["user_id"], "username": username,
+        }).select("id").execute()
+        flash("Your Minto username is saved.")
+    except Exception as exc:
+        message = str(exc).lower()
+        if "duplicate" in message or "unique" in message:
+            flash("That username is already in use. Try another one.")
+        else:
+            app.logger.exception("Could not save username")
+            flash("Couldn't save your username. Please try again.")
+    return redirect(url_for("profile", _anchor="friends"))
+
+
+@app.route("/profile/default-expense-account", methods=["POST"])
+@login_required
+def update_default_expense_account():
+    user_id = session["user_id"]
+    raw_source_id = (request.form.get("source_id") or "").strip()
+    source_id = None
+    if raw_source_id:
+        try:
+            source_id = int(raw_source_id)
+        except ValueError:
+            flash("Choose a valid account.")
+            return redirect(url_for("profile"))
+        owned = get_user_client().table("user_sources").select("id").eq("id", source_id).eq("active", True).execute().data
+        if not owned:
+            flash("Choose one of your active accounts.")
+            return redirect(url_for("profile"))
+    try:
+        get_user_client().table("profiles").upsert({
+            "id": user_id, "default_expense_source_id": source_id,
+        }).execute()
+        flash("Default expense account updated." if source_id else "Default expense account cleared.")
+    except Exception:
+        app.logger.exception("Could not save default expense account")
+        flash("Couldn't save that account preference. Run the Minto 2.0 migration first.")
+    return redirect(url_for("profile"))
+
+
+@app.route("/friends/requests", methods=["POST"])
+@login_required
+def send_friend_request():
+    username = (request.form.get("username") or "").strip().lower()
+    try:
+        result = get_user_client().rpc("send_friend_request", {"p_username": username}).execute().data
+        state = result[0] if isinstance(result, list) and result else result
+        messages = {
+            "sent": "Friend request sent.",
+            "pending": "You already have a request waiting for this person.",
+            "incoming": "They already sent you a request. Accept it below.",
+            "friend": "You are already Minto friends.",
+        }
+        flash(messages.get(state, "Friend request updated."))
+    except Exception as exc:
+        message = str(exc).lower()
+        if "no minto user" in message:
+            flash("No Minto user found. Check the username and try again.")
+        elif "yourself" in message:
+            flash("You cannot add yourself as a friend.")
+        else:
+            app.logger.exception("Could not send Minto friend request")
+            flash("Couldn't send that request. Check the username and try again.")
+    return redirect(url_for("profile", _anchor="friends"))
+
+
+@app.route("/friends/requests/<int:request_id>", methods=["POST"])
+@login_required
+def respond_friend_request(request_id):
+    action = (request.form.get("action") or "").strip().lower()
+    if action not in ("accept", "reject"):
+        flash("Choose accept or reject.")
+    else:
+        try:
+            get_user_client().rpc("respond_friend_request", {
+                "p_request_id": request_id, "p_action": action,
+            }).execute()
+            flash("Friend request accepted." if action == "accept" else "Friend request rejected.")
+        except Exception:
+            app.logger.exception("Could not respond to Minto friend request")
+            flash("Couldn't update that request. Refresh Profile and try again.")
+    return redirect(url_for("profile", _anchor="friends"))
+
+
+@app.route("/friends/remove", methods=["POST"])
+@login_required
+def remove_minto_friend():
+    username = (request.form.get("username") or "").strip().lower()
+    try:
+        result = get_user_client().rpc("remove_minto_friend", {"p_username": username}).execute().data
+        removed = result[0] if isinstance(result, list) and result else result
+        flash("Friend removed. Shared trip history remains intact." if removed else "That friend was not found.")
+    except Exception:
+        app.logger.exception("Could not remove Minto friend")
+        flash("Couldn't remove that friend. Please try again.")
+    return redirect(url_for("profile", _anchor="friends"))
 
 
 @app.route("/profile/genz-mode", methods=["POST"])
@@ -1602,7 +1745,9 @@ def net_worth():
             try:
                 savings, credit_cards, all_txns = compute_source_balances(client, user_id)
                 items = get_net_worth_manual_items()
-                snapshot_wealth = compute_net_worth(all_txns, savings, credit_cards, items)
+                snapshot_wealth = compute_net_worth(
+                    all_txns, savings, credit_cards, items, get_trip_payables(client, user_id)
+                )
                 snapshot_date = parse_iso_date(request.form.get("snapshot_date")) or datetime.now(APP_TZ).date()
                 service.table("net_worth_snapshots").upsert({
                     "user_id": user_id,
@@ -1631,7 +1776,8 @@ def net_worth():
     unlocked = net_worth_is_unlocked()
     manual_items = get_net_worth_manual_items() if unlocked else []
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
-    wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items) if unlocked else None
+    trip_payables = get_trip_payables(client, user_id) if unlocked else 0
+    wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items, trip_payables) if unlocked else None
     cc_loans = get_active_cc_loans(client, user_id)
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, cc_loans=cc_loans)
     snapshots = get_net_worth_snapshots() if unlocked else []
@@ -2100,13 +2246,90 @@ def parse_friend_names(raw):
 def get_trip_or_none(client, user_id, trip_id):
     rows = (
         client.table("trips")
-        .select("*")
+        .select("id, name, is_group, active, created_at, destination, start_date, end_date, budget, status")
         .eq("id", trip_id)
-        .eq("user_id", user_id)
         .execute()
         .data
     )
-    return rows[0] if rows else None
+    if not rows:
+        return None
+    return dict(rows[0])
+
+
+def current_trip_member_id(client, trip_id):
+    rows = client.rpc("current_trip_member_id", {"p_trip_id": trip_id}).execute().data
+    if isinstance(rows, list):
+        return rows[0] if rows else None
+    return rows
+
+
+def is_trip_owner(client, trip_id):
+    result = client.rpc("is_trip_owner", {"p_trip_id": trip_id}).execute().data
+    return bool(result[0] if isinstance(result, list) and result else result)
+
+
+def get_trip_expense_permissions(client, trip_id):
+    rows = client.rpc("current_trip_expense_permissions", {"p_trip_id": trip_id}).execute().data or []
+    return {row["expense_id"]: row for row in rows}
+
+
+def get_trip_share_links(client, trip_id):
+    rows = client.rpc("current_trip_share_links", {"p_trip_id": trip_id}).execute().data or []
+    return {row["share_id"]: row for row in rows}
+
+
+def get_trip_settlement_links(client, trip_id):
+    rows = client.rpc("current_trip_settlement_links", {"p_trip_id": trip_id}).execute().data or []
+    return {row["settlement_id"]: row for row in rows}
+
+
+def trip_rpc(client, name, args):
+    """Call a trip RPC and return its scalar result where possible."""
+    result = client.rpc(name, args).execute().data
+    if isinstance(result, list) and len(result) == 1:
+        return result[0]
+    return result
+
+
+def trip_action_error(exc, fallback):
+    """Return a short public error without exposing PostgREST/SQL internals."""
+    message = str(exc).lower()
+    known = (
+        ("archived trips are read-only", "Archived trips are read-only."),
+        ("choose an account for this personal expense", "Choose an expense account in Profile or select one here."),
+        ("choose an account to receive the payment", "Choose the account where you received the payment."),
+        ("choose the account used to pay", "Choose the account used to pay."),
+        ("choose an active account that belongs to you", "Choose one of your active accounts."),
+        ("only the person paying can mark this paid", "Only the person paying can mark this settlement paid."),
+        ("only the recipient can record this receipt", "Only the recipient can record this receipt."),
+        ("that expense share is not yours", "That share is not assigned to your account."),
+        ("this share was rejected", "This share was rejected. Ask the payer to reassign it."),
+        ("only the payer can reassign", "Only the person who added the expense can reassign this share."),
+        ("only the trip owner can add members", "Only the trip owner can add members."),
+        ("add this person as a minto friend first", "Add this person as a Minto friend before inviting them to the trip."),
+        ("no minto user found", "No Minto user found. Check the username and try again."),
+        ("larger than the current balance", "That amount is larger than the current balance between these members."),
+    )
+    for needle, safe_message in known:
+        if needle in message:
+            return safe_message
+    return fallback
+
+
+def get_active_sources(client):
+    return client.table("user_sources").select("id, name, source_type").eq("active", True).order("name").execute().data
+
+
+def get_trip_payables(client, user_id):
+    """Accepted trip shares that are still owed by this account."""
+    try:
+        result = client.rpc("current_trip_payables").execute().data
+        if isinstance(result, list):
+            result = result[0] if result else 0
+        return float(result or 0)
+    except Exception:
+        app.logger.exception("Could not load trip payables")
+        return 0
 
 
 @app.route("/mode", methods=["GET", "POST"])
@@ -2132,46 +2355,47 @@ def trip_home():
         return redirect(url_for("trip_detail", trip_id=active))
     session.pop("active_trip", None)
 
-    latest = (
-        client.table("trips")
-        .select("id")
-        .eq("user_id", user_id)
-        .order("created_at", desc=True)
-        .execute()
-        .data
-    )
+    latest = client.table("trips").select("id").order("created_at", desc=True).execute().data
     if latest:
         return redirect(url_for("trip_detail", trip_id=latest[0]["id"]))
     return redirect(url_for("trips"))
 
 
 def get_trip_people(client, user_id, trip_id):
-    """Return participant records plus the stable form-key -> display-name map."""
-    friends = (
-        client.table("trip_participants")
-        .select("*")
+    """Return safe member snapshots and stable member-id/name mappings."""
+    current_id = current_trip_member_id(client, trip_id)
+    members = (
+        client.table("trip_members")
+        .select("id, trip_id, guest_name, display_name, profile_emoji, role, active, removed_at")
         .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
         .order("id")
         .execute()
         .data
     )
-    people = {"you": "You"}
-    people.update({str(f["id"]): f["name"] for f in friends})
-    return friends, people
+    for member in members:
+        member["name"] = "You" if member["id"] == current_id else member.get("display_name") or member.get("guest_name") or "Trip member"
+        member["is_you"] = member["id"] == current_id
+        member["is_minto"] = member.get("guest_name") is None
+    active = [m for m in members if m.get("active")]
+    friends = [m for m in active if not m.get("is_you")]
+    people = {str(m["id"]): m["name"] for m in active}
+    return friends, people, members, current_id
 
 
 def get_trip_settlement_rows(client, user_id, trip_id):
-    return (
+    rows = (
         client.table("trip_settlements")
-        .select("*")
+        .select("id, trip_id, from_person, to_person, amount, settlement_date, status, paid_at, created_at, from_member_id, to_member_id, received_at")
         .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
         .order("settlement_date", desc=True)
         .order("id", desc=True)
         .execute()
         .data
     )
+    links = get_trip_settlement_links(client, trip_id)
+    for row in rows:
+        row.update(links.get(row["id"], {}))
+    return rows
 
 
 def apply_paid_trip_settlements(net_paise, settlement_rows):
@@ -2217,7 +2441,7 @@ def trip_status_label(status):
     }.get(status, "Active")
 
 
-def build_trip_expense_form(client, user_id, trip):
+def build_trip_expense_form(client, user_id, trip, require_source=True):
     """Validate the add/edit form and return its normalized expense data."""
     description = (request.form.get("description") or "").strip()
     amount = parse_money(request.form.get("amount"))
@@ -2233,24 +2457,42 @@ def build_trip_expense_form(client, user_id, trip):
 
     payer_name = "You"
     shares = None
+    payer_member_id = None
+    source_id = None
 
     if trip["is_group"]:
-        friends, people = get_trip_people(client, user_id, trip["id"])
-        payer_name = people.get(request.form.get("paid_by"))
-        if not payer_name:
+        friends, people, members, current_id = get_trip_people(client, user_id, trip["id"])
+        active_members = [m for m in members if m.get("active")]
+        member_by_id = {str(m["id"]): m for m in active_members}
+        payer = member_by_id.get(str(request.form.get("paid_by") or current_id))
+        if not payer:
             return None, None, "Pick who paid."
+        payer_member_id = payer["id"]
+        payer_name = payer["name"]
+        if payer.get("is_you"):
+            try:
+                source_id = int(request.form.get("source_id") or 0)
+            except (TypeError, ValueError):
+                source_id = 0
+            if source_id <= 0 and require_source:
+                return None, None, "Choose the account used to pay."
+            if source_id <= 0:
+                source_id = None
+        elif payer.get("is_minto"):
+            return None, None, "Only the person who paid can add a Minto member's linked expense."
 
         split_type = request.form.get("split_type", "equal")
         if split_type == "equal":
-            shares = split_equally_paise(_to_paise(amount), list(people.values()))
+            shares = {int(mid): share for mid, share in split_equally_paise(_to_paise(amount), {str(m["id"]): m["name"] for m in active_members}).items()}
         elif split_type == "subset":
-            chosen = [people[k] for k in request.form.getlist("split_with") if k in people]
+            chosen = [member_by_id[k] for k in request.form.getlist("split_with") if k in member_by_id]
             if not chosen:
                 return None, None, "Pick at least one person to split this between."
-            shares = split_equally_paise(_to_paise(amount), chosen)
+            shares = {int(mid): share for mid, share in split_equally_paise(_to_paise(amount), {str(m["id"]): m["name"] for m in chosen}).items()}
         elif split_type == "custom":
             shares = {}
-            for key, name in people.items():
+            for member in active_members:
+                key = str(member["id"])
                 raw = (request.form.get(f"share_{key}") or "").strip()
                 if not raw:
                     continue
@@ -2261,7 +2503,7 @@ def build_trip_expense_form(client, user_id, trip):
                 if paise < 0:
                     return None, None, "Custom amounts can't be negative."
                 if paise > 0:
-                    shares[name] = paise
+                    shares[int(member["id"])] = paise
             if sum(shares.values()) != _to_paise(amount):
                 return (
                     None,
@@ -2279,6 +2521,9 @@ def build_trip_expense_form(client, user_id, trip):
         "category": category,
         "expense_date": expense_date.isoformat(),
     }
+    if trip["is_group"]:
+        payload["payer_member_id"] = payer_member_id
+        payload["source_id"] = source_id
     return payload, shares, None
 
 
@@ -2286,9 +2531,8 @@ def load_trip_financials(client, user_id, trip_id):
     """Load the full trip ledger needed for settlement validation and totals."""
     expenses = (
         client.table("trip_expenses")
-        .select("*")
+        .select("id, trip_id, description, amount, paid_by, expense_date, category, created_at, payer_member_id")
         .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
         .order("expense_date", desc=True)
         .order("id", desc=True)
         .execute()
@@ -2296,26 +2540,28 @@ def load_trip_financials(client, user_id, trip_id):
     )
     expense_ids = [e["id"] for e in expenses]
     splits = []
+    shares = []
     if expense_ids:
         splits = (
             client.table("trip_expense_splits")
-            .select("*")
-            .eq("user_id", user_id)
+            .select("id, trip_expense_id, participant_name, share_amount, trip_member_id")
             .in_("trip_expense_id", expense_ids)
             .execute()
             .data
         )
+        shares = client.table("trip_expense_shares").select("id, trip_expense_id, trip_member_id, amount, status, created_at, responded_at").in_("trip_expense_id", expense_ids).execute().data
     settlement_rows = get_trip_settlement_rows(client, user_id, trip_id)
-    friends, people = get_trip_people(client, user_id, trip_id)
-    names = list(people.values())
-    paid, owed, net = compute_trip_summary(names, expenses, splits)
-    net = apply_paid_trip_settlements(net, settlement_rows)
+    friends, people, members, current_id = get_trip_people(client, user_id, trip_id)
+    paid, owed, net = calculate_trip_balances(members, expenses, shares, settlement_rows, splits)
     return {
         "expenses": expenses,
         "splits": splits,
+        "shares": shares,
         "settlements": settlement_rows,
         "friends": friends,
         "people": people,
+        "members": members,
+        "current_member_id": current_id,
         "paid": paid,
         "owed": owed,
         "net": net,
@@ -2363,25 +2609,30 @@ def trips():
             "is_group": request.form.get("trip_type") == "group",
             "status": status,
             "active": True,
-        }).execute()
+        }).select("id").execute()
         trip_id = created.data[0]["id"]
 
         if request.form.get("trip_type") == "group":
-            friend_names = parse_friend_names(request.form.get("friends") or "")
+            friend_names = parse_friend_names(request.form.get("guest_names") or request.form.get("friends") or "")
             if friend_names:
                 try:
-                    client.table("trip_participants").insert([
-                        {"trip_id": trip_id, "user_id": user_id, "name": n}
+                    client.table("trip_members").insert([
+                        {"trip_id": trip_id, "guest_name": n, "display_name": n, "role": "member"}
                         for n in friend_names
-                    ]).execute()
+                    ]).select("id").execute()
                 except Exception:
                     flash("The trip was created, but the members list couldn't be saved. Add them below.")
+            for username in parse_friend_names(request.form.get("friend_usernames") or ""):
+                try:
+                    trip_rpc(client, "add_trip_minto_member", {"p_trip_id": trip_id, "p_username": username})
+                except Exception as e:
+                    app.logger.info("Trip friend invite failed: %s", e)
+                    flash(f"Could not add @{username}. Confirm the username and that you are Minto friends.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
 
     trip_rows = (
         client.table("trips")
-        .select("*")
-        .eq("user_id", user_id)
+        .select("id, name, is_group, active, created_at, destination, start_date, end_date, budget, status")
         .order("created_at", desc=True)
         .execute()
         .data
@@ -2389,31 +2640,25 @@ def trips():
     expense_rows = (
         client.table("trip_expenses")
         .select("trip_id, amount")
-        .eq("user_id", user_id)
         .execute()
         .data
     )
-    friend_rows = (
-        client.table("trip_participants")
-        .select("trip_id")
-        .eq("user_id", user_id)
-        .execute()
-        .data
-    )
+    member_rows = client.table("trip_members").select("trip_id").eq("active", True).execute().data
     totals = defaultdict(int)
     for e in expense_rows:
         totals[e["trip_id"]] += _to_paise(e["amount"])
     friend_counts = defaultdict(int)
-    for f in friend_rows:
+    for f in member_rows:
         friend_counts[f["trip_id"]] += 1
     for t in trip_rows:
         t["total"] = totals[t["id"]] / 100
-        t["friend_count"] = friend_counts[t["id"]]
+        t["friend_count"] = max(friend_counts[t["id"]] - 1, 0)
         t["date_summary"] = trip_date_summary(t, today)
         budget = float(t.get("budget") or 0)
         t["budget_remaining"] = max(budget - t["total"], 0) if budget > 0 else None
         t["budget_pct"] = min(round((t["total"] / budget) * 100, 1), 100) if budget > 0 else None
         t["status_label"] = trip_status_label(t.get("status"))
+        t["is_owner"] = is_trip_owner(client, t["id"])
 
     return render_template("trips.html", trips=trip_rows, today=today.isoformat())
 
@@ -2427,6 +2672,12 @@ def update_trip(trip_id):
     if not trip:
         flash("That trip wasn't found.")
         return redirect(url_for("trips"))
+    if not is_trip_owner(client, trip_id):
+        flash("Only the trip owner can change trip settings.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    if trip.get("status") == "archived":
+        flash("Archived trips are read-only.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
 
     name = (request.form.get("name") or "").strip()
     destination = (request.form.get("destination") or "").strip() or None
@@ -2462,7 +2713,7 @@ def update_trip(trip_id):
         "budget": budget,
         "status": status,
         "active": status != "archived",
-    }).eq("id", trip_id).eq("user_id", user_id).execute()
+    }).eq("id", trip_id).select("id").execute()
 
     flash("Trip details updated.")
     return redirect(url_for("trip_detail", trip_id=trip_id))
@@ -2478,29 +2729,29 @@ def add_trip_friends(trip_id):
     if not trip or not trip["is_group"]:
         flash("That trip wasn't found, or it's a solo trip.")
         return redirect(url_for("trips"))
+    if not is_trip_owner(client, trip_id):
+        flash("Only the trip owner can manage trip members.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
     if trip.get("status") == "archived":
         flash("Archived trips are read-only.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
 
-    existing = {
-        f["name"].lower()
-        for f in client.table("trip_participants")
-        .select("name")
-        .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
-        .execute()
-        .data
-    }
-    new_names = [
-        n for n in parse_friend_names(request.form.get("friends") or "")
-        if n.lower() not in existing
-    ]
-    if not new_names:
-        flash("Enter at least one new name.")
-    else:
-        client.table("trip_participants").insert([
-            {"trip_id": trip_id, "user_id": user_id, "name": n} for n in new_names
-        ]).execute()
+    guest_names = parse_friend_names(request.form.get("guest_names") or request.form.get("friends") or "")
+    existing = {m.get("guest_name", "").casefold() for m in client.table("trip_members").select("guest_name").eq("trip_id", trip_id).execute().data if m.get("guest_name")}
+    new_names = [n for n in guest_names if n.casefold() not in existing]
+    if new_names:
+        client.table("trip_members").insert([
+            {"trip_id": trip_id, "guest_name": n, "display_name": n, "role": "member"} for n in new_names
+        ]).select("id").execute()
+    usernames = parse_friend_names(request.form.get("friend_usernames") or "")
+    for username in usernames:
+        try:
+            trip_rpc(client, "add_trip_minto_member", {"p_trip_id": trip_id, "p_username": username})
+        except Exception as e:
+            app.logger.info("Trip friend invite failed: %s", e)
+            flash(f"Could not add @{username}. Confirm the username and that you are Minto friends.")
+    if not new_names and not usernames:
+        flash("Enter a guest name or a Minto friend username.")
     return redirect(url_for("trip_detail", trip_id=trip_id))
 
 
@@ -2513,47 +2764,27 @@ def remove_trip_friend(trip_id, friend_id):
     if not trip:
         flash("That trip wasn't found.")
         return redirect(url_for("trips"))
+    if not is_trip_owner(client, trip_id):
+        flash("Only the trip owner can remove trip members.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
     if trip.get("status") == "archived":
         flash("Archived trips are read-only.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
 
     friend_rows = (
-        client.table("trip_participants")
-        .select("*")
+        client.table("trip_members")
+        .select("id, display_name, guest_name, role, active")
         .eq("id", friend_id)
         .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
         .execute()
         .data
     )
-    if not friend_rows:
+    if not friend_rows or friend_rows[0].get("role") == "owner" or not friend_rows[0].get("active"):
         flash("That member wasn't found.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
-    name = friend_rows[0]["name"]
-
-    trip_expenses = (
-        client.table("trip_expenses")
-        .select("id, paid_by")
-        .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
-        .execute()
-        .data
-    )
-    in_use = any(e["paid_by"] == name for e in trip_expenses)
-    if not in_use and trip_expenses:
-        in_use = bool(
-            client.table("trip_expense_splits")
-            .select("id")
-            .eq("user_id", user_id)
-            .eq("participant_name", name)
-            .in_("trip_expense_id", [e["id"] for e in trip_expenses])
-            .execute()
-            .data
-        )
-    if in_use:
-        flash(f"{name} is part of existing expenses. Delete those first to remove them.")
-    else:
-        client.table("trip_participants").delete().eq("id", friend_id).eq("user_id", user_id).execute()
+    name = friend_rows[0].get("display_name") or friend_rows[0].get("guest_name") or "Member"
+    client.table("trip_members").update({"active": False, "removed_at": datetime.now(timezone.utc).isoformat()}).eq("id", friend_id).eq("trip_id", trip_id).select("id").execute()
+    flash(f"{name} was removed. Their past shares and settlements remain in the trip history.")
     return redirect(url_for("trip_detail", trip_id=trip_id))
 
 
@@ -2577,28 +2808,32 @@ def add_trip_expense(trip_id):
         flash(error)
         return back
 
-    created = client.table("trip_expenses").insert({
-        "trip_id": trip_id,
-        "user_id": user_id,
-        **payload,
-    }).execute()
-    expense_id = created.data[0]["id"]
-
-    if shares:
-        try:
-            client.table("trip_expense_splits").insert([
-                {
-                    "trip_expense_id": expense_id,
-                    "user_id": user_id,
-                    "participant_name": name,
-                    "share_amount": paise / 100,
-                }
-                for name, paise in shares.items()
-            ]).execute()
-        except Exception as e:
-            client.table("trip_expenses").delete().eq("id", expense_id).eq("user_id", user_id).execute()
-            flash(f"Couldn't save that expense, please try again. ({e})")
-            return back
+    try:
+        if trip["is_group"]:
+            expense_id = trip_rpc(client, "create_shared_trip_expense", {
+                "p_trip_id": trip_id,
+                "p_description": payload["description"],
+                "p_amount": payload["amount"],
+                "p_category": payload["category"],
+                "p_expense_date": payload["expense_date"],
+                "p_payer_member_id": payload["payer_member_id"],
+                "p_source_id": payload["source_id"],
+                "p_shares": [
+                    {"member_id": member_id, "amount": paise / 100}
+                    for member_id, paise in shares.items()
+                ],
+            })
+        else:
+            created = client.table("trip_expenses").insert({
+                "trip_id": trip_id,
+                "user_id": user_id,
+                **payload,
+            }).select("id").execute()
+            expense_id = created.data[0]["id"]
+    except Exception as e:
+        app.logger.info("Trip expense creation failed: %s", e)
+        flash(trip_action_error(e, "Couldn't save that expense. Check the payer, account, and share amounts."))
+        return back
 
     flash("Expense added.")
     return back
@@ -2616,13 +2851,11 @@ def edit_trip_expense(trip_id, expense_id):
     if trip.get("status") == "archived":
         flash("Archived trips are read-only.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
-
     rows = (
         client.table("trip_expenses")
-        .select("*")
+        .select("id, trip_id, description, amount, paid_by, expense_date, category, created_at, payer_member_id")
         .eq("id", expense_id)
         .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
         .limit(1)
         .execute()
         .data
@@ -2631,19 +2864,27 @@ def edit_trip_expense(trip_id, expense_id):
         flash("That expense wasn't found.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
     expense = rows[0]
+    expense_permission = get_trip_expense_permissions(client, trip_id).get(expense_id, {})
+    if not expense_permission.get("is_author"):
+        flash("Only the person who added this expense can edit it.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    expense["is_author"] = True
+    expense["payment_transaction_id"] = expense_permission.get("payment_transaction_id")
 
-    friends, people = get_trip_people(client, user_id, trip_id)
+    friends, people, members, current_id = get_trip_people(client, user_id, trip_id)
     splits = (
         client.table("trip_expense_splits")
-        .select("*")
+        .select("id, trip_expense_id, participant_name, share_amount, trip_member_id")
         .eq("trip_expense_id", expense_id)
-        .eq("user_id", user_id)
         .execute()
         .data
     )
 
     if request.method == "POST":
-        payload, shares, error = build_trip_expense_form(client, user_id, trip)
+        if expense.get("payment_transaction_id"):
+            flash("This linked expense has already affected account records. Add a correcting expense instead of changing its history.")
+            return redirect(url_for("trip_detail", trip_id=trip_id))
+        payload, shares, error = build_trip_expense_form(client, user_id, trip, require_source=False)
         if error:
             flash(error)
             return render_template(
@@ -2652,28 +2893,37 @@ def edit_trip_expense(trip_id, expense_id):
                 expense=expense,
                 friends=friends,
                 people=people,
+                members=[m for m in members if m.get("active")],
+                expense_accounts=get_active_sources(client),
                 splits=splits,
                 trip_expense_categories=TRIP_EXPENSE_CATEGORIES,
                 today=datetime.now(APP_TZ).date().isoformat(),
             )
 
-        client.table("trip_expenses").update(payload).eq("id", expense_id).eq("trip_id", trip_id).eq("user_id", user_id).execute()
-        client.table("trip_expense_splits").delete().eq("trip_expense_id", expense_id).eq("user_id", user_id).execute()
-
-        if shares:
-            try:
-                client.table("trip_expense_splits").insert([
-                    {
-                        "trip_expense_id": expense_id,
-                        "user_id": user_id,
-                        "participant_name": name,
-                        "share_amount": paise / 100,
-                    }
-                    for name, paise in shares.items()
-                ]).execute()
-            except Exception as e:
-                flash(f"Expense updated, but the split couldn't be saved: {e}")
-                return redirect(url_for("trip_detail", trip_id=trip_id))
+        payload.pop("source_id", None)
+        try:
+            if trip["is_group"]:
+                trip_rpc(client, "update_unlinked_trip_expense", {
+                    "p_expense_id": expense_id,
+                    "p_description": payload["description"],
+                    "p_amount": payload["amount"],
+                    "p_category": payload["category"],
+                    "p_expense_date": payload["expense_date"],
+                    "p_payer_member_id": payload["payer_member_id"],
+                    "p_shares": [{"member_id": member_id, "amount": paise / 100} for member_id, paise in shares.items()],
+                })
+            else:
+                trip_rpc(client, "update_solo_trip_expense", {
+                    "p_expense_id": expense_id,
+                    "p_description": payload["description"],
+                    "p_amount": payload["amount"],
+                    "p_category": payload["category"],
+                    "p_expense_date": payload["expense_date"],
+                })
+        except Exception as e:
+            app.logger.info("Trip expense update failed: %s", e)
+            flash(trip_action_error(e, "Couldn't update that expense. Check the details and try again."))
+            return redirect(url_for("trip_detail", trip_id=trip_id))
 
         flash("Expense updated.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
@@ -2684,6 +2934,8 @@ def edit_trip_expense(trip_id, expense_id):
         expense=expense,
         friends=friends,
         people=people,
+        members=[m for m in members if m.get("active")],
+        expense_accounts=get_active_sources(client),
         splits=splits,
         trip_expense_categories=TRIP_EXPENSE_CATEGORIES,
         today=datetime.now(APP_TZ).date().isoformat(),
@@ -2699,7 +2951,18 @@ def delete_trip_expense(trip_id, expense_id):
     if trip and trip.get("status") == "archived":
         flash("Archived trips are read-only.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
-    client.table("trip_expenses").delete().eq("id", expense_id).eq("trip_id", trip_id).eq("user_id", user_id).execute()
+    if not trip:
+        flash("That trip wasn't found.")
+        return redirect(url_for("trips"))
+    try:
+        if trip.get("is_group"):
+            trip_rpc(client, "delete_unlinked_trip_expense", {"p_expense_id": expense_id})
+        else:
+            trip_rpc(client, "delete_unlinked_trip_expense", {"p_expense_id": expense_id})
+    except Exception as e:
+        app.logger.info("Trip expense deletion failed: %s", e)
+        flash(trip_action_error(e, "Couldn't delete that expense. Account-linked expense history is protected."))
+        return redirect(url_for("trip_detail", trip_id=trip_id))
     flash("Expense deleted.")
     return redirect(url_for("trip_detail", trip_id=trip_id))
 
@@ -2722,37 +2985,25 @@ def add_trip_settlement(trip_id):
     from_person = (request.form.get("from_person") or "").strip()
     to_person = (request.form.get("to_person") or "").strip()
     amount = parse_money(request.form.get("amount"))
-    status = request.form.get("status", "pending")
     settlement_date = parse_iso_date(request.form.get("settlement_date")) or datetime.now(APP_TZ).date()
-    people_names = set(data["people"].values())
-
-    if from_person not in people_names or to_person not in people_names or from_person == to_person:
+    if from_person not in data["people"] or to_person not in data["people"] or from_person == to_person:
         flash("Pick two different trip members.")
         return back
     if amount is None:
         flash("Enter a valid settlement amount.")
         return back
-    if status not in ("pending", "paid"):
-        flash("Pick Pending or Paid.")
-        return back
-
-    from_net = data["net"].get(from_person, 0)
-    to_net = data["net"].get(to_person, 0)
-    if from_net >= 0 or to_net <= 0 or _to_paise(amount) > min(-from_net, to_net):
-        flash("That settlement is larger than the current amount that can be settled between these members.")
-        return back
-
-    created = client.table("trip_settlements").insert({
-        "trip_id": trip_id,
-        "user_id": user_id,
-        "from_person": from_person,
-        "to_person": to_person,
-        "amount": amount,
-        "settlement_date": settlement_date.isoformat(),
-        "status": status,
-        "paid_at": datetime.now(timezone.utc).isoformat() if status == "paid" else None,
-    }).execute()
-    flash("Settlement recorded.")
+    try:
+        trip_rpc(client, "create_trip_settlement", {
+            "p_trip_id": trip_id,
+            "p_from_member_id": int(from_person),
+            "p_to_member_id": int(to_person),
+            "p_amount": amount,
+            "p_settlement_date": settlement_date.isoformat(),
+        })
+        flash("Pending settlement recorded. Mark it paid when the money moves.")
+    except Exception as e:
+        app.logger.info("Trip settlement creation failed: %s", e)
+        flash(trip_action_error(e, "Couldn't record that settlement. Check the members and amount."))
     return back
 
 
@@ -2769,10 +3020,9 @@ def update_trip_settlement_status(trip_id, settlement_id):
 
     rows = (
         client.table("trip_settlements")
-        .select("*")
+        .select("id, trip_id, from_member_id, to_member_id, amount, settlement_date, status, paid_at")
         .eq("id", settlement_id)
         .eq("trip_id", trip_id)
-        .eq("user_id", user_id)
         .limit(1)
         .execute()
         .data
@@ -2790,22 +3040,92 @@ def update_trip_settlement_status(trip_id, settlement_id):
         flash("Archived trips are read-only.")
         return back
 
-    if new_status == "paid" and settlement.get("status") != "paid":
-        data = load_trip_financials(client, user_id, trip_id)
-        amount_paise = _to_paise(settlement.get("amount"))
-        from_net = data["net"].get(settlement.get("from_person"), 0)
-        to_net = data["net"].get(settlement.get("to_person"), 0)
-        if from_net >= 0 or to_net <= 0 or amount_paise > min(-from_net, to_net):
-            flash("This settlement is no longer valid for the current balances.")
-            return back
-
-    update = {
-        "status": new_status,
-        "paid_at": datetime.now(timezone.utc).isoformat() if new_status == "paid" else None,
-    }
-    client.table("trip_settlements").update(update).eq("id", settlement_id).eq("trip_id", trip_id).eq("user_id", user_id).execute()
-    flash("Settlement status updated.")
+    raw_source = (request.form.get("source_id") or "").strip()
+    try:
+        source_id = int(raw_source) if raw_source else None
+        trip_rpc(client, "set_trip_settlement_paid", {
+            "p_settlement_id": settlement_id,
+            "p_source_id": source_id,
+            "p_new_status": new_status,
+        })
+        flash("Settlement updated. Account records were adjusted with it.")
+    except Exception as e:
+        app.logger.info("Trip settlement update failed: %s", e)
+        flash(trip_action_error(e, "Couldn't update that settlement. Check the account and current status."))
     return back
+
+
+@app.route("/trips/<int:trip_id>/shares/<int:share_id>/accept", methods=["POST"])
+@login_required
+def accept_trip_expense_share(trip_id, share_id):
+    client = get_user_client()
+    try:
+        raw_source = (request.form.get("source_id") or "").strip()
+        source_id = int(raw_source) if raw_source else None
+        trip_rpc(client, "accept_trip_expense_share", {"p_share_id": share_id, "p_source_id": source_id})
+        flash("Your share is now recorded as a personal expense. Account balances were not changed.")
+    except Exception as e:
+        app.logger.info("Trip share accept failed: %s", e)
+        flash(trip_action_error(e, "Couldn't accept that share. Choose an account and try again."))
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/shares/<int:share_id>/reject", methods=["POST"])
+@login_required
+def reject_trip_expense_share(trip_id, share_id):
+    client = get_user_client()
+    try:
+        trip_rpc(client, "reject_trip_expense_share", {"p_share_id": share_id})
+        flash("Share rejected. The trip owner can reassign it to another member.")
+    except Exception as e:
+        app.logger.info("Trip share rejection failed: %s", e)
+        flash(trip_action_error(e, "Couldn't reject that share. Refresh and try again."))
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/shares/<int:share_id>/reassign", methods=["POST"])
+@login_required
+def reassign_rejected_trip_share(trip_id, share_id):
+    client = get_user_client()
+    try:
+        replacement_id = int(request.form.get("member_id") or 0)
+        trip_rpc(client, "reassign_rejected_trip_share", {
+            "p_share_id": share_id,
+            "p_replacement_member_id": replacement_id,
+        })
+        flash("Rejected share reassigned.")
+    except Exception as e:
+        app.logger.info("Trip share reassignment failed: %s", e)
+        flash(trip_action_error(e, "Couldn't reassign that share. Choose an active member."))
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/settlements/<int:settlement_id>/receipt", methods=["POST"])
+@login_required
+def record_trip_settlement_receipt(trip_id, settlement_id):
+    client = get_user_client()
+    try:
+        source_id = int(request.form.get("source_id") or 0)
+        trip_rpc(client, "record_trip_settlement_receipt", {
+            "p_settlement_id": settlement_id,
+            "p_source_id": source_id,
+        })
+        flash("Settlement receipt recorded in your selected account.")
+    except Exception as e:
+        app.logger.info("Trip settlement receipt failed: %s", e)
+        flash(trip_action_error(e, "Couldn't record that receipt. Choose an active account."))
+    return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/transactions/<int:transaction_id>/linked")
+@login_required
+def linked_transaction(transaction_id):
+    client = get_user_client()
+    rows = client.table("transactions").select("id, direction, category, amount, currency, description, transaction_date, source_id, trip_expense_id, trip_expense_share_id, trip_settlement_id").eq("id", transaction_id).eq("user_id", session["user_id"]).limit(1).execute().data
+    if not rows:
+        flash("That linked transaction wasn't found.")
+        return redirect(url_for("trip_home"))
+    return render_template("linked_transaction.html", transaction=rows[0])
 
 
 @app.route("/trips/<int:trip_id>/delete", methods=["POST"])
@@ -2813,7 +3133,14 @@ def update_trip_settlement_status(trip_id, settlement_id):
 def delete_trip(trip_id):
     client = get_user_client()
     user_id = session["user_id"]
-    client.table("trips").delete().eq("id", trip_id).eq("user_id", user_id).execute()
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip or not is_trip_owner(client, trip_id):
+        flash("Only the trip owner can delete this trip.")
+        return redirect(url_for("trips"))
+    if trip.get("status") == "archived":
+        flash("Archived trips are read-only.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    client.table("trips").delete().eq("id", trip_id).select("id").execute()
     if session.get("active_trip") == trip_id:
         session.pop("active_trip", None)
     flash("Trip deleted.")
@@ -2829,6 +3156,12 @@ def update_trip_status(trip_id):
     if not trip:
         flash("That trip wasn't found.")
         return redirect(url_for("trips"))
+    if not is_trip_owner(client, trip_id):
+        flash("Only the trip owner can change trip status.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
+    if trip.get("status") == "archived":
+        flash("Archived trips are read-only.")
+        return redirect(url_for("trip_detail", trip_id=trip_id))
     status = request.form.get("status")
     if status not in ("planned", "active", "completed", "archived"):
         flash("Pick a valid trip status.")
@@ -2836,7 +3169,7 @@ def update_trip_status(trip_id):
     client.table("trips").update({
         "status": status,
         "active": status != "archived",
-    }).eq("id", trip_id).eq("user_id", user_id).execute()
+    }).eq("id", trip_id).select("id").execute()
     flash("Trip status updated.")
     return redirect(url_for("trip_detail", trip_id=trip_id))
 
@@ -2854,60 +3187,97 @@ def trip_detail(trip_id):
         return redirect(url_for("trips"))
 
     session["active_trip"] = trip_id
-    # Trip list entries prepare this display label themselves; trip detail
-    # receives a fresh row from Supabase, so prepare it here too.
     trip["status_label"] = trip_status_label(trip.get("status"))
-
-    with ThreadPoolExecutor(max_workers=4) as pool:
-        friends_f = pool.submit(get_trip_people, client, user_id, trip_id)
-        expenses_f = pool.submit(
-            lambda: client.table("trip_expenses")
-            .select("*")
-            .eq("trip_id", trip_id)
-            .eq("user_id", user_id)
-            .order("expense_date", desc=True)
-            .order("id", desc=True)
-            .execute()
-            .data
-        )
-        settlement_f = pool.submit(get_trip_settlement_rows, client, user_id, trip_id)
-        people_result = friends_f.result()
-        expenses = expenses_f.result()
-        settlement_rows = settlement_f.result()
-
-    friends, people = people_result
+    trip_owner = is_trip_owner(client, trip_id)
+    current_id = current_trip_member_id(client, trip_id)
+    friends, people, members, current_id = get_trip_people(client, user_id, trip_id)
+    expenses = (
+        client.table("trip_expenses")
+        .select("id, trip_id, description, amount, paid_by, expense_date, category, created_at, payer_member_id")
+        .eq("trip_id", trip_id)
+        .order("expense_date", desc=True)
+        .order("id", desc=True)
+        .execute()
+        .data
+    )
+    settlement_rows = get_trip_settlement_rows(client, user_id, trip_id)
     expense_ids = [e["id"] for e in expenses]
-    splits = []
-    if expense_ids:
-        splits = (
-            client.table("trip_expense_splits")
-            .select("*")
-            .eq("user_id", user_id)
-            .in_("trip_expense_id", expense_ids)
-            .execute()
-            .data
-        )
+    shares = client.table("trip_expense_shares").select("id, trip_expense_id, trip_member_id, amount, status, created_at, responded_at").in_("trip_expense_id", expense_ids).execute().data if expense_ids else []
+    splits = client.table("trip_expense_splits").select("trip_expense_id, trip_member_id, participant_name, share_amount").in_("trip_expense_id", expense_ids).execute().data if expense_ids else []
+    share_links = get_trip_share_links(client, trip_id)
+    for share in shares:
+        share.update(share_links.get(share["id"], {}))
+    expense_permissions = get_trip_expense_permissions(client, trip_id)
+    for expense in expenses:
+        permission = expense_permissions.get(expense["id"], {})
+        expense["is_author"] = bool(permission.get("is_author"))
+        if expense["is_author"]:
+            expense["payment_transaction_id"] = permission.get("payment_transaction_id")
+    linked_share_expense_ids = {s["trip_expense_id"] for s in shares if s.get("personal_transaction_id") or s.get("payer_transaction_id")}
+
+    member_by_id = {m["id"]: m for m in members}
+    shares_by_expense = defaultdict(list)
+    authored_expense_ids = {e["id"] for e in expenses if e.get("is_author")}
+    for share in shares:
+        member = member_by_id.get(share["trip_member_id"], {})
+        share["member_name"] = member.get("name") or member.get("display_name") or "Former member"
+        share["is_you"] = share.get("trip_member_id") == current_id
+        share["can_respond"] = share["is_you"] and share.get("status") == "pending"
+        # Personal transaction ids are private to that account. The payer's
+        # receivable id is visible only to the account that created it.
+        if not share["is_you"]:
+            share.pop("personal_transaction_id", None)
+        if share.get("trip_expense_id") not in authored_expense_ids:
+            share.pop("payer_transaction_id", None)
+        shares_by_expense[share["trip_expense_id"]].append(share)
 
     splits_by_expense = defaultdict(list)
-    for s in splits:
-        splits_by_expense[s["trip_expense_id"]].append(s)
-    for e in expenses:
-        e["splits"] = splits_by_expense[e["id"]]
+    for split in splits:
+        splits_by_expense[split["trip_expense_id"]].append(split)
+    for expense in expenses:
+        expense["shares"] = shares_by_expense[expense["id"]]
+        expense["splits"] = splits_by_expense[expense["id"]]
+        expense["can_edit"] = expense.get("is_author") and not expense.get("payment_transaction_id") and expense["id"] not in linked_share_expense_ids
+        payer_member = member_by_id.get(expense.get("payer_member_id"), {})
+        expense["payer_name"] = payer_member.get("name") or expense.get("paid_by") or "Former member"
+        if not expense["is_author"]:
+            expense.pop("payment_transaction_id", None)
 
+    paid, owed, net = calculate_trip_balances(members, expenses, shares, settlement_rows, splits)
     total_paise = sum(_to_paise(e["amount"]) for e in expenses)
-    paid, owed, net = compute_trip_summary(list(people.values()), expenses, splits)
-    net = apply_paid_trip_settlements(net, settlement_rows)
-
-    people_rows = [
-        {
-            "name": n,
-            "paid": paid[n] / 100,
-            "owed": owed[n] / 100,
-            "net": net[n] / 100,
-        }
-        for n in people.values()
-    ]
-    settlements = simplify_settlements(net)
+    people_rows = []
+    for member in members:
+        member_id = member["id"]
+        people_rows.append({
+            "member_id": member_id,
+            "name": member.get("name") or "Former member",
+            "paid": paid.get(member_id, 0) / 100,
+            "owed": owed.get(member_id, 0) / 100,
+            "net": net.get(member_id, 0) / 100,
+            "active": member.get("active", False),
+        })
+    settlements = []
+    for suggestion in suggested_settlements(net):
+        settlements.append({
+            "from": member_by_id.get(suggestion["from_member_id"], {}).get("name", "Former member"),
+            "to": member_by_id.get(suggestion["to_member_id"], {}).get("name", "Former member"),
+            "from_member_id": suggestion["from_member_id"],
+            "to_member_id": suggestion["to_member_id"],
+            "amount": suggestion["amount"],
+        })
+    for row in settlement_rows:
+        from_member = member_by_id.get(row.get("from_member_id"), {})
+        to_member = member_by_id.get(row.get("to_member_id"), {})
+        row["from_name"] = from_member.get("name") or row.get("from_person") or "Former member"
+        row["to_name"] = to_member.get("name") or row.get("to_person") or "Former member"
+        row["is_your_payment"] = row.get("from_member_id") == current_id
+        row["is_your_receipt"] = row.get("to_member_id") == current_id
+        row["can_mark_paid"] = row["is_your_payment"] or (trip_owner and not from_member.get("is_minto", True))
+        row["can_undo_paid"] = row["is_your_payment"] or (trip_owner and not from_member.get("is_minto", True))
+        if not row["is_your_payment"]:
+            row.pop("from_transaction_id", None)
+        if not row["is_your_receipt"]:
+            row.pop("to_transaction_id", None)
     pending_settlements = [s for s in settlement_rows if s.get("status") == "pending"]
     paid_settlements = [s for s in settlement_rows if s.get("status") == "paid"]
 
@@ -2921,7 +3291,7 @@ def trip_detail(trip_id):
     for e in expenses:
         if filter_category and e.get("category", "other") != filter_category:
             continue
-        if filter_payer and e.get("paid_by") != filter_payer:
+        if filter_payer and str(e.get("payer_member_id")) != filter_payer and e.get("paid_by") != filter_payer:
             continue
         if filter_q and filter_q.lower() not in (e.get("description") or "").lower():
             continue
@@ -2943,6 +3313,10 @@ def trip_detail(trip_id):
         trip=trip,
         friends=friends,
         people=people,
+        members=members,
+        current_member_id=current_id,
+        trip_owner=trip_owner,
+        expense_accounts=get_active_sources(client),
         expenses=filtered_expenses,
         all_expense_count=len(expenses),
         filtered_expense_count=len(filtered_expenses),
@@ -2952,8 +3326,8 @@ def trip_detail(trip_id):
         pending_settlements=pending_settlements,
         paid_settlements=paid_settlements,
         trip_settlements=settlement_rows,
-        your_share=owed.get("You", 0) / 100,
-        your_paid=paid.get("You", 0) / 100,
+        your_share=owed.get(current_id, 0) / 100,
+        your_paid=paid.get(current_id, 0) / 100,
         date_summary=date_summary,
         budget=budget,
         budget_remaining=budget_remaining,
@@ -3141,7 +3515,7 @@ def compute_source_balances(client, user_id):
 
     all_txns = (
         client.table("transactions")
-        .select("source_id, amount, direction, category, transaction_date, is_previous_card_bill")
+        .select("source_id, amount, direction, category, transaction_date, is_previous_card_bill, affects_source_balance, trip_expense_share_id, trip_share_status")
         .eq("user_id", user_id)
         .execute()
         .data
@@ -3150,7 +3524,7 @@ def compute_source_balances(client, user_id):
     flows = defaultdict(lambda: {"in": 0.0, "out": 0.0})
     for t in all_txns:
         sid = t.get("source_id")
-        if sid is None or not t.get("amount"):
+        if sid is None or not t.get("amount") or t.get("affects_source_balance") is False:
             continue
         flows[sid][t["direction"]] += float(t["amount"])
 
@@ -3181,7 +3555,7 @@ def compute_source_balances(client, user_id):
     return savings, credit_cards, all_txns
 
 
-def compute_net_worth(all_txns, savings, credit_cards, manual_items=None):
+def compute_net_worth(all_txns, savings, credit_cards, manual_items=None, trip_payables=0):
     total_savings = sum(s["balance"] for s in savings)
     total_cc_debt = sum(s["outstanding"] for s in credit_cards)
     total_cc_limit = sum(s["limit"] for s in credit_cards if s.get("limit"))
@@ -3199,13 +3573,18 @@ def compute_net_worth(all_txns, savings, credit_cards, manual_items=None):
     )
     total_invested = invested_out - invested_in
 
+    def counts_as_lending_asset(transaction):
+        if transaction.get("trip_expense_share_id") is not None:
+            return transaction.get("trip_share_status") in ("accepted", "settled")
+        return True
+
     lent_out = sum(
         float(t["amount"]) for t in all_txns
-        if t.get("category") == "lending" and t.get("direction") == "out" and t.get("amount")
+        if t.get("category") == "lending" and t.get("direction") == "out" and t.get("amount") and counts_as_lending_asset(t)
     )
     lent_in = sum(
         float(t["amount"]) for t in all_txns
-        if t.get("category") == "lending" and t.get("direction") == "in" and t.get("amount")
+        if t.get("category") == "lending" and t.get("direction") == "in" and t.get("amount") and counts_as_lending_asset(t)
     )
     total_lent = lent_out - lent_in
 
@@ -3216,6 +3595,7 @@ def compute_net_worth(all_txns, savings, credit_cards, manual_items=None):
         "total_savings": total_savings,
         "total_invested": total_invested,
         "total_lent": total_lent,
+        "trip_payables": float(trip_payables or 0),
         "total_cc_debt": total_cc_debt,
         "manual_assets": manual_assets,
         "manual_liabilities": manual_liabilities,
@@ -3227,6 +3607,7 @@ def compute_net_worth(all_txns, savings, credit_cards, manual_items=None):
             + manual_assets
             - total_cc_debt
             - manual_liabilities
+            - float(trip_payables or 0)
         ),
     }
 
@@ -3921,7 +4302,10 @@ def dashboard():
     # sources, or convert cash into a receivable you'll get back — so both
     # are excluded from these period totals to avoid inflating "money in/out"
     # with money that never actually left your net worth.
-    non_flow_categories = ("transfer", "lending")
+    # Trip payments and settlements change account balances, but the linked
+    # share transaction is the consumption entry. Excluding these categories
+    # keeps Dashboard and reports from counting the full bill twice.
+    non_flow_categories = ("transfer", "lending", "trip_expense_payment", "trip_settlement")
     total_in = sum(
         float(t["amount"]) for t in txns
         if t["direction"] == "in" and t["amount"] and t["category"] not in non_flow_categories
@@ -3953,7 +4337,8 @@ def dashboard():
         profile_settings = profile_settings_rows[0] if profile_settings_rows else {}
     except Exception:
         profile_settings = {}
-    wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items)
+    trip_payables = get_trip_payables(client, user_id)
+    wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items, trip_payables)
 
     # Fixed monthly commitments plus expected CC statements form the dashboard's
     # future obligations. They are independent of the period tabs.

@@ -70,9 +70,11 @@
       </div>
 
       <div id="friends-field" class="friends-field visible">
-        <label for="friends">Members</label>
-        <input type="text" id="friends" name="friends" placeholder="Rohan, Priya, Aman">
-        <p class="hint" style="margin-top:8px;">You are always included. Members can be added later.</p>
+        <label for="guest_names">Guest names</label>
+        <input type="text" id="guest_names" name="guest_names" placeholder="Rohan, Priya, Aman">
+        <label for="friend_usernames">Minto friend usernames</label>
+        <input type="text" id="friend_usernames" name="friend_usernames" placeholder="mira, arjun_23">
+        <p class="hint" style="margin-top:8px;">You are included automatically. Linked Minto accounts must already be your friends.</p>
       </div>
 
       <button type="submit">Create trip</button>
@@ -87,7 +89,7 @@
       <li>
         <a class="trip-link" href="{{ url_for('trip_detail', trip_id=t.id) }}">
           <div style="min-width:0;">
-            <div style="margin-bottom:6px;"><span class="pill {{ t.status }}">{{ t.status_label }}</span></div>
+            <div style="margin-bottom:6px;"><span class="pill {{ t.status }}">{{ t.status_label }}</span>{% if not t.is_owner %} <span class="pill">Shared with you</span>{% endif %}</div>
             <div class="trip-name">{{ t.name }}</div>
             <div class="trip-meta">
               {% if t.destination %}{{ t.destination }}{% endif %}

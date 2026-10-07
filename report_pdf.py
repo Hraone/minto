@@ -78,7 +78,7 @@ PALETTE = [
     ("#1F6F50", "#E0A030", "#3B7EA1", "#C8553D", "#7FA37A", "#5B6770", "#C9B79C", "#2A9D8F")
 ]
 
-NON_FLOW = ("transfer", "lending")
+NON_FLOW = ("transfer", "lending", "trip_expense_payment", "trip_settlement")
 WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 WEEKDAYS_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
