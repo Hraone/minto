@@ -76,6 +76,124 @@
     color: var(--muted-2);
   }
 
+  .profile-avatar-button {
+    flex: none;
+    width: 60px;
+    height: 60px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: var(--positive);
+    color: #fff;
+    font-size: 26px;
+    font-weight: 700;
+    cursor: pointer;
+    position: relative;
+    box-shadow: none;
+  }
+
+  .profile-avatar-button:hover {
+    transform: scale(1.03);
+    box-shadow: 0 6px 18px var(--shadow-soft);
+  }
+
+  .profile-avatar-button::after {
+    content: "✎";
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 19px;
+    height: 19px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    font-size: 9px;
+  }
+
+  .profile-edit-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: auto;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    cursor: pointer;
+    box-shadow: none;
+    text-align: left;
+  }
+
+  .profile-edit-trigger:hover {
+    color: var(--positive);
+    background: transparent;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .profile-edit-icon {
+    opacity: .45;
+    font-size: 11px;
+  }
+
+  .profile-inline-editor,
+  .profile-emoji-editor {
+    margin-top: 12px;
+  }
+
+  .profile-inline-editor[hidden],
+  .profile-emoji-editor[hidden] {
+    display: none;
+  }
+
+  .profile-inline-form {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .profile-inline-form input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .profile-inline-save {
+    width: auto;
+    margin: 0;
+    padding: 10px 14px;
+    border: 0;
+    border-radius: 10px;
+    background: var(--positive);
+    color: #fff;
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .profile-inline-cancel {
+    width: auto;
+    margin: 0;
+    padding: 10px 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .profile-inline-cancel:hover {
+    background: var(--surface-subtle);
+  }
+
   .profile-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -416,12 +534,49 @@
 
   <div class="profile-card">
     <div class="profile-head">
-      <div class="profile-avatar">{{ profile_emoji }}</div>
-      <div>
-        <h2 class="profile-name">{{ display_name }}</h2>
+      <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile emoji">
+        {{ profile_emoji }}
+      </button>
+
+      <div style="min-width:0; flex:1;">
+        <button type="button" class="profile-edit-trigger" id="profile-name-trigger" aria-expanded="false">
+          <span class="profile-name">{{ display_name }}</span>
+          <span class="profile-edit-icon" aria-hidden="true">✎</span>
+        </button>
         <p class="profile-email">{{ email }}</p>
       </div>
     </div>
+
+    <div class="profile-inline-editor" id="profile-name-editor" hidden>
+      <form method="post" action="{{ url_for('update_profile_name') }}" class="profile-inline-form">
+        <input
+          type="text"
+          name="display_name"
+          maxlength="40"
+          value="{{ display_name if has_custom_name else '' }}"
+          placeholder="{{ display_name }}"
+          autocomplete="name"
+          aria-label="Display name"
+        >
+        <button type="submit" class="profile-inline-save">Save</button>
+        <button type="button" class="profile-inline-cancel" id="profile-name-cancel">Cancel</button>
+      </form>
+    </div>
+
+    <div class="profile-emoji-editor" id="profile-emoji-editor" hidden>
+      <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
+        <div class="emoji-picker">
+          {% for emoji in profile_emojis %}
+          <div class="emoji-option">
+            <input type="radio" id="profile-emoji-{{ loop.index }}" name="profile_emoji" value="{{ emoji }}" {% if profile_emoji == emoji %}checked{% endif %}>
+            <label for="profile-emoji-{{ loop.index }}" aria-label="Choose {{ emoji }}">{{ emoji }}</label>
+          </div>
+          {% endfor %}
+        </div>
+        <button type="submit" class="profile-save">Save emoji</button>
+      </form>
+    </div>
+
     {% if member_since %}
     <p class="profile-since">Member since {{ member_since }}</p>
     {% endif %}
@@ -440,39 +595,6 @@
       <strong>{{ trips if trips is not none else '-' }}</strong>
       <span>Trips</span>
     </div>
-  </div>
-
-  <div class="profile-card">
-    <h3>Your name</h3>
-    <form method="post" action="{{ url_for('update_profile_name') }}">
-      <label for="display_name">Display name</label>
-      <input
-        type="text"
-        id="display_name"
-        name="display_name"
-        maxlength="40"
-        value="{{ display_name if has_custom_name else '' }}"
-        placeholder="{{ display_name }}"
-        autocomplete="name"
-      >
-      <button type="submit" class="profile-save">Save</button>
-    </form>
-  </div>
-
-  <div class="profile-card">
-    <h3>Profile emoji</h3>
-    <p class="profile-email" style="margin-bottom: 12px;">Choose the emoji shown in the Minto navbar.</p>
-    <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
-      <div class="emoji-picker">
-        {% for emoji in profile_emojis %}
-        <div class="emoji-option">
-          <input type="radio" id="profile-emoji-{{ loop.index }}" name="profile_emoji" value="{{ emoji }}" {% if profile_emoji == emoji %}checked{% endif %}>
-          <label for="profile-emoji-{{ loop.index }}" aria-label="Choose {{ emoji }}">{{ emoji }}</label>
-        </div>
-        {% endfor %}
-      </div>
-      <button type="submit" class="profile-save">Save emoji</button>
-    </form>
   </div>
 
   <div class="profile-card">
@@ -544,6 +666,51 @@
       </form>
     </div>
   </details>
+
+  <script>
+    (function () {
+      const nameTrigger = document.getElementById('profile-name-trigger');
+      const nameEditor = document.getElementById('profile-name-editor');
+      const nameCancel = document.getElementById('profile-name-cancel');
+      const avatarTrigger = document.getElementById('profile-avatar-trigger');
+      const emojiEditor = document.getElementById('profile-emoji-editor');
+
+      function setHidden(el, hidden) {
+        if (!el) return;
+        el.hidden = hidden;
+      }
+
+      if (nameTrigger && nameEditor) {
+        nameTrigger.addEventListener('click', function () {
+          const open = nameEditor.hidden;
+          setHidden(nameEditor, !open);
+          nameTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
+          if (open) {
+            const input = nameEditor.querySelector('input[name="display_name"]');
+            if (input) {
+              input.focus();
+              input.select();
+            }
+          }
+        });
+      }
+
+      if (nameCancel) {
+        nameCancel.addEventListener('click', function () {
+          setHidden(nameEditor, true);
+          if (nameTrigger) nameTrigger.setAttribute('aria-expanded', 'false');
+        });
+      }
+
+      if (avatarTrigger && emojiEditor) {
+        avatarTrigger.addEventListener('click', function () {
+          const open = emojiEditor.hidden;
+          setHidden(emojiEditor, !open);
+          if (open) emojiEditor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+      }
+    })();
+  </script>
 
   <script>
     (function () {
