@@ -887,7 +887,7 @@
 </style>
 
 <script>
-(function () {
+document.addEventListener("DOMContentLoaded", function () {
   var alerts = document.getElementById("dashboard-alerts");
   var toggle = document.getElementById("dashboard-alerts-toggle");
   if (!alerts || !toggle) return;
@@ -910,7 +910,7 @@
   toggle.addEventListener("click", function () {
     setCollapsed(!alerts.classList.contains("is-collapsed"));
   });
-})();
+});
 </script>
 
 <div class="dash-wrapper">
