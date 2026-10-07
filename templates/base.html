@@ -1019,15 +1019,22 @@
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      background: var(--positive);
-      color: #fff;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      color: var(--text);
       text-decoration: none;
-      font-size: 14px;
-      font-weight: 700;
+      overflow: hidden;
+      box-shadow: 0 2px 8px var(--shadow-soft);
     }
 
     .user-avatar.static {
       opacity: 0.85;
+    }
+
+    .profile-avatar-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
     }
 
     /* Personal <-> Trip: a curtain slides up over the page, the next page
@@ -1340,7 +1347,7 @@
         aria-label="Open profile menu"
         title="{{ nav_name }}"
         onclick="toggleNavProfile(event)"
-      >{{ profile_emoji }}</a>
+      ><svg class="profile-avatar-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use></svg></a>
       <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
         <a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>
@@ -1351,7 +1358,7 @@
     {% endif %}
 
     {% if session.get('user_id') and app_mode == 'trip' %}
-    <span class="user-avatar static" title="{{ nav_name }}">{{ profile_emoji }}</span>
+    <span class="user-avatar static" title="{{ nav_name }}"><svg class="profile-avatar-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use></svg></span>
     {% endif %}
 
     {% if session.get('user_id') %}
