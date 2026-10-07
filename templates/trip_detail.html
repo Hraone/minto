@@ -26,6 +26,14 @@
   .section-card h3{margin:0 0 4px;font-size:16px;font-weight:700}
   .sub{margin:0 0 14px;font-size:13px;line-height:1.5}
   .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .trip-settings-card{padding:0;overflow:hidden}
+  .trip-settings-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:22px 24px;cursor:pointer;list-style:none}
+  .trip-settings-summary::-webkit-details-marker{display:none}
+  .trip-settings-summary strong{display:block;font-size:16px;font-weight:700;color:var(--text)}
+  .trip-settings-sub{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:var(--muted)}
+  .trip-settings-toggle{width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex:none;border:1px solid var(--border);border-radius:9px;color:var(--muted);font-size:20px;line-height:1}
+  .trip-settings-card[open] .trip-settings-toggle{transform:rotate(45deg)}
+  .trip-settings-content{padding:0 24px 24px}
   .people-list{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 15px}
   .person{display:inline-flex;align-items:center;gap:6px;padding:8px 8px 8px 13px;border:1px solid var(--border);border-radius:10px;background:var(--input-bg);font-size:13px;font-weight:650;color:var(--text-secondary)}
   .person.you{padding-right:13px}
@@ -92,7 +100,7 @@
       </p>
     </div>
     <div class="head-actions">
-      <button type="button" class="mini-btn" onclick="document.getElementById('trip-settings').scrollIntoView({behavior:'smooth'})">Edit trip</button>
+      <button type="button" class="mini-btn" onclick="openTripSettings()">Edit trip</button>
       <form method="post" action="{{ url_for('delete_trip', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip and all of its expenses? This cannot be undone.');">
         <button type="submit" class="mini-btn danger-btn">Delete</button>
       </form>
@@ -126,9 +134,16 @@
   </div>
   {% endif %}
 
-  <div class="section-card">
-    <h3>Trip settings</h3><p class="sub">Keep the trip plan and lifecycle status up to date.</p>
-    <form method="post" action="{{ url_for('update_trip', trip_id=trip.id) }}" id="trip-settings">
+  <details class="section-card trip-settings-card" id="trip-settings">
+    <summary class="trip-settings-summary">
+      <span>
+        <strong>Trip settings</strong>
+        <span class="trip-settings-sub">Keep the trip plan and lifecycle status up to date.</span>
+      </span>
+      <span class="trip-settings-toggle" aria-hidden="true">+</span>
+    </summary>
+    <div class="trip-settings-content">
+    <form method="post" action="{{ url_for('update_trip', trip_id=trip.id) }}">
       <label for="trip-name">Trip name</label><input type="text" id="trip-name" name="name" value="{{ trip.name }}" required maxlength="80">
       <div class="field-row">
         <div><label for="destination">Destination</label><input type="text" id="destination" name="destination" value="{{ trip.destination or '' }}" maxlength="120"></div>
@@ -147,7 +162,8 @@
       </select>
       <button type="submit">Save trip details</button>
     </form>
-  </div>
+    </div>
+  </details>
 
   <div class="section-card">
     <h3>Add Expense</h3>
@@ -262,6 +278,15 @@
 
 {% if trip.is_group %}
 <script>
+function openTripSettings() {
+  const details = document.getElementById("trip-settings");
+  if (!details) return;
+  details.open = true;
+  setTimeout(function () {
+    details.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 30);
+}
+
 function toggleSplitBlocks(){const type=document.querySelector('input[name="split_type"]:checked')?.value;document.getElementById("split-subset").classList.toggle("visible",type==="subset");document.getElementById("split-custom").classList.toggle("visible",type==="custom");updateCustomSum();}
 function updateCustomSum(){const label=document.getElementById("custom-sum");if(!label)return;const total=parseFloat(document.getElementById("amount").value)||0;let assigned=0;document.querySelectorAll('#split-custom input[type="number"]').forEach(i=>assigned+=parseFloat(i.value)||0);const matches=Math.round(assigned*100)===Math.round(total*100);label.textContent="Assigned ₹"+assigned.toFixed(2)+" of ₹"+total.toFixed(2);label.classList.toggle("ok",matches&&total>0);label.classList.toggle("bad",!matches);}
 document.addEventListener("DOMContentLoaded",toggleSplitBlocks);
