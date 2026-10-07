@@ -61,7 +61,7 @@ MODES = ("personal", "trip")
 # Profile avatars are illustrated Minto SVG avatars rather than random
 # Unicode emojis. Keep the legacy DB column name ("profile_emoji") for
 # backwards compatibility with existing profiles.
-PROFILE_AVATARS = [f"avatar-{i:02d}" for i in range(1, 17)]
+PROFILE_AVATARS = [f"avatar-{i:02d}" for i in range(1, 25)]
 LEGACY_PROFILE_EMOJI_MAP = {
     "😀": "avatar-01", "😃": "avatar-02", "😄": "avatar-03", "😁": "avatar-04",
     "😆": "avatar-05", "😅": "avatar-06", "😂": "avatar-07", "🤣": "avatar-08",
