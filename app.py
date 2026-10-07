@@ -55,9 +55,14 @@ def add_no_cache_headers(response):
 
 
 MODES = ("personal", "trip")
+# Keep profile choices to expressive face emojis only. The actual glyph
+# rendering follows the user's platform emoji font (including Apple's on Apple
+# devices), so Minto avoids mixing in random animals/objects as avatars.
 PROFILE_EMOJIS = [
-    "😀", "😎", "🤓", "🦊", "🐼", "🐸", "🐱", "🦁", "🐯", "🐨",
-    "🦄", "🌟", "🔥", "🎯", "🚀", "💰", "🎵", "🌈", "🍀", "⚡"
+    "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣",
+    "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰",
+    "😘", "😗", "😙", "😚", "😋", "😛", "😜", "🤪",
+    "🤨", "🧐", "🤓", "😎", "🥳", "🤩"
 ]
 
 # In Trip mode the app shows trip pages and nothing else. This is an allow
