@@ -24,6 +24,7 @@ from report_pdf import build_report_pdf
 load_dotenv()
 
 app = Flask(__name__)
+MINTO_VERSION = "1.5.0"
 app.secret_key = os.environ["SECRET_KEY"]
 # How long a logged-in session survives with no activity at all — separate
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
@@ -249,6 +250,7 @@ def inject_template_globals():
 
     return {
         "asset_version": "1",
+        "minto_version": MINTO_VERSION,
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
         "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
