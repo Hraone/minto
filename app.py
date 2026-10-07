@@ -4551,10 +4551,11 @@ def web_manifest():
 
 @app.route("/favicon.ico")
 def favicon():
-    # Some browsers request /favicon.ico by convention no matter what the
-    # <head> <link> tags say — this is what was showing up as harmless but
-    # noisy 404s in the deploy logs before.
-    return redirect(url_for("static", filename="favicon.svg"))
+    # Browsers may request /favicon.ico even when the page provides a link tag.
+    # Redirect to an existing asset that matches the signed-in theme.
+    theme = session.get("theme", "light")
+    filename = "favicon-dark.svg" if theme == "dark" else "favicon-light.svg"
+    return redirect(url_for("static", filename=filename))
 
 
 @app.route("/health")

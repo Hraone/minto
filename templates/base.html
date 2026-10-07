@@ -39,17 +39,29 @@
   >
   <script>
     (function () {
+      var favicon = document.getElementById("minto-favicon");
+      if (!favicon) return;
+
+      var lightFavicon = "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
+      var darkFavicon = "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}";
+
       function setFavicon(theme) {
-        var favicon = document.getElementById("minto-favicon");
-        if (!favicon) return;
-        favicon.href = theme === "dark"
-          ? "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}"
-          : "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
+        var href = theme === "dark" ? darkFavicon : lightFavicon;
+        if (favicon.getAttribute("href") !== href) favicon.setAttribute("href", href);
       }
 
       try {
         setFavicon(document.documentElement.getAttribute("data-theme") || "light");
       } catch (e) {}
+
+      if (window.MutationObserver) {
+        new MutationObserver(function () {
+          setFavicon(document.documentElement.getAttribute("data-theme") || "light");
+        }).observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["data-theme"]
+        });
+      }
     })();
   </script>
 
