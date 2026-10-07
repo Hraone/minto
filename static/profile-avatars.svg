@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6f7f9"/>
+      <stop offset="1" stop-color="#e7eaee"/>
+    </linearGradient>
+    <clipPath id="clip"><circle cx="32" cy="32" r="31"/></clipPath>
+  </defs>
+
+  <symbol id="avatar-01" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="url(#bg)"/>
+    <g clip-path="url(#clip)">
+      <path d="M11 66c2-13 10-20 21-20s19 7 21 20" fill="#516b8a"/>
+      <rect x="28" y="39" width="8" height="10" rx="4" fill="#e6ad84"/>
+      <circle cx="32" cy="29" r="14" fill="#f1bd93"/>
+      <path d="M18 28c0-13 7-19 15-19 9 0 15 7 14 19-4-5-9-7-14-7-6 0-10 3-15 7z" fill="#2d2523"/>
+      <circle cx="26" cy="30" r="1.5" fill="#322a28"/><circle cx="38" cy="30" r="1.5" fill="#322a28"/>
+      <path d="M28 36c2 2 6 2 8 0" fill="none" stroke="#9a5c51" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-02" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#edf4f3"/>
+    <g clip-path="url(#clip)">
+      <path d="M9 66c2-14 11-21 23-21s21 7 23 21" fill="#6c8b78"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#c9835c"/>
+      <circle cx="32" cy="29" r="14" fill="#d89468"/>
+      <path d="M18 25c0-11 6-19 15-19 11 0 16 9 15 20-3-4-8-7-13-7-7 0-11 4-17 6z" fill="#5a3526"/>
+      <circle cx="26" cy="30" r="1.5" fill="#2f2420"/><circle cx="38" cy="30" r="1.5" fill="#2f2420"/>
+      <path d="M27 35c3 2 7 2 10 0" fill="none" stroke="#8c4c3f" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-03" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f3f0f7"/>
+    <g clip-path="url(#clip)">
+      <path d="M10 66c2-13 10-20 22-20s20 7 22 20" fill="#8d6aa3"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#f0bc97"/>
+      <circle cx="32" cy="30" r="14" fill="#f5c6a0"/>
+      <path d="M17 29c0-16 7-22 16-22 10 0 16 7 15 20-2-2-4-4-7-5 1 5-1 7-2 9-4-6-12-8-22-2z" fill="#2a2427"/>
+      <circle cx="27" cy="31" r="1.4" fill="#322a2a"/><circle cx="39" cy="31" r="1.4" fill="#322a2a"/>
+      <path d="M28 36c2 2 6 2 8 0" fill="none" stroke="#a26059" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-04" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#eef4fb"/>
+    <g clip-path="url(#clip)">
+      <path d="M9 66c3-13 11-20 23-20s20 7 23 20" fill="#3f6f92"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#7a4b36"/>
+      <circle cx="32" cy="29" r="14" fill="#8b563c"/>
+      <path d="M19 25c1-12 8-18 14-18 9 0 14 6 14 18-3-3-7-5-10-5-7 0-12 2-18 5z" fill="#171719"/>
+      <circle cx="26" cy="30" r="1.5" fill="#211916"/><circle cx="38" cy="30" r="1.5" fill="#211916"/>
+      <path d="M27 35c3 3 7 3 10 0" fill="none" stroke="#6d342e" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M24 28h5M35 28h5" stroke="#332823" stroke-width="1.2" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-05" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f7f1ea"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-20 24-20s21 6 24 20" fill="#d18c5b"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#e5b28c"/>
+      <circle cx="32" cy="30" r="14" fill="#efc39c"/>
+      <path d="M16 27c0-13 7-20 17-20 8 0 15 5 15 16 0 3-1 6-2 8-2-8-8-13-16-13-5 0-10 3-14 9z" fill="#c66d3d"/>
+      <circle cx="26" cy="31" r="1.4" fill="#382a24"/><circle cx="38" cy="31" r="1.4" fill="#382a24"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#ae6d60" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-06" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f0f4ec"/>
+    <g clip-path="url(#clip)">
+      <path d="M9 66c3-14 11-20 23-20s20 6 23 20" fill="#4d7f62"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#b97854"/>
+      <circle cx="32" cy="29" r="14" fill="#c9865f"/>
+      <path d="M18 27c0-12 6-20 15-20 10 0 15 8 14 20-3-5-7-7-13-8-6 0-11 3-16 8z" fill="#1d1816"/>
+      <circle cx="26" cy="30" r="1.5" fill="#211a18"/><circle cx="38" cy="30" r="1.5" fill="#211a18"/>
+      <path d="M25 35c4 3 10 3 14 0" fill="none" stroke="#774037" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M28 37c1 4 7 4 8 0" fill="#704032" opacity=".8"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-07" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f7eef1"/>
+    <g clip-path="url(#clip)">
+      <path d="M9 66c2-14 11-21 23-21s21 7 23 21" fill="#8c5968"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#dca27c"/>
+      <circle cx="32" cy="30" r="14" fill="#eab183"/>
+      <path d="M17 28c0-12 6-20 15-20 10 0 16 7 16 20-2-5-6-8-10-9-3 6-10 9-21 9z" fill="#5d3127"/>
+      <path d="M22 27c4-5 7-6 11-6 4 0 7 1 10 4" fill="none" stroke="#5d3127" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="26" cy="31" r="1.4" fill="#35231f"/><circle cx="38" cy="31" r="1.4" fill="#35231f"/>
+      <path d="M28 36c2 2 6 2 8 0" fill="none" stroke="#94534b" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-08" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#eef1f7"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-20 24-20s21 6 24 20" fill="#6f778b"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#9d6547"/>
+      <circle cx="32" cy="29" r="14" fill="#b97652"/>
+      <path d="M17 28c0-14 6-21 15-21 10 0 16 8 15 21-4-5-8-7-14-7-5 0-10 2-16 7z" fill="#2e2b31"/>
+      <circle cx="26" cy="30" r="1.5" fill="#201b1c"/><circle cx="38" cy="30" r="1.5" fill="#201b1c"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#7c4037" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M23 34c2 4 5 5 9 5s7-1 9-5" fill="none" stroke="#3a2522" stroke-width="2.5" stroke-linecap="round" opacity=".65"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-09" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f1f5f2"/>
+    <g clip-path="url(#clip)">
+      <path d="M9 66c3-14 11-20 23-20s20 6 23 20" fill="#557b68"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#d99b74"/>
+      <circle cx="32" cy="30" r="14" fill="#e0a17a"/>
+      <path d="M18 27c1-13 7-20 15-20 10 0 16 8 15 21-2-5-6-8-11-9-6-1-11 2-19 8z" fill="#8f5b35"/>
+      <circle cx="26" cy="31" r="1.4" fill="#2b211d"/><circle cx="38" cy="31" r="1.4" fill="#2b211d"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#9a5a50" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M29 27h6" stroke="#493122" stroke-width="1.2" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-10" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f3f0ed"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-21 24-21s21 7 24 21" fill="#3e5d7b"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#7c523f"/>
+      <circle cx="32" cy="30" r="14" fill="#936148"/>
+      <path d="M17 27c0-14 7-21 15-21 10 0 15 8 15 21-4-5-8-7-14-7-5 0-10 2-16 7z" fill="#343030"/>
+      <circle cx="26" cy="30" r="1.5" fill="#201c1b"/><circle cx="38" cy="30" r="1.5" fill="#201c1b"/>
+      <path d="M28 36c2 2 6 2 8 0" fill="none" stroke="#6a3d36" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M28 29h-6M36 29h6" stroke="#2d2827" stroke-width="1.1" stroke-linecap="round"/>
+      <circle cx="25" cy="30" r="4" fill="none" stroke="#2d2827" stroke-width="1"/><circle cx="39" cy="30" r="4" fill="none" stroke="#2d2827" stroke-width="1"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-11" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#fbf1eb"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-20 24-20s21 6 24 20" fill="#b57a66"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#edbb98"/>
+      <circle cx="32" cy="30" r="14" fill="#f0c5a2"/>
+      <path d="M17 28c0-13 7-21 16-21 9 0 15 7 15 20-3-4-7-7-12-8-7-1-12 3-19 9z" fill="#6f432c"/>
+      <circle cx="26" cy="31" r="1.4" fill="#302621"/><circle cx="38" cy="31" r="1.4" fill="#302621"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#a1665a" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-12" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#eef2f5"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-21 24-21s21 7 24 21" fill="#7d8c97"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#8c5e49"/>
+      <circle cx="32" cy="30" r="14" fill="#a97055"/>
+      <path d="M16 29c0-14 6-22 16-22 9 0 16 7 16 21-3-4-6-7-10-9-6 7-13 9-22 10z" fill="#211e1d"/>
+      <circle cx="26" cy="31" r="1.4" fill="#211919"/><circle cx="38" cy="31" r="1.4" fill="#211919"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#7a433b" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-13" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f2f5ef"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-20 24-20s21 6 24 20" fill="#567b55"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#6f422f"/>
+      <circle cx="32" cy="30" r="14" fill="#7d4a34"/>
+      <path d="M16 29c0-16 7-22 16-22 11 0 16 8 16 22-3-6-9-9-15-9-6 0-11 3-17 9z" fill="#151313"/>
+      <circle cx="26" cy="31" r="1.4" fill="#1d1716"/><circle cx="38" cy="31" r="1.4" fill="#1d1716"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#593029" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M24 37c2 4 5 5 8 5s6-1 8-5" fill="none" stroke="#2a1e1c" stroke-width="2.4" stroke-linecap="round" opacity=".7"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-14" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f6f2f8"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-21 24-21s21 7 24 21" fill="#8e6a9d"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#c88361"/>
+      <circle cx="32" cy="30" r="14" fill="#d99873"/>
+      <path d="M16 28c0-12 7-21 16-21 10 0 16 7 16 20-3-4-8-6-14-6-7 0-12 3-18 7z" fill="#4a3137"/>
+      <circle cx="26" cy="31" r="1.5" fill="#241c1d"/><circle cx="38" cy="31" r="1.5" fill="#241c1d"/>
+      <path d="M27 36c3 3 7 3 10 0" fill="none" stroke="#8a4844" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-15" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#eef5f6"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-20 24-20s21 6 24 20" fill="#4a7880"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#e1a37e"/>
+      <circle cx="32" cy="30" r="14" fill="#edb88f"/>
+      <path d="M17 29c0-14 7-22 16-22 10 0 15 8 15 21-4-4-8-6-12-6-7 0-12 3-19 7z" fill="#a85a32"/>
+      <circle cx="26" cy="31" r="1.4" fill="#30211d"/><circle cx="38" cy="31" r="1.4" fill="#30211d"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#9a5a4a" stroke-width="1.6" stroke-linecap="round"/>
+    </g>
+  </symbol>
+
+  <symbol id="avatar-16" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="31" fill="#f4f1ec"/>
+    <g clip-path="url(#clip)">
+      <path d="M8 66c3-14 12-21 24-21s21 7 24 21" fill="#686b73"/>
+      <rect x="28" y="39" width="8" height="11" rx="4" fill="#744a38"/>
+      <circle cx="32" cy="30" r="14" fill="#89583f"/>
+      <path d="M16 29c0-14 7-22 16-22 10 0 16 8 16 21-3-5-8-8-14-8-6 0-12 3-18 9z" fill="#221b1c"/>
+      <circle cx="26" cy="31" r="1.4" fill="#201819"/><circle cx="38" cy="31" r="1.4" fill="#201819"/>
+      <path d="M27 36c3 2 7 2 10 0" fill="none" stroke="#633a34" stroke-width="1.6" stroke-linecap="round"/>
+      <path d="M28 37c1 3 7 3 8 0" fill="#563328" opacity=".75"/>
+    </g>
+  </symbol>
+</svg>
