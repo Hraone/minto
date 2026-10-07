@@ -35,8 +35,8 @@ class FinancialDataUnavailable(HTTPException):
 
     code = 503
     description = (
-        "Minto couldn't load all of the data needed for your financial summary. "
-        "No new snapshot was saved. Please try again in a moment."
+        "Minto couldn't load all the data needed to safely display this financial information. "
+        "The affected totals are hidden. Please try again in a moment."
     )
 
 
