@@ -129,7 +129,48 @@
 
 
   .theme-row {
-    display: flex;
+    display: flex;  .style-switch {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 3px;
+    gap: 2px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface-subtle);
+  }
+
+  .style-option {
+    width: auto;
+    min-width: 68px;
+    margin: 0;
+    padding: 7px 11px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 750;
+    cursor: pointer;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .style-option:hover {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: none;
+    transform: none;
+  }
+
+  .style-option.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 2px 8px var(--shadow-card);
+  }
+
+
     align-items: center;
     justify-content: space-between;
     gap: 16px;
@@ -400,18 +441,16 @@
   </div>
 
   <div class="profile-card">
-    <h3>Gen Z mode</h3>
-    <div class="theme-row">
+    <div class="profile-link-row" style="align-items:flex-start;">
       <div>
-        <span class="theme-label">Casual Minto</span>
-        <p class="profile-email" style="margin:7px 0 0;">A little more chill, a little less formal. Your money, numbers and logic stay exactly the same.</p>
+        <h3 style="margin-bottom:5px;">Minto style</h3>
+        <p class="profile-email" style="margin:0;">Choose the tone you like. Same Minto, same money logic.</p>
       </div>
-      <label class="theme-switch" aria-label="Toggle Gen Z mode">
-        <input type="checkbox" id="genz-toggle" {% if genz_mode %}checked{% endif %} aria-label="Toggle Gen Z mode">
-        <span class="theme-slider"></span>
-      </label>
+      <div class="style-switch" role="group" aria-label="Choose Minto style">
+        <button type="button" class="style-option {% if not genz_mode %}active{% endif %}" data-style="classic">Classic</button>
+        <button type="button" class="style-option {% if genz_mode %}active{% endif %}" data-style="casual">Casual</button>
+      </div>
     </div>
-    <p id="genz-status" class="profile-email" style="margin-top:10px;">{{ 'Gen Z mode is on' if genz_mode else 'Gen Z mode is off' }}</p>
   </div>
 
   <details class="profile-card" style="padding:0; overflow:hidden;">
@@ -448,30 +487,38 @@
 
   <script>
     (function () {
-      const toggle = document.getElementById('genz-toggle');
-      const status = document.getElementById('genz-status');
-      if (!toggle) return;
+      const options = document.querySelectorAll('.style-option');
+      if (!options.length) return;
 
-      toggle.addEventListener('change', async function () {
-        const enabled = toggle.checked;
-        const formData = new FormData();
-        formData.append('enabled', enabled ? '1' : '0');
+      options.forEach(function (option) {
+        option.addEventListener('click', async function () {
+          const casual = option.dataset.style === 'casual';
+          const formData = new FormData();
+          formData.append('enabled', casual ? '1' : '0');
 
-        try {
-          const response = await fetch('{{ url_for("update_profile_genz_mode") }}', {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          options.forEach(function (item) {
+            item.classList.toggle('active', item === option);
           });
-          const data = await response.json();
-          if (!response.ok || !data.ok) throw new Error('save failed');
-          if (status) status.textContent = enabled ? 'Gen Z mode is on' : 'Gen Z mode is off';
-          if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
-        } catch (e) {
-          toggle.checked = !enabled;
-          alert('Could not save Gen Z mode. Please try again.');
-        }
+
+          try {
+            const response = await fetch('{{ url_for("update_profile_genz_mode") }}', {
+              method: 'POST',
+              body: formData,
+              credentials: 'same-origin',
+              headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const data = await response.json();
+            if (!response.ok || !data.ok) throw new Error('save failed');
+
+            document.documentElement.setAttribute('data-genz-mode', casual ? 'on' : 'off');
+            if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
+          } catch (e) {
+            options.forEach(function (item) {
+              item.classList.toggle('active', item.dataset.style === (casual ? 'classic' : 'casual'));
+            });
+            alert('Could not save the Minto style. Please try again.');
+          }
+        });
       });
     })();
   </script>
