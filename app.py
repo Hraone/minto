@@ -61,17 +61,17 @@ MODES = ("personal", "trip")
 # Profile avatars are illustrated Minto SVG avatars rather than random
 # Unicode emojis. Keep the legacy DB column name ("profile_emoji") for
 # backwards compatibility with existing profiles.
-PROFILE_AVATARS = [f"avatar_{i:02d}" for i in range(1, 17)]
+PROFILE_AVATARS = [f"avatar-{i:02d}" for i in range(1, 17)]
 LEGACY_PROFILE_EMOJI_MAP = {
-    "😀": "avatar_01", "😃": "avatar_02", "😄": "avatar_03", "😁": "avatar_04",
-    "😆": "avatar_05", "😅": "avatar_06", "😂": "avatar_07", "🤣": "avatar_08",
-    "😊": "avatar_09", "😇": "avatar_10", "🙂": "avatar_11", "🙃": "avatar_12",
-    "😉": "avatar_13", "😌": "avatar_14", "😍": "avatar_15", "🥰": "avatar_16",
-    "😘": "avatar_01", "😗": "avatar_02", "😙": "avatar_03", "😚": "avatar_04",
-    "😋": "avatar_05", "😛": "avatar_06", "😜": "avatar_07", "🤪": "avatar_08",
-    "🤨": "avatar_09", "🧐": "avatar_10", "🤓": "avatar_11", "😎": "avatar_12",
-    "🥳": "avatar_13", "🤩": "avatar_14", "🦊": "avatar_15", "🐼": "avatar_16",
-    "👤": "avatar_01",
+    "😀": "avatar-01", "😃": "avatar-02", "😄": "avatar-03", "😁": "avatar-04",
+    "😆": "avatar-05", "😅": "avatar-06", "😂": "avatar-07", "🤣": "avatar-08",
+    "😊": "avatar-09", "😇": "avatar-10", "🙂": "avatar-11", "🙃": "avatar-12",
+    "😉": "avatar-13", "😌": "avatar-14", "😍": "avatar-15", "🥰": "avatar-16",
+    "😘": "avatar-01", "😗": "avatar-02", "😙": "avatar-03", "😚": "avatar-04",
+    "😋": "avatar-05", "😛": "avatar-06", "😜": "avatar-07", "🤪": "avatar-08",
+    "🤨": "avatar-09", "🧐": "avatar-10", "🤓": "avatar-11", "😎": "avatar-12",
+    "🥳": "avatar-13", "🤩": "avatar-14", "🦊": "avatar-15", "🐼": "avatar-16",
+    "👤": "avatar-01",
 }
 
 # In Trip mode the app shows trip pages and nothing else. This is an allow
@@ -168,11 +168,11 @@ def load_profile_avatar(client, user_id):
         if saved in PROFILE_AVATARS:
             return saved
 
-        avatar = LEGACY_PROFILE_EMOJI_MAP.get(saved, "avatar_01")
+        avatar = LEGACY_PROFILE_EMOJI_MAP.get(saved, "avatar-01")
         client.table("profiles").upsert({"id": user_id, "profile_emoji": avatar}).execute()
         return avatar
     except Exception:
-        return "avatar_01"
+        return "avatar-01"
 
 
 def save_profile_avatar(client, user_id, avatar):
@@ -255,7 +255,7 @@ def inject_template_globals():
     if not name:
         name = (session.get("email") or "").split("@")[0]
 
-    profile_avatar = "avatar_01"
+    profile_avatar = "avatar-01"
     if session.get("user_id"):
         profile_avatar = session.get("profile_avatar")
         if profile_avatar not in PROFILE_AVATARS:
