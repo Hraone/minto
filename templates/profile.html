@@ -129,11 +129,18 @@
 
 
   .theme-row {
-    display: flex;  .style-control {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .style-control {
     display: inline-flex;
     align-items: center;
     gap: 7px;
     flex: 0 0 auto;
+    white-space: nowrap;
     margin-top: 1px;
   }
 
@@ -150,8 +157,11 @@
 
   .style-toggle {
     position: relative;
+    display: block;
     width: 50px;
+    min-width: 50px;
     height: 28px;
+    min-height: 28px;
     margin: 0;
     padding: 0;
     border: 1px solid var(--border);
@@ -167,6 +177,11 @@
     background: var(--surface-alt);
     box-shadow: none;
     transform: none;
+  }
+
+  .style-toggle:focus-visible {
+    outline: 2px solid var(--positive);
+    outline-offset: 3px;
   }
 
   .style-knob {
@@ -191,18 +206,35 @@
   }
 
   @media (max-width:600px) {
+    .theme-row {
+      align-items: flex-start;
+    }
+
     .style-control {
       gap: 5px;
     }
+
     .style-side {
       font-size: 10px;
     }
-  }
 
+    .style-toggle {
+      width: 46px;
+      min-width: 46px;
+      height: 26px;
+      min-height: 26px;
+    }
 
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
+    .style-knob {
+      width: 18px;
+      height: 18px;
+      top: 3px;
+      left: 3px;
+    }
+
+    [data-genz-mode="on"] .style-knob {
+      transform: translateX(20px);
+    }
   }
 
   .theme-label {
