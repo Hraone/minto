@@ -60,6 +60,32 @@ MODES = ("personal", "trip")
 # Profile avatars are illustrated Minto SVG avatars. Keep the legacy database
 # column name for compatibility and translate existing emoji values on login.
 PROFILE_AVATARS = [f"avatar-{i:02d}" for i in range(1, 25)]
+PROFILE_AVATAR_LABELS = {
+    "avatar-01": "Long wavy hair with gold hoop earrings",
+    "avatar-02": "Short curls with round glasses",
+    "avatar-03": "Plum hijab with a soft face frame",
+    "avatar-04": "Close fade with moustache and shaped beard",
+    "avatar-05": "Natural afro with bright hoop earrings",
+    "avatar-06": "Bald head with square glasses and a nose stud",
+    "avatar-07": "Long box braids with bead accents",
+    "avatar-08": "Wrapped teal turban with a neat moustache",
+    "avatar-09": "Chin-length bob with freckles",
+    "avatar-10": "Silver hair with a full salt-and-pepper beard",
+    "avatar-11": "High bun with cat-eye glasses",
+    "avatar-12": "Baseball cap with a small moustache",
+    "avatar-13": "Copper curls with small gold earrings",
+    "avatar-14": "Side-parted hair with a short goatee",
+    "avatar-15": "Patterned headwrap with gold hoops",
+    "avatar-16": "Shoulder-length locs with colorful beads",
+    "avatar-17": "Short pixie cut with an eyebrow piercing",
+    "avatar-18": "Curly fringe with teal round glasses",
+    "avatar-19": "Silver waves with fine oval glasses",
+    "avatar-20": "Long locs with a shaped beard",
+    "avatar-21": "Short curls with a visible hearing aid",
+    "avatar-22": "Long straight hair with a star hair clip",
+    "avatar-23": "Curly top with moustache and square glasses",
+    "avatar-24": "Rose headscarf with graceful face framing",
+}
 LEGACY_PROFILE_EMOJI_MAP = {
     "😀": "avatar-01", "😃": "avatar-02", "😄": "avatar-03", "😁": "avatar-04",
     "😆": "avatar-05", "😅": "avatar-06", "😂": "avatar-07", "🤣": "avatar-08",
@@ -262,7 +288,7 @@ def inject_template_globals():
             session["profile_avatar"] = profile_avatar
 
     return {
-        "asset_version": "2",
+        "asset_version": "3",
         "minto_version": MINTO_VERSION,
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
@@ -1091,6 +1117,7 @@ def profile():
         theme=theme,
         profile_avatar=profile_avatar,
         profile_avatars=PROFILE_AVATARS,
+        profile_avatar_labels=PROFILE_AVATAR_LABELS,
         biometric_enabled=biometric_enabled,
         monthly_salary=profile_data.get("monthly_salary") or "",
         salary_day=profile_data.get("salary_day") or "",
