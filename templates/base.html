@@ -1781,9 +1781,10 @@
       });
     })();
 
-    // Optional casual-copy layer. It changes only a small set of UI labels/CTAs.
-    // It edits text nodes only, never an element's textContent, so icons,
-    // inputs, buttons and nested markup stay intact across repeated toggles.
+    // Optional casual-copy layer. Only individual text nodes whose complete
+    // visible text matches one of the entries below are changed. No parent
+    // textContent is ever replaced, so nested icons/SVGs and controls survive
+    // unlimited Classic <-> Casual switches.
     (function () {
       var COPY = {
         "Overview": "Home",
@@ -1812,64 +1813,40 @@
         "Settlement history": "Past splits"
       };
 
-      var selector = "a,button,h1,h2,h3,h4,summary,label";
-      var originals = new WeakMap();
-
-      function directTextNodes(el) {
-        return Array.prototype.filter.call(el.childNodes, function (node) {
-          return node.nodeType === 3 && node.nodeValue.trim();
-        });
-      }
-
-      function getDirectLabel(el) {
-        var text = directTextNodes(el).map(function (node) {
-          return node.nodeValue.trim();
-        }).join(" ");
-        return text.replace(/\s+/g, " ").trim();
-      }
+      var REVERSE = {};
+      Object.keys(COPY).forEach(function (classic) {
+        REVERSE[COPY[classic]] = classic;
+      });
 
       function applyGenZCopy() {
-        var on = document.documentElement.getAttribute("data-genz-mode") === "on";
-
-        document.querySelectorAll(selector).forEach(function (el) {
-          if (el.closest && el.closest(".user-generated-copy")) return;
-
-          if (!originals.has(el)) {
-            var saved = directTextNodes(el).map(function (node) {
-              return { node: node, value: node.nodeValue };
-            });
-            if (saved.length) originals.set(el, saved);
-          }
-
-          var savedNodes = originals.get(el);
-          if (!savedNodes || !savedNodes.length) return;
-
-          if (on) {
-            var originalLabel = savedNodes.map(function (item) {
-              return item.value.trim();
-            }).join(" ").replace(/\s+/g, " ").trim();
-            var replacement = COPY[originalLabel];
-            if (!replacement) return;
-
-            // Replace only the first visible text node. Nested SVG/icons and
-            // any other child elements remain untouched.
-            var first = savedNodes[0].node;
-            if (first && first.parentNode === el) {
-              first.nodeValue = replacement;
-              for (var i = 1; i < savedNodes.length; i++) {
-                if (savedNodes[i].node.parentNode === el) {
-                  savedNodes[i].nodeValue = "";
-                }
-              }
+        var casual = document.documentElement.getAttribute("data-genz-mode") === "on";
+        var target = casual ? COPY : REVERSE;
+        var walker = document.createTreeWalker(
+          document.body,
+          NodeFilter.SHOW_TEXT,
+          {
+            acceptNode: function (node) {
+              var parent = node.parentElement;
+              if (!parent || !node.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+              if (parent.closest && parent.closest(
+                "script,style,noscript,input,textarea,select,option,.user-generated-copy"
+              )) return NodeFilter.FILTER_REJECT;
+              return NodeFilter.FILTER_ACCEPT;
             }
-          } else {
-            savedNodes.forEach(function (item) {
-              if (item.node && item.node.parentNode === el) {
-                item.node.nodeValue = item.value;
-              }
-            });
           }
-        });
+        );
+
+        var node;
+        while ((node = walker.nextNode())) {
+          var raw = node.nodeValue;
+          var leading = raw.match(/^\s*/)[0];
+          var trailing = raw.match(/\s*$/)[0];
+          var value = raw.trim();
+
+          if (target[value]) {
+            node.nodeValue = leading + target[value] + trailing;
+          }
+        }
       }
 
       window.mintoApplyGenZCopy = applyGenZCopy;
