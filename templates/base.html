@@ -1781,8 +1781,9 @@
       });
     })();
 
-    // Optional casual-copy layer. It changes only a small set of UI labels/CTAs;
-    // money values, calculations, user-entered text and backend behavior are untouched.
+    // Optional casual-copy layer. It changes only a small set of UI labels/CTAs.
+    // It edits text nodes only, never an element's textContent, so icons,
+    // inputs, buttons and nested markup stay intact across repeated toggles.
     (function () {
       var COPY = {
         "Overview": "Home",
@@ -1811,20 +1812,62 @@
         "Settlement history": "Past splits"
       };
 
-      var selector = "a,button,h1,h2,h3,h4,label,summary";
+      var selector = "a,button,h1,h2,h3,h4,summary,label";
       var originals = new WeakMap();
+
+      function directTextNodes(el) {
+        return Array.prototype.filter.call(el.childNodes, function (node) {
+          return node.nodeType === 3 && node.nodeValue.trim();
+        });
+      }
+
+      function getDirectLabel(el) {
+        var text = directTextNodes(el).map(function (node) {
+          return node.nodeValue.trim();
+        }).join(" ");
+        return text.replace(/\s+/g, " ").trim();
+      }
 
       function applyGenZCopy() {
         var on = document.documentElement.getAttribute("data-genz-mode") === "on";
+
         document.querySelectorAll(selector).forEach(function (el) {
           if (el.closest && el.closest(".user-generated-copy")) return;
+
+          if (!originals.has(el)) {
+            var saved = directTextNodes(el).map(function (node) {
+              return { node: node, value: node.nodeValue };
+            });
+            if (saved.length) originals.set(el, saved);
+          }
+
+          var savedNodes = originals.get(el);
+          if (!savedNodes || !savedNodes.length) return;
+
           if (on) {
-            if (!originals.has(el)) originals.set(el, el.textContent);
-            var current = el.textContent.trim();
-            if (COPY[current]) el.textContent = COPY[current];
-          } else if (originals.has(el)) {
-            el.textContent = originals.get(el);
-            originals.delete(el);
+            var originalLabel = savedNodes.map(function (item) {
+              return item.value.trim();
+            }).join(" ").replace(/\s+/g, " ").trim();
+            var replacement = COPY[originalLabel];
+            if (!replacement) return;
+
+            // Replace only the first visible text node. Nested SVG/icons and
+            // any other child elements remain untouched.
+            var first = savedNodes[0].node;
+            if (first && first.parentNode === el) {
+              first.nodeValue = replacement;
+              for (var i = 1; i < savedNodes.length; i++) {
+                if (savedNodes[i].node.parentNode === el) {
+                  savedNodes[i].nodeValue = "";
+                }
+              }
+            }
+          } else {
+            savedNodes.forEach(function (item) {
+              if (item.node && item.node.parentNode === el) {
+                item.node.nodeValue = item.value;
+              }
+            });
           }
         });
       }
