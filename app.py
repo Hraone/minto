@@ -28,6 +28,18 @@ load_dotenv()
 app = Flask(__name__)
 MINTO_VERSION = "2.0.0"
 app.secret_key = os.environ["SECRET_KEY"]
+
+
+class FinancialDataUnavailable(HTTPException):
+    """A required financial read failed, so derived totals must not be shown."""
+
+    code = 503
+    description = (
+        "Minto couldn't load all of the data needed for your financial summary. "
+        "No new snapshot was saved. Please try again in a moment."
+    )
+
+
 # How long a logged-in session survives with no activity at all — separate
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
 # renews automatically as long as this outer session is still alive.
@@ -522,7 +534,8 @@ def net_worth_password_hash_exists():
 def get_net_worth_snapshots(limit=12):
     service = get_service_client()
     if service is None:
-        return []
+        app.logger.error("Net Worth snapshots are unavailable: service client is not configured")
+        raise FinancialDataUnavailable()
     try:
         return (
             service.table("net_worth_snapshots")
@@ -535,13 +548,14 @@ def get_net_worth_snapshots(limit=12):
         )
     except Exception:
         app.logger.exception("Could not load Net Worth snapshots")
-        return []
+        raise FinancialDataUnavailable() from None
 
 
 def get_net_worth_manual_items():
     service = get_service_client()
     if service is None:
-        return []
+        app.logger.error("Net Worth items are unavailable: service client is not configured")
+        raise FinancialDataUnavailable()
     try:
         return (
             service.table("net_worth_items")
@@ -556,7 +570,7 @@ def get_net_worth_manual_items():
         )
     except Exception:
         app.logger.exception("Could not load Net Worth items")
-        return []
+        raise FinancialDataUnavailable() from None
 
 
 def compute_net_worth_manual_totals(items):
@@ -622,7 +636,7 @@ def get_active_cc_loans(client, user_id):
         )
     except Exception:
         app.logger.exception("Could not load credit-card loans")
-        return {}
+        raise FinancialDataUnavailable() from None
 
     loans = {}
     for row in rows:
@@ -714,10 +728,7 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
     next_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
 
     for month_anchor in (current_month, next_month):
-        try:
-            fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
-        except Exception:
-            fixed = []
+        fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
         for item in fixed:
             due = item.get("due_date")
             if isinstance(due, datetime):
@@ -785,6 +796,14 @@ def handle_unexpected_error(e):
     # to `raise e` below and turn into "Internal Server Error". Visitors who
     # aren't logged in get the public info page instead; everyone else gets
     # the normal error page.
+    if isinstance(e, FinancialDataUnavailable):
+        return render_template(
+            "error.html",
+            code=e.code,
+            title="Financial data temporarily unavailable",
+            message=e.description,
+        ), e.code
+
     if isinstance(e, HTTPException):
         if (
             not session.get("user_id")
@@ -2387,7 +2406,7 @@ def get_trip_payables(client, user_id):
         return float(result or 0)
     except Exception:
         app.logger.exception("Could not load trip payables")
-        return 0
+        raise FinancialDataUnavailable() from None
 
 
 @app.route("/mode", methods=["GET", "POST"])
@@ -3825,7 +3844,7 @@ def get_fixed_expenses_for_month(client, user_id, year=None, month=None):
         return _get_fixed_expenses_for_month(client, user_id, year, month)
     except Exception:
         app.logger.exception("Fixed expenses unavailable (has the database update been run?)")
-        return []
+        raise FinancialDataUnavailable() from None
 
 
 def _get_fixed_expenses_for_month(client, user_id, year=None, month=None):
@@ -4403,11 +4422,7 @@ def dashboard():
     today = datetime.now(APP_TZ).date()
     cc_loans = get_active_cc_loans(client, user_id)
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
-    try:
-        upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
-    except Exception:
-        app.logger.exception("Upcoming commitments could not be loaded")
-        upcoming_commitments = []
+    upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
 
     salary_cycle = get_salary_cycle(profile_settings, today)
     category_budgets = get_category_budget_status(client, user_id, all_txns, today)
@@ -4432,13 +4447,7 @@ def dashboard():
         )
     ]
 
-    try:
-        fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
-    except Exception:
-        # An extra on this page: if its tables are missing or unreachable, the
-        # Overview should still open instead of showing an error page.
-        app.logger.exception("Fixed expenses could not be loaded for the Overview")
-        fixed_expenses = []
+    fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     fixed_total = sum(
         float(x["amount"] or 0) for x in fixed_expenses
         if not x["paid"] and (x.get("kind") or "expense") == "expense"
