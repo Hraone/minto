@@ -317,8 +317,9 @@
       z-index: 20;
 
       height: 72px;
-      margin: 0 -20px 25px;
-      padding: 0 20px;
+      width: 100vw;
+      margin: 0 calc(50% - 50vw) 25px;
+      padding: 0 max(20px, calc((100vw - 1000px) / 2 + 20px));
 
       display: flex;
       align-items: center;
@@ -832,6 +833,7 @@
 
       .navbar {
         height: 60px;
+        width: auto;
         margin: 0 -16px 20px;
         padding: 0 16px;
       }
