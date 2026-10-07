@@ -25,3 +25,8 @@ Run `minto_v2_migration.sql` in the Supabase SQL editor after the existing
 `schema.sql` and `trip_mode_v1_5_migration.sql`. The migration preserves legacy
 trip rows and adds the username, friends, membership, share, transaction-link,
 settlement-history, and row/column security rules required by 2.0.0.
+
+Then run `minto_v2_1_username_availability_migration.sql` to enable the live
+username availability check. For databases that have already run the 2.0.0
+migration, only this additional SQL patch is needed.
+

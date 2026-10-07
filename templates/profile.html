@@ -46,6 +46,12 @@
   .minto-username-actions { display:flex;align-items:center;gap:7px; }
   #friends .profile-save { width:auto;max-width:100%;margin:0;white-space:nowrap; }
   .minto-username-help { margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.45; }
+  .minto-username-status { min-height:18px;margin:5px 0 0;font-size:12px;line-height:1.45; }
+  .minto-username-status:empty { min-height:0;margin-top:0; }
+  .minto-username-status[data-state="checking"] { color:var(--muted); }
+  .minto-username-status[data-state="available"] { color:var(--positive); }
+  .minto-username-status[data-state="taken"],.minto-username-status[data-state="invalid"] { color:var(--negative); }
+  .minto-username-status[data-state="error"] { color:var(--warning); }
   .friend-search-row input { min-width:0;max-width:100%; }
   @media (max-width:520px) {
     .friend-row { flex-wrap:wrap; }
@@ -774,7 +780,7 @@
         <button type="button" class="friend-action secondary" id="minto-username-edit" aria-controls="minto-username-form" aria-expanded="false">Edit</button>
       </div>
       {% endif %}
-      <form method="post" action="{{ url_for('update_profile_username') }}" class="minto-username-form" id="minto-username-form" {% if username and not edit_username %}hidden{% endif %}>
+      <form method="post" action="{{ url_for('update_profile_username') }}" class="minto-username-form" id="minto-username-form" data-current-username="{{ username }}" data-availability-url="{{ url_for('check_profile_username_availability') }}" {% if username and not edit_username %}hidden{% endif %}>
         <label for="minto-username">Your username <span>(your unique name)</span></label>
         <div class="minto-username-controls">
           <input type="text" id="minto-username" name="username" value="{{ username }}" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username" placeholder="e.g. rohan_mehta" required>
@@ -784,6 +790,7 @@
           </div>
         </div>
         <p class="minto-username-help">3–24 characters: letters, numbers, and underscores.</p>
+        <p class="minto-username-status" id="minto-username-availability" role="status" aria-live="polite"></p>
       </form>
     </div>
 
@@ -959,6 +966,8 @@
       const usernameTrigger = document.getElementById('minto-username-edit');
       const usernameEditor = document.getElementById('minto-username-form');
       const usernameCancel = document.getElementById('minto-username-cancel');
+      const usernameInput = document.getElementById('minto-username');
+      const usernameStatus = document.getElementById('minto-username-availability');
 
       function setHidden(el, hidden) {
         if (!el) return;
@@ -1014,6 +1023,71 @@
           setHidden(usernameView, false);
           if (usernameTrigger) usernameTrigger.setAttribute('aria-expanded', 'false');
         });
+      }
+
+      if (usernameEditor && usernameInput && usernameStatus) {
+        const saveButton = usernameEditor.querySelector('button[type="submit"]');
+        const currentUsername = (usernameEditor.dataset.currentUsername || '').trim().toLowerCase();
+        let checkTimer = null;
+        let requestVersion = 0;
+
+        function setAvailability(message, state) {
+          usernameStatus.textContent = message;
+          usernameStatus.dataset.state = state || '';
+        }
+
+        function checkAvailability() {
+          const version = ++requestVersion;
+          window.clearTimeout(checkTimer);
+          const candidate = usernameInput.value.trim().toLowerCase();
+
+          if (!candidate) {
+            setAvailability('', '');
+            if (saveButton) saveButton.disabled = false;
+            return;
+          }
+          if (!/^[a-z0-9_]{3,24}$/.test(candidate)) {
+            setAvailability('Use 3–24 letters, numbers, and underscores.', 'invalid');
+            if (saveButton) saveButton.disabled = true;
+            return;
+          }
+          if (candidate === currentUsername) {
+            setAvailability('This is your current username.', 'available');
+            if (saveButton) saveButton.disabled = false;
+            return;
+          }
+
+          setAvailability('Checking availability…', 'checking');
+          if (saveButton) saveButton.disabled = true;
+          checkTimer = window.setTimeout(async function () {
+            try {
+              const url = new URL(usernameEditor.dataset.availabilityUrl, window.location.origin);
+              url.searchParams.set('username', candidate);
+              const response = await fetch(url, { credentials: 'same-origin' });
+              const data = await response.json();
+              if (!response.ok || !data.ok || typeof data.available !== 'boolean') {
+                throw new Error('Username availability check failed');
+              }
+              if (version !== requestVersion) return;
+              if (data.available) {
+                setAvailability('Username is available.', 'available');
+                if (saveButton) saveButton.disabled = false;
+              } else {
+                setAvailability('That username is already taken.', 'taken');
+                if (saveButton) saveButton.disabled = true;
+              }
+            } catch (error) {
+              if (version !== requestVersion) return;
+              setAvailability('Couldn’t check right now. You can still save; the server will verify it.', 'error');
+              if (saveButton) saveButton.disabled = false;
+            }
+          }, 350);
+        }
+
+        usernameInput.addEventListener('input', checkAvailability);
+        if (usernameEditor.dataset.currentUsername) {
+          setAvailability('This is your current username.', 'available');
+        }
       }
     })();
   </script>
@@ -1116,3 +1190,4 @@
 
 </div>
 {% endblock %}
+
