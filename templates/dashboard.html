@@ -1258,7 +1258,7 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="txn-amount tnum {{ t.direction }}">
           {{ "+" if t.direction == "in" else "-" }}{{ (t.amount or 0)|inr }}
         </div>
-        <form method="post" action="{{ url_for('delete_transaction', entry_id=t.id) }}" onsubmit="return confirm('Delete this transaction?{{ ' Both linked legs of this transfer will be removed.' if t.transfer_group else '' }}');">
+        <form method="post" action="{{ url_for('delete_transaction', entry_id=t.id) }}" data-confirm="Delete this transaction?{{ ' Both linked legs of this transfer will be removed.' if t.transfer_group else '' }}">
           <button type="submit" class="txn-delete" aria-label="Delete transaction" title="Delete">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
