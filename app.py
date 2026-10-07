@@ -2798,6 +2798,9 @@ def trip_detail(trip_id):
         return redirect(url_for("trips"))
 
     session["active_trip"] = trip_id
+    # Trip list entries prepare this display label themselves; trip detail
+    # receives a fresh row from Supabase, so prepare it here too.
+    trip["status_label"] = trip_status_label(trip.get("status"))
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         friends_f = pool.submit(get_trip_people, client, user_id, trip_id)
