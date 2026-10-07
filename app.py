@@ -2398,7 +2398,7 @@ def get_active_sources(client):
 
 
 def get_trip_payables(client, user_id):
-    """Accepted trip shares that are still owed by this account."""
+    """Pending or accepted trip shares that are still owed by this account."""
     try:
         result = client.rpc("current_trip_payables").execute().data
         if isinstance(result, list):
@@ -3652,7 +3652,7 @@ def compute_net_worth(all_txns, savings, credit_cards, manual_items=None, trip_p
 
     def counts_as_lending_asset(transaction):
         if transaction.get("trip_expense_share_id") is not None:
-            return transaction.get("trip_share_status") in ("accepted", "settled")
+            return transaction.get("trip_share_status") in ("pending", "accepted", "settled")
         return True
 
     lent_out = sum(

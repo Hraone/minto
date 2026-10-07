@@ -206,7 +206,7 @@
 
   {% if trip.is_group %}
   <div class="section-card">
-    <h3>Settle Up</h3><p class="sub">Accepted shares count toward balances. Pending requests do not; only paid settlements reduce what is owed.</p>
+    <h3>Settle Up</h3><p class="sub">Pending shares count toward balances as soon as they are assigned. Acceptance records the member's personal expense without moving money; only paid settlements reduce what is owed.</p>
     {% if all_expense_count %}
     <table class="balance-table"><thead><tr><th>Person</th><th>Paid</th><th>Share</th><th>Balance</th></tr></thead><tbody>
       {% for p in people_rows %}<tr><td>{{ p.name }}</td><td data-label="Paid">{{ p.paid|inr }}</td><td data-label="Share">{{ p.owed|inr }}</td><td data-label="Balance">{% if p.net > 0 %}<span class="net-positive">gets {{ p.net|inr }}</span>{% elif p.net < 0 %}<span class="net-negative">owes {{ (-p.net)|inr }}</span>{% else %}<span class="net-zero">settled</span>{% endif %}</td></tr>{% endfor %}
@@ -304,3 +304,4 @@ document.addEventListener("DOMContentLoaded",toggleSplitBlocks);
 </script>
 {% endif %}
 {% endblock %}
+

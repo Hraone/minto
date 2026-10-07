@@ -18,7 +18,7 @@ The audit branch includes three mitigations: signup/login no longer display raw 
 | Severity | Finding | Status |
 |---|---|---|
 | P0 | Failed Net Worth, trip, fixed-expense or EMI reads can become zero/empty financial data; snapshots can save incomplete totals | Fixed on audit branch; deployment/live verification pending |
-| P1 | Trip Case B expected outstanding is absent while a Minto friend's share is pending | Open; requires coordinated Python and SQL change |
+| P1 | Trip Case B expected outstanding is absent while a Minto friend's share is pending | Fixed on audit branch; apply migration and verify against Supabase |
 | P1 | Some ledger/transfer workflows span independent database requests and rely on best-effort cleanup | Open |
 | P1 | Account-balance and dashboard transaction reads are unpaged, unlike report reads | Open; impact depends on PostgREST row cap and account size |
 | P1 | Cookie-authenticated POST routes have no CSRF token or origin validation | Open |
@@ -46,11 +46,11 @@ That allowed the dashboard to calculate wealth, fixed commitments and Safe to Sp
 
 ## Major findings
 
-### P1 — Trip Case B does not meet the requested model
+### P1 — Trip Case B pending shares were not immediately outstanding
 
-calculate_trip_balances() and trip_payables_for_user() count only accepted/settled shares (trip_accounting.py:34, trip_accounting.py:120); SQL trip_member_net() and current_trip_payables() use the same statuses (minto_v2_migration.sql:952, minto_v2_migration.sql:969). A newly created Minto member share is pending (minto_v2_migration.sql:566). Before the friend accepts, the payer sees no friend debt/outstanding; requested Case B expects the friend responsibility and ₹2,000 outstanding immediately. Case C then expects acceptance to record the friend's personal expense without changing the already-existing outstanding amount.
+The reviewed baseline counted only accepted/settled shares in Python and SQL, even though a new Minto friend share starts as pending. The audit branch now counts pending shares in trip balances and personal trip payables, records the payer's linked receivable when the share is assigned, and changes that same receivable to accepted when the friend records the personal expense. Rejecting a pending share removes the pending receivable. A new additive migration performs the SQL updates and backfills eligible existing pending shares.
 
-This is internally consistent with the current “acceptance acknowledges responsibility” rule, but it **fails the audit brief's explicit Case B result**. Changing it affects trip balances, settlement validation, Net Worth payables and reject/reassign behavior. It must be implemented as one coordinated behavior change with a new SQL migration and tests, not a Python-only patch.
+**Status:** fixed in Python and migration source on the audit branch. Existing pure tests now verify the ₹2,000 pending balance and payable before acceptance. The SQL migration has not been executed against Supabase; apply [trip_pending_shares_migration.sql](trip_pending_shares_migration.sql) after `minto_v2_migration.sql` and verify Cases B–D in the deployed database before merging/deploying.
 
 ### P1 — Multi-table finance writes are not atomic
 
@@ -92,7 +92,7 @@ The formula is liquid cash/cash-source balance less commitments due during the c
 - No CSRF middleware/tokens or security response headers such as CSP were found.
 - No committed credentials were identified in reviewed source. Required secrets are environment-driven. The scan did not read local environment files or query deployment configuration.
 - Signup/login previously flashed raw provider exceptions. The audit branch replaces those with generic messages and logs only exception type. Provider details should remain server-side.
-- The generic error handler rethrows unexpected server exceptions; users receive an error response rather than a false success, while the helper-specific fallbacks above still mask failures.
+- The generic error handler rethrows unexpected server exceptions; financial-read failures now use an explicit styled 503 response instead of returning zero/empty fallbacks.
 
 ## Personal finance and accounting logic
 
@@ -109,7 +109,7 @@ The code subtracts unpaid fixed expenses/investments and expected credit-card co
 
 ### Net Worth
 
-The formula includes bank/cash balances, investment contributions net of redemptions, net lending, accepted trip payables, current card debt, manual assets and manual liabilities. total_invested is contribution net, not current market value; users need manual values for current valuation. Trip payables and manual items can be omitted during failed reads, which invalidates the headline and snapshots.
+The formula includes bank/cash balances, investment contributions net of redemptions, pending/accepted trip receivables and payables, current card debt, manual assets and manual liabilities. total_invested is contribution net, not current market value; users need manual values for current valuation. Required read failures now fail closed on the audit branch; this has not been integration-tested against Supabase.
 
 ## Trip Mode accounting cases A–F
 
@@ -118,8 +118,8 @@ The nine existing tests in tests/test_trip_accounting.py passed. They are pure h
 | Case | Expected behavior | Source result | Verification |
 |---|---|---|---|
 | A — solo ₹4,000 | Expense ₹4,000; no outstanding; account −₹4,000 | PASS by code review and pure balance test. Full payment moves the account; own share is non-balance. | Unit test covers zero net trip balance; no DB integration |
-| B — payer ₹4,000, shares ₹2,000/₹2,000 | Friend responsibility and outstanding ₹2,000 before acceptance; friend account unchanged | FAIL. Pending shares are excluded until acceptance, so current outstanding is ₹0 before acceptance. | Existing unit test explicitly confirms pending exclusion |
-| C — friend accepts | Friend expense ₹2,000; no account movement; outstanding remains ₹2,000 | PASS by code review. Acceptance writes a non-balance personal expense; payable remains until settlement. | SQL RPC not run against DB |
+| B — payer ₹4,000, shares ₹2,000/₹2,000 | Friend responsibility and outstanding ₹2,000 before acceptance; friend account unchanged | PASS on audit branch. Pending share appears in trip balances/payables immediately; payer receivable has no source-balance effect. | Updated pure test; SQL migration source reviewed but not run |
+| C — friend accepts | Friend expense ₹2,000; no account movement; outstanding remains ₹2,000 | PASS by source on audit branch. Acceptance writes the non-balance personal expense and upgrades the existing payer receivable without adding a second one. | SQL RPC not run against DB |
 | D — friend settles | Friend −₹2,000; recipient +₹2,000; outstanding zero; no duplicate expense | PASS only after both actions: payer marks paid (outflow/status), recipient separately records receipt (inflow/receivable reversal). Receipt is idempotent. Recipient's account is not updated automatically when payer marks paid. | Source review only; UI should explain two steps |
 | E — accept twice | One personal transaction | PASS by source: share row is locked, accepted/settled returns existing transaction ID. | No RPC integration test |
 | F — guest member | Works without account | PASS for name-only member accounting; guest shares are accepted by default. | Pure balance test and source review; full DB flow not testable |
@@ -180,7 +180,7 @@ The migration copies legacy guest participants and split names into stable membe
 | /internal/monthly-reports | POST | Cron secret | Constant-time secret check; service client server-side | Returns 503 if cron secret unset | Reviewed |
 | /info | GET | Public | No private data | Passkey controls only for signed-in users | Reviewed |
 | /logout | GET | Public | Clears current cookie session | State-changing GET/logout CSRF | Reviewed |
-| /net-worth | GET, POST | Auth | Separate unlock; service queries filtered by session user | Silent failed reads can save wrong snapshot (P0) | Reviewed |
+| /net-worth | GET, POST | Auth | Separate unlock; service queries filtered by session user | Required read failures now hide totals and stop snapshot calculation (branch fix; DB untested) | Reviewed |
 | /net-worth/lock | POST | Auth | Clears current unlock session | CSRF missing | Reviewed |
 | / | GET, POST | Auth | Personal rows/source checks use current user | Multi-call write and best-effort rollback | Reviewed |
 | /pay-cc-bill | GET, POST | Auth | Sources and loans filtered to current user | Multi-call payment/loan update | Reviewed |
@@ -198,7 +198,7 @@ The migration copies legacy guest participants and split names into stable membe
 | /trips/<trip_id>/settlements | POST | Auth | Membership and participant/owner RPC checks | Atomic RPC; CSRF missing | Reviewed |
 | /trips/<trip_id>/settlements/<settlement_id>/status | POST | Auth | Payer/recipient/owner RPC rules | Two-step receipt; CSRF missing | Reviewed |
 | /trips/<trip_id>/shares/<share_id>/accept | POST | Auth | Share member verified in RPC | Idempotent RPC; CSRF missing | Reviewed |
-| /trips/<trip_id>/shares/<share_id>/reject | POST | Auth | Share member verified in RPC | Pending share excluded from balances | Reviewed |
+| /trips/<trip_id>/shares/<share_id>/reject | POST | Auth | Share member verified in RPC | Rejection removes the pending balance/receivable (migration source; DB untested) | Reviewed |
 | /trips/<trip_id>/shares/<share_id>/reassign | POST | Auth | Author/owner and replacement checked in RPC | Atomic RPC; CSRF missing | Reviewed |
 | /trips/<trip_id>/settlements/<settlement_id>/receipt | POST | Auth | Recipient and source checked in RPC | Idempotent receipt; CSRF missing | Reviewed |
 | /transactions/<transaction_id>/linked | GET | Auth | Transaction filtered by current user | RLS/ownership source-reviewed | Reviewed |
@@ -236,7 +236,7 @@ PASS is used only for executed checks. Static review is WARNING; unavailable pro
 | Friends/username | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | WARNING — DB uniqueness/live check source-reviewed | WARNING — RPC/RLS not live-tested | WARNING |
 | Avatars | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | PASS — 24 matching SVG IDs verified | WARNING — authorization not live-tested | WARNING |
 | Trip Case A | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | PASS — unit test and source review | WARNING — SQL not live-tested | PASS (unit logic) |
-| Trip Case B | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | FAIL — pending share is not outstanding before accept | WARNING — SQL not live-tested | FAIL |
+| Trip Case B | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | PASS — pending balance/payable covered by updated pure test | WARNING — migration not live-tested | WARNING — migration pending |
 | Trip Cases C–F | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | WARNING — source-reviewed; pure tests pass; no RPC tests | WARNING — SQL not live-tested | WARNING |
 | Responsive UI/overflow | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE |
 | Dark mode/favicon | NOT TESTABLE | NOT TESTABLE | WARNING — theme source-reviewed | WARNING — favicon source-reviewed | NOT TESTABLE | NOT TESTABLE | WARNING |
