@@ -135,8 +135,8 @@
         <div><label for="budget">Budget</label><input type="number" id="budget" name="budget" value="{{ trip.budget or '' }}" min="0" step="0.01"></div>
       </div>
       <div class="field-row">
-        <div><label for="start_date">Start date</label><input type="text" id="start_date" name="start_date" class="minto-date-input" data-minto-date value="{{ date_summary.start|nice_date if date_summary.start else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
-        <div><label for="end_date">End date</label><input type="text" id="end_date" name="end_date" class="minto-date-input" data-minto-date value="{{ date_summary.end|nice_date if date_summary.end else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
+        <div><label for="start_date">Start date</label><input type="date" id="start_date" name="start_date" class="minto-date-input" value="{{ date_summary.start.strftime('%Y-%m-%d') if date_summary.start else '' }}" autocomplete="off"></div>
+        <div><label for="end_date">End date</label><input type="date" id="end_date" name="end_date" class="minto-date-input" value="{{ date_summary.end.strftime('%Y-%m-%d') if date_summary.end else '' }}" autocomplete="off"></div>
       </div>
       <label for="trip-status">Status</label>
       <select id="trip-status" name="status">
@@ -160,7 +160,7 @@
         <div><label for="category">Category</label><select id="category" name="category">{% for key,label in trip_expense_categories %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
       </div>
       <label for="expense_date">Date</label>
-      <input type="text" id="expense_date" name="expense_date" class="minto-date-input" data-minto-date value="{{ today|nice_date }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off" required>
+      <input type="date" id="expense_date" name="expense_date" class="minto-date-input" value="{{ today }}" autocomplete="off" required>
 
       {% if trip.is_group %}
       <label>Paid by</label><div class="chip-group">
@@ -206,7 +206,7 @@
         </div>
         <div class="field-row">
           <div><label for="settle-amount">Amount</label><input type="number" id="settle-amount" name="amount" min="0.01" step="0.01" required></div>
-          <div><label for="settle-date">Date</label><input type="text" id="settle-date" name="settlement_date" class="minto-date-input" data-minto-date value="{{ today|nice_date }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off" required></div>
+          <div><label for="settle-date">Date</label><input type="date" id="settle-date" name="settlement_date" class="minto-date-input" value="{{ today }}" autocomplete="off" required></div>
         </div>
         <label for="settlement-status">Status</label><select id="settlement-status" name="status"><option value="pending">Pending</option><option value="paid">Paid</option></select>
         <button type="submit">Record settlement</button>
@@ -235,8 +235,8 @@
       <div class="control search"><label for="q">Search</label><input type="text" id="q" name="q" value="{{ filter_q }}" placeholder="Hotel, dinner, fuel…"></div>
       <div class="control"><label for="category-filter">Category</label><select id="category-filter" name="category"><option value="">All categories</option>{% for key,label in trip_expense_categories %}<option value="{{ key }}" {% if filter_category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
       {% if trip.is_group %}<div class="control"><label for="payer-filter">Paid by</label><select id="payer-filter" name="payer"><option value="">Everyone</option>{% for name in people.values() %}<option value="{{ name }}" {% if filter_payer==name %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>{% endif %}
-      <div class="control"><label for="from-filter">From</label><input type="text" id="from-filter" name="from" class="minto-date-input" data-minto-date value="{{ filter_from|nice_date if filter_from else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
-      <div class="control"><label for="to-filter">To</label><input type="text" id="to-filter" name="to" class="minto-date-input" data-minto-date value="{{ filter_to|nice_date if filter_to else '' }}" placeholder="DD-MON-YYYY" pattern="[0-9]{2}-[A-Za-z]{3}-[0-9]{4}" maxlength="11" minlength="11" inputmode="text" autocomplete="off"></div>
+      <div class="control"><label for="from-filter">From</label><input type="date" id="from-filter" name="from" class="minto-date-input" value="{{ filter_from.strftime('%Y-%m-%d') if filter_from else '' }}" autocomplete="off"></div>
+      <div class="control"><label for="to-filter">To</label><input type="date" id="to-filter" name="to" class="minto-date-input" value="{{ filter_to.strftime('%Y-%m-%d') if filter_to else '' }}" autocomplete="off"></div>
       <button type="submit">Filter</button>
       {% if filter_q or filter_category or filter_payer or filter_from or filter_to %}<a class="clear-link" href="{{ url_for('trip_detail', trip_id=trip.id) }}">Clear</a>{% endif %}
     </form>
