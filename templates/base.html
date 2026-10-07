@@ -1775,6 +1775,65 @@
       });
     })();
 
+    // Optional casual-copy layer. It changes only a small set of UI labels/CTAs;
+    // money values, calculations, user-entered text and backend behavior are untouched.
+    (function () {
+      var COPY = {
+        "Overview": "Home",
+        "Accounts": "Money",
+        "Transfers": "Move money",
+        "Profile": "You",
+        "Log Out": "Log out",
+        "Fixed Expenses": "Monthly bills",
+        "Fixed": "Bills",
+        "Protected Net Worth": "Net Worth",
+        "Download Report": "Grab report",
+        "Download a report": "Grab a report",
+        "View Overview": "See my money",
+        "Add an entry": "Log something",
+        "Add New Account": "Add money account",
+        "Cash Out": "Move cash",
+        "Bank Transfer": "Move money",
+        "Card Payment": "Pay card",
+        "Upcoming commitments": "Coming up",
+        "Money plan": "Money plan",
+        "Expense history": "Spend history",
+        "Add Expense": "Add spend",
+        "Trip settings": "Trip setup",
+        "Settle Up": "Settle up",
+        "Record a settlement": "Mark a split",
+        "Settlement history": "Past splits"
+      };
+
+      var selector = "a,button,h1,h2,h3,h4,label,summary";
+      var originals = new WeakMap();
+
+      function applyGenZCopy() {
+        var on = document.documentElement.getAttribute("data-genz-mode") === "on";
+        document.querySelectorAll(selector).forEach(function (el) {
+          if (el.closest && el.closest(".user-generated-copy")) return;
+          if (on) {
+            if (!originals.has(el)) originals.set(el, el.textContent);
+            var current = el.textContent.trim();
+            if (COPY[current]) el.textContent = COPY[current];
+          } else if (originals.has(el)) {
+            el.textContent = originals.get(el);
+            originals.delete(el);
+          }
+        });
+      }
+
+      window.mintoApplyGenZCopy = applyGenZCopy;
+
+      document.addEventListener("DOMContentLoaded", function () {
+        document.documentElement.setAttribute(
+          "data-genz-mode",
+          "{{ 'on' if genz_mode else 'off' }}"
+        );
+        applyGenZCopy();
+      });
+    })();
+
     // Loader: a spinner while a form saves, a thin bar while a page loads.
     (function () {
       var loader = document.getElementById("minto-loader");
