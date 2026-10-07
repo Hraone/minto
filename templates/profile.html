@@ -138,6 +138,7 @@
   .style-control {
     display: inline-flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 7px;
     flex: 0 0 auto;
     white-space: nowrap;
@@ -155,58 +156,61 @@
     color: var(--text);
   }
 
-  .style-toggle {
+  .style-switch {
     position: relative;
     display: block;
-    width: 50px;
-    min-width: 50px;
-    height: 28px;
-    min-height: 28px;
+    width: 46px;
+    height: 26px;
+    flex: 0 0 46px;
     margin: 0;
-    padding: 0;
+    cursor: pointer;
+  }
+
+  .style-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+  }
+
+  .style-track {
+    position: absolute;
+    inset: 0;
+    display: block;
     border: 1px solid var(--border);
     border-radius: 999px;
     background: var(--surface-subtle);
-    color: inherit;
-    cursor: pointer;
-    box-shadow: none;
-    transform: none;
-  }
-
-  .style-toggle:hover {
-    background: var(--surface-alt);
-    box-shadow: none;
-    transform: none;
-  }
-
-  .style-toggle:focus-visible {
-    outline: 2px solid var(--positive);
-    outline-offset: 3px;
+    transition: background .2s ease, border-color .2s ease;
   }
 
   .style-knob {
     position: absolute;
     top: 3px;
     left: 3px;
-    width: 20px;
-    height: 20px;
+    width: 18px;
+    height: 18px;
     border-radius: 50%;
     background: var(--text);
     transition: transform .2s cubic-bezier(.2,.8,.2,1), background .2s ease;
   }
 
-  [data-genz-mode="on"] .style-toggle {
-    border-color: var(--positive);
+  .style-switch input:checked + .style-track {
     background: var(--positive);
+    border-color: var(--positive);
   }
 
-  [data-genz-mode="on"] .style-knob {
-    transform: translateX(22px);
+  .style-switch input:checked + .style-track .style-knob {
+    transform: translateX(20px);
     background: #fff;
   }
 
+  .style-switch input:focus-visible + .style-track {
+    outline: 2px solid var(--positive);
+    outline-offset: 3px;
+  }
+
   @media (max-width:600px) {
-    .theme-row {
+    .profile-link-row {
       align-items: flex-start;
     }
 
@@ -218,22 +222,13 @@
       font-size: 10px;
     }
 
-    .style-toggle {
-      width: 46px;
-      min-width: 46px;
-      height: 26px;
-      min-height: 26px;
+    .style-switch {
+      width: 44px;
+      flex-basis: 44px;
     }
 
-    .style-knob {
-      width: 18px;
-      height: 18px;
-      top: 3px;
-      left: 3px;
-    }
-
-    [data-genz-mode="on"] .style-knob {
-      transform: translateX(20px);
+    .style-switch input:checked + .style-track .style-knob {
+      transform: translateX(18px);
     }
   }
 
@@ -509,11 +504,10 @@
       </div>
       <div class="style-control">
         <span class="style-side {% if not genz_mode %}selected{% endif %}">Classic</span>
-        <button type="button" class="style-toggle" id="style-toggle"
-                aria-label="Toggle between Classic and Casual tone"
-                aria-pressed="{{ 'true' if genz_mode else 'false' }}">
-          <span class="style-knob"></span>
-        </button>
+        <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
+          <input type="checkbox" id="style-toggle" {% if genz_mode %}checked{% endif %}>
+          <span class="style-track"><span class="style-knob"></span></span>
+        </label>
         <span class="style-side {% if genz_mode %}selected{% endif %}">Casual</span>
       </div>
     </div>
@@ -556,8 +550,10 @@
       const toggle = document.getElementById('style-toggle');
       if (!toggle) return;
 
-      toggle.addEventListener('click', async function () {
-        const casual = document.documentElement.getAttribute('data-genz-mode') !== 'on';
+      document.documentElement.setAttribute('data-genz-mode', toggle.checked ? 'on' : 'off');
+
+      toggle.addEventListener('change', async function () {
+        const casual = toggle.checked;
         const formData = new FormData();
         formData.append('enabled', casual ? '1' : '0');
 
@@ -574,13 +570,12 @@
           if (!response.ok || !data.ok) throw new Error('save failed');
 
           document.documentElement.setAttribute('data-genz-mode', casual ? 'on' : 'off');
-          toggle.setAttribute('aria-pressed', casual ? 'true' : 'false');
-          if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
-
           document.querySelectorAll('.style-side').forEach(function (label) {
             label.classList.toggle('selected', (label.textContent.trim() === 'Casual') === casual);
           });
+          if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
         } catch (e) {
+          toggle.checked = !casual;
           alert('Could not save the Minto tone. Please try again.');
         } finally {
           toggle.disabled = false;
