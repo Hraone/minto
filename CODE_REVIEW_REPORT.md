@@ -9,15 +9,15 @@
 
 Minto has a coherent separation between personal account movements and trip expense shares. Shared-trip SQL functions use database transactions, validate member/owner authority, and make share acceptance idempotent. The database sources include owner RLS for personal tables and membership-aware policies for Trip Mode. The 24 avatar IDs exist in the SVG sprite, username uniqueness is case-insensitive in SQL, and theme-aware favicon selection is present.
 
-The app is **not production-audit ready** based on this source review. Several failed financial-data reads are converted to zero or an empty list. This can present incomplete balances and Safe to Spend values as valid, and Net Worth snapshots can persist incorrect totals. The explicit Trip Case B requirement also does not match current behavior: a Minto friend's pending share is not treated as outstanding until acceptance. Personal ledger and transfer workflows outside shared-trip RPCs use multiple PostgREST requests with best-effort compensation. Production UI and actual Supabase RLS behavior could not be exercised here.
+The app is **not production-audit ready** based on this source review. The audit branch now fails closed when required Net Worth, trip, fixed-expense, or card-EMI reads fail: affected financial pages return an explicit unavailable response instead of displaying incomplete totals, and snapshot calculation stops before its write. This still needs deployment and live verification. Trip Case B, ledger atomicity, CSRF, and other open findings remain. Production UI and actual Supabase RLS behavior could not be exercised here.
 
-The audit branch includes two narrow mitigations: signup/login no longer display raw Supabase exception text, and destructive confirmations use escaped HTML data attributes instead of inserting dynamic names into inline JavaScript. These changes are not live until the PR is merged and deployed.
+The audit branch includes three mitigations: signup/login no longer display raw Supabase exception text, destructive confirmations use escaped HTML data attributes instead of inserting dynamic names into inline JavaScript, and required financial reads fail closed. These changes are not live until the PR is merged and deployed.
 
 ## Severity summary
 
 | Severity | Finding | Status |
 |---|---|---|
-| P0 | Failed Net Worth, trip, fixed-expense or EMI reads can become zero/empty financial data; snapshots can save incomplete totals | Open |
+| P0 | Failed Net Worth, trip, fixed-expense or EMI reads can become zero/empty financial data; snapshots can save incomplete totals | Fixed on audit branch; deployment/live verification pending |
 | P1 | Trip Case B expected outstanding is absent while a Minto friend's share is pending | Open; requires coordinated Python and SQL change |
 | P1 | Some ledger/transfer workflows span independent database requests and rely on best-effort cleanup | Open |
 | P1 | Account-balance and dashboard transaction reads are unpaged, unlike report reads | Open; impact depends on PostgREST row cap and account size |
@@ -33,16 +33,16 @@ The audit branch includes two narrow mitigations: signup/login no longer display
 
 ### P0 — Financial read failures can look like valid zeroes
 
-Several helpers log and return a financially meaningful empty value on failure:
+On the reviewed baseline, several helpers logged and returned a financially meaningful empty value on failure:
 
 - get_trip_payables() returns 0 when its RPC fails (app.py:2381).
 - Net Worth manual items and snapshots return [] if the service client is missing or a query fails (app.py:522, app.py:541).
 - Active card-loan/EMI rows return {} on query failure (app.py:611).
 - Fixed expenses return [] on query failure (app.py:3823); get_upcoming_commitments() also converts a fixed-expense read failure into [] (app.py:694).
 
-The dashboard then calculates wealth, fixed commitments and Safe to Spend from those fallbacks. Missing fixed expenses can make spendable cash look higher; missing EMI data can hide card commitments; missing manual items or trip payables can lower liabilities. More seriously, Net Worth save-snapshot accepts the empty fallbacks and writes the resulting total to net_worth_snapshots (app.py:1676). This is misleading and can persist financial-data corruption.
+That allowed the dashboard to calculate wealth, fixed commitments and Safe to Spend from incomplete data. Missing fixed expenses could make spendable cash look higher; missing EMI data could hide card commitments; missing manual items or trip payables could lower liabilities. A snapshot could then be saved with the incomplete total.
 
-**Required fix:** propagate an explicit unavailable state; suppress affected totals and Safe to Spend; prevent snapshot writes unless every required read succeeded. Preserve formulas. Add failure-path tests that mock read errors and verify that no snapshot write occurs.
+**Status:** fixed on the audit branch. These helpers now raise a dedicated unavailable error, the affected routes return a styled 503 page with the affected totals hidden, and the dashboard no longer swallows commitment/fixed-expense read failures. A failed read during snapshot calculation exits before the snapshot upsert. Existing formulas are unchanged. Failure-injection and live database tests remain unverified because the workspace lacks the Flask/Supabase runtime and database credentials.
 
 ## Major findings
 
