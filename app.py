@@ -255,11 +255,11 @@ def inject_template_globals():
     if not name:
         name = (session.get("email") or "").split("@")[0]
 
-    profile_emoji = "👤"
+    profile_avatar = "avatar_01"
     if session.get("user_id"):
-        profile_emoji = session.get("profile_emoji")
-        if not profile_emoji:
-            profile_emoji = load_profile_emoji(get_user_client(), session["user_id"])
+        profile_avatar = session.get("profile_avatar")
+        if profile_avatar not in PROFILE_AVATARS:
+            profile_avatar = load_profile_avatar(get_user_client(), session["user_id"])
             session["profile_avatar"] = profile_avatar
 
     return {
@@ -269,7 +269,7 @@ def inject_template_globals():
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
         "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
         "nav_name": name,
-        "profile_emoji": profile_emoji,
+        "profile_avatar": profile_avatar,
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
     }
@@ -1044,7 +1044,7 @@ def profile():
     biometric_enabled = bool(profile_data.get("biometric_enabled"))
     genz_mode = bool(profile_data.get("genz_mode"))
     session["display_name"] = name  # keeps the top bar in step
-    session["profile_emoji"] = profile_emoji
+    session["profile_avatar"] = profile_avatar
     session["theme"] = theme
     session["biometric_enabled"] = biometric_enabled
     display_name = name or (email.split("@")[0] if email else "Minto user")
