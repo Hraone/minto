@@ -267,7 +267,7 @@
       </form>
       {% endif %}
       <form method="post" action="{{ url_for('delete_fixed_expense', fixed_expense_id=x.id) }}"
-            onsubmit="return confirm('Remove {{ x.name|replace("'", "") }} from your fixed expenses? Past payments stay in your expenses.');">
+            data-confirm="Remove {{ x.name }} from your fixed expenses? Past payments stay in your expenses.">
         <button type="submit" class="fx-btn quiet">Remove</button>
       </form>
     </div>
