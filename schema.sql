@@ -298,6 +298,7 @@ alter table public.profiles add column if not exists theme text check (theme in 
 alter table public.profiles add column if not exists profile_emoji text;
 alter table public.profiles add column if not exists biometric_enabled boolean not null default false;
 alter table public.profiles add column if not exists credit_card_setup_completed boolean not null default false;
+alter table public.profiles add column if not exists genz_mode boolean not null default false;
 
 -- Card payments recorded as "for spending from before Minto was started"
 alter table public.transactions add column if not exists is_previous_card_bill boolean not null default false;
