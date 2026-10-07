@@ -399,6 +399,21 @@
     <p id="theme-status" class="profile-email" style="margin-top: 10px;">{{ 'Dark mode' if theme == 'dark' else 'Light mode' }}</p>
   </div>
 
+  <div class="profile-card">
+    <h3>Gen Z mode</h3>
+    <div class="theme-row">
+      <div>
+        <span class="theme-label">Casual Minto</span>
+        <p class="profile-email" style="margin:7px 0 0;">A little more chill, a little less formal. Your money, numbers and logic stay exactly the same.</p>
+      </div>
+      <label class="theme-switch" aria-label="Toggle Gen Z mode">
+        <input type="checkbox" id="genz-toggle" {% if genz_mode %}checked{% endif %} aria-label="Toggle Gen Z mode">
+        <span class="theme-slider"></span>
+      </label>
+    </div>
+    <p id="genz-status" class="profile-email" style="margin-top:10px;">{{ 'Gen Z mode is on' if genz_mode else 'Gen Z mode is off' }}</p>
+  </div>
+
   <details class="profile-card" style="padding:0; overflow:hidden;">
     <summary style="padding:22px;cursor:pointer;list-style:none;font-size:15px;font-weight:700;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
       <span>Money plan</span><span style="color:var(--muted);font-size:20px;">+</span>
@@ -430,6 +445,36 @@
       </form>
     </div>
   </details>
+
+  <script>
+    (function () {
+      const toggle = document.getElementById('genz-toggle');
+      const status = document.getElementById('genz-status');
+      if (!toggle) return;
+
+      toggle.addEventListener('change', async function () {
+        const enabled = toggle.checked;
+        const formData = new FormData();
+        formData.append('enabled', enabled ? '1' : '0');
+
+        try {
+          const response = await fetch('{{ url_for("update_profile_genz_mode") }}', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+          });
+          const data = await response.json();
+          if (!response.ok || !data.ok) throw new Error('save failed');
+          if (status) status.textContent = enabled ? 'Gen Z mode is on' : 'Gen Z mode is off';
+          if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
+        } catch (e) {
+          toggle.checked = !enabled;
+          alert('Could not save Gen Z mode. Please try again.');
+        }
+      });
+    })();
+  </script>
 
   <script>
     (function () {
