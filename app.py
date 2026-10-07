@@ -58,12 +58,21 @@ MODES = ("personal", "trip")
 # Keep profile choices to expressive face emojis only. The actual glyph
 # rendering follows the user's platform emoji font (including Apple's on Apple
 # devices), so Minto avoids mixing in random animals/objects as avatars.
-PROFILE_EMOJIS = [
-    "😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣",
-    "😊", "😇", "🙂", "🙃", "😉", "😌", "😍", "🥰",
-    "😘", "😗", "😙", "😚", "😋", "😛", "😜", "🤪",
-    "🤨", "🧐", "🤓", "😎", "🥳", "🤩"
-]
+# Profile avatars are illustrated Minto SVG avatars rather than random
+# Unicode emojis. Keep the legacy DB column name ("profile_emoji") for
+# backwards compatibility with existing profiles.
+PROFILE_AVATARS = [f"avatar_{i:02d}" for i in range(1, 17)]
+LEGACY_PROFILE_EMOJI_MAP = {
+    "😀": "avatar_01", "😃": "avatar_02", "😄": "avatar_03", "😁": "avatar_04",
+    "😆": "avatar_05", "😅": "avatar_06", "😂": "avatar_07", "🤣": "avatar_08",
+    "😊": "avatar_09", "😇": "avatar_10", "🙂": "avatar_11", "🙃": "avatar_12",
+    "😉": "avatar_13", "😌": "avatar_14", "😍": "avatar_15", "🥰": "avatar_16",
+    "😘": "avatar_01", "😗": "avatar_02", "😙": "avatar_03", "😚": "avatar_04",
+    "😋": "avatar_05", "😛": "avatar_06", "😜": "avatar_07", "🤪": "avatar_08",
+    "🤨": "avatar_09", "🧐": "avatar_10", "🤓": "avatar_11", "😎": "avatar_12",
+    "🥳": "avatar_13", "🤩": "avatar_14", "🦊": "avatar_15", "🐼": "avatar_16",
+    "👤": "avatar_01",
+}
 
 # In Trip mode the app shows trip pages and nothing else. This is an allow
 # list rather than a block list on purpose: any page added later is hidden in
@@ -151,26 +160,26 @@ def load_biometric_flag(client, user_id):
         return False
 
 
-def load_profile_emoji(client, user_id):
-    """Return the user's saved profile emoji, assigning one once if missing."""
+def load_profile_avatar(client, user_id):
+    """Return the saved illustrated profile avatar, migrating legacy emoji values."""
     try:
         rows = client.table("profiles").select("profile_emoji").eq("id", user_id).execute().data
-        emoji = rows[0].get("profile_emoji") if rows else None
-        if emoji in PROFILE_EMOJIS:
-            return emoji
+        saved = rows[0].get("profile_emoji") if rows else None
+        if saved in PROFILE_AVATARS:
+            return saved
 
-        emoji = random.choice(PROFILE_EMOJIS)
-        client.table("profiles").upsert({"id": user_id, "profile_emoji": emoji}).execute()
-        return emoji
+        avatar = LEGACY_PROFILE_EMOJI_MAP.get(saved, "avatar_01")
+        client.table("profiles").upsert({"id": user_id, "profile_emoji": avatar}).execute()
+        return avatar
     except Exception:
-        return "👤"
+        return "avatar_01"
 
 
-def save_profile_emoji(client, user_id, emoji):
-    if emoji not in PROFILE_EMOJIS:
+def save_profile_avatar(client, user_id, avatar):
+    if avatar not in PROFILE_AVATARS:
         return False
     try:
-        client.table("profiles").upsert({"id": user_id, "profile_emoji": emoji}).execute()
+        client.table("profiles").upsert({"id": user_id, "profile_emoji": avatar}).execute()
         return True
     except Exception:
         return False
@@ -251,7 +260,7 @@ def inject_template_globals():
         profile_emoji = session.get("profile_emoji")
         if not profile_emoji:
             profile_emoji = load_profile_emoji(get_user_client(), session["user_id"])
-            session["profile_emoji"] = profile_emoji
+            session["profile_avatar"] = profile_avatar
 
     return {
         "asset_version": "1",
@@ -1031,7 +1040,7 @@ def profile():
 
     name = profile_data.get("display_name") or ""
     theme = profile_data.get("theme") if profile_data.get("theme") in ("light", "dark") else session.get("theme", "light")
-    profile_emoji = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_EMOJIS else load_profile_emoji(client, user_id)
+    profile_avatar = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_AVATARS else load_profile_avatar(client, user_id)
     biometric_enabled = bool(profile_data.get("biometric_enabled"))
     genz_mode = bool(profile_data.get("genz_mode"))
     session["display_name"] = name  # keeps the top bar in step
@@ -1049,8 +1058,8 @@ def profile():
         transactions=transactions,
         trips=trips,
         theme=theme,
-        profile_emoji=profile_emoji,
-        profile_emojis=PROFILE_EMOJIS,
+        profile_avatar=profile_avatar,
+        profile_avatars=PROFILE_AVATARS,
         biometric_enabled=biometric_enabled,
         monthly_salary=profile_data.get("monthly_salary") or "",
         salary_day=profile_data.get("salary_day") or "",
@@ -1076,12 +1085,12 @@ def update_profile_genz_mode():
 @app.route("/profile/emoji", methods=["POST"])
 @login_required
 def update_profile_emoji():
-    emoji = request.form.get("profile_emoji", "").strip()
-    if save_profile_emoji(get_user_client(), session["user_id"], emoji):
-        session["profile_emoji"] = emoji
-        flash("Profile emoji updated.")
+    avatar = request.form.get("profile_avatar", "").strip()
+    if save_profile_avatar(get_user_client(), session["user_id"], avatar):
+        session["profile_avatar"] = avatar
+        flash("Profile avatar updated.")
     else:
-        flash("Please choose a valid profile emoji.")
+        flash("Please choose a valid profile avatar.")
     return redirect(url_for("profile"))
 
 
