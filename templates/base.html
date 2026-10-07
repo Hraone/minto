@@ -25,6 +25,7 @@
        server before the first paint, so it follows the account across browsers. -->
   <script>
     document.documentElement.setAttribute("data-theme", {{ user_theme|tojson }});
+    document.documentElement.setAttribute("data-minto-tone", {{ ('casual' if genz_mode else 'classic')|tojson }});
   </script>
 
   <title>{% block title %}Minto{% endblock %}</title>
@@ -63,7 +64,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
 
@@ -122,6 +123,11 @@
       --radius-sm: 10px;
       --radius-md: 14px;
       --radius-lg: 20px;
+      --minto-font: "Manrope";
+    }
+
+    [data-minto-tone="casual"] {
+      --minto-font: "DM Sans";
     }
 
     [data-theme="dark"] {
@@ -176,7 +182,7 @@
       margin: 0;
       min-height: 100vh;
 
-      font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: var(--minto-font), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
       color: var(--text);
       background:
@@ -1829,6 +1835,10 @@
         document.documentElement.setAttribute(
           "data-genz-mode",
           "{{ 'on' if genz_mode else 'off' }}"
+        );
+        document.documentElement.setAttribute(
+          "data-minto-tone",
+          "{{ 'casual' if genz_mode else 'classic' }}"
         );
         applyGenZCopy();
       });
