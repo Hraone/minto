@@ -194,6 +194,40 @@
     background: var(--surface-subtle);
   }
 
+  .profile-preferences {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+
+  .profile-preference-card {
+    margin-bottom: 0;
+    padding: 17px 18px;
+  }
+
+  .preference-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .profile-preference-card h3 {
+    margin: 0;
+    font-size: 14px;
+  }
+
+  .preference-note {
+    margin-top: 3px;
+    font-size: 11px;
+  }
+
+  .preference-status {
+    margin-top: 9px;
+    font-size: 11px;
+  }
+
   .profile-stats {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -328,6 +362,10 @@
   }
 
   @media (max-width:600px) {
+    .profile-preferences {
+      grid-template-columns: 1fr;
+    }
+
     .profile-link-row {
       align-items: flex-start;
     }
@@ -597,41 +635,46 @@
     </div>
   </div>
 
-  <div class="profile-card">
-    <h3>Appearance</h3>
-    <div class="theme-row">
-      <span class="theme-label">Theme</span>
-      <div class="theme-toggle-wrap">
-        <span class="theme-icon" aria-hidden="true">☀️</span>
-        <label class="theme-switch" aria-label="Toggle dark mode">
-          <input
-            type="checkbox"
-            id="theme-toggle"
-            {% if theme == 'dark' %}checked{% endif %}
-            aria-label="Toggle dark mode"
-          >
-          <span class="theme-slider"></span>
-        </label>
-        <span class="theme-icon" aria-hidden="true">🌙</span>
+  <div class="profile-preferences">
+    <div class="profile-card profile-preference-card">
+      <div class="preference-head">
+        <div>
+          <h3>Appearance</h3>
+          <p class="profile-email preference-note">Theme</p>
+        </div>
+        <div class="theme-toggle-wrap">
+          <span class="theme-icon" aria-hidden="true">☀️</span>
+          <label class="theme-switch" aria-label="Toggle dark mode">
+            <input
+              type="checkbox"
+              id="theme-toggle"
+              {% if theme == 'dark' %}checked{% endif %}
+              aria-label="Toggle dark mode"
+            >
+            <span class="theme-slider"></span>
+          </label>
+          <span class="theme-icon" aria-hidden="true">🌙</span>
+        </div>
       </div>
+      <p id="theme-status" class="profile-email preference-status">{{ 'Dark mode' if theme == 'dark' else 'Light mode' }}</p>
     </div>
-    <p id="theme-status" class="profile-email" style="margin-top: 10px;">{{ 'Dark mode' if theme == 'dark' else 'Light mode' }}</p>
-  </div>
 
-  <div class="profile-card">
-    <div class="profile-link-row" style="align-items:flex-start;">
-      <div>
-        <h3 style="margin-bottom:5px;">Minto tone</h3>
-        <p class="profile-email" style="margin:0;">Pick the vibe you prefer. Same Minto, same money logic.</p>
+    <div class="profile-card profile-preference-card">
+      <div class="preference-head">
+        <div>
+          <h3>Minto tone</h3>
+          <p class="profile-email preference-note">Classic or Casual</p>
+        </div>
+        <div class="style-control">
+          <span class="style-side {% if not genz_mode %}selected{% endif %}">Classic</span>
+          <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
+            <input type="checkbox" id="style-toggle" {% if genz_mode %}checked{% endif %}>
+            <span class="style-track"><span class="style-knob"></span></span>
+          </label>
+          <span class="style-side {% if genz_mode %}selected{% endif %}">Casual</span>
+        </div>
       </div>
-      <div class="style-control">
-        <span class="style-side {% if not genz_mode %}selected{% endif %}">Classic</span>
-        <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
-          <input type="checkbox" id="style-toggle" {% if genz_mode %}checked{% endif %}>
-          <span class="style-track"><span class="style-knob"></span></span>
-        </label>
-        <span class="style-side {% if genz_mode %}selected{% endif %}">Casual</span>
-      </div>
+      <p class="profile-email preference-status">Same Minto, same money logic.</p>
     </div>
   </div>
 
