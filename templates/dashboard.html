@@ -59,20 +59,86 @@
   }
 
   .dashboard-alerts {
+    margin-bottom: 22px;
+  }
+
+  .dashboard-alerts-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .dashboard-alerts-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 750;
+  }
+
+  .dashboard-alerts-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 22px;
+    height: 22px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: var(--surface-alt);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 800;
+  }
+
+  .dashboard-alerts-toggle {
+    width: auto;
+    min-height: 32px;
+    margin: 0;
+    padding: 0 11px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: none;
+  }
+
+  .dashboard-alerts-toggle:hover {
+    background: var(--surface-subtle);
+    color: var(--text);
+    transform: none;
+    box-shadow: none;
+  }
+
+  .dashboard-alerts-list {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    margin-bottom: 22px;
+    gap: 8px;
+    overflow: hidden;
+    transition: max-height .35s ease, opacity .25s ease, transform .35s ease;
+    max-height: 1000px;
+    opacity: 1;
+    transform: translateY(0);
   }
 
   .dashboard-alert {
     display: flex;
     gap: 12px;
     align-items: flex-start;
-    padding: 14px 16px;
-    border: 1px solid var(--danger-border);
-    border-radius: 15px;
-    background: var(--danger-bg-alt);
+    padding: 13px 15px;
+    border: 1px solid color-mix(in srgb, var(--negative) 28%, var(--border));
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--danger-bg-alt) 72%, transparent);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--shadow-card) 70%, transparent);
   }
 
   .dashboard-alert-icon {
@@ -81,16 +147,21 @@
     height: 30px;
     display: grid;
     place-items: center;
-    border-radius: 9px;
-    background: var(--danger-bg);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--danger-bg) 78%, transparent);
     color: var(--negative);
     font-weight: 900;
+  }
+
+  .dashboard-alert-copy {
+    min-width: 0;
   }
 
   .dashboard-alert strong {
     display: block;
     color: var(--text);
     font-size: 13px;
+    line-height: 1.4;
   }
 
   .dashboard-alert p {
@@ -98,6 +169,17 @@
     color: var(--muted);
     font-size: 12.5px;
     line-height: 1.5;
+  }
+
+  .dashboard-alerts.is-collapsed .dashboard-alerts-list {
+    max-height: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+    pointer-events: none;
+  }
+
+  .dashboard-alerts.is-collapsed {
+    margin-bottom: 14px;
   }
 
   .period-tabs {
@@ -804,6 +886,33 @@
 
 </style>
 
+<script>
+(function () {
+  var alerts = document.getElementById("dashboard-alerts");
+  var toggle = document.getElementById("dashboard-alerts-toggle");
+  if (!alerts || !toggle) return;
+
+  function setCollapsed(collapsed) {
+    alerts.classList.toggle("is-collapsed", collapsed);
+    toggle.textContent = collapsed ? "Show notices" : "Hide notices";
+    toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    try {
+      sessionStorage.setItem("minto-dashboard-alerts-collapsed", collapsed ? "1" : "0");
+    } catch (e) {}
+  }
+
+  var collapsed = false;
+  try {
+    collapsed = sessionStorage.getItem("minto-dashboard-alerts-collapsed") === "1";
+  } catch (e) {}
+  setCollapsed(collapsed);
+
+  toggle.addEventListener("click", function () {
+    setCollapsed(!alerts.classList.contains("is-collapsed"));
+  });
+})();
+</script>
+
 <div class="dash-wrapper">
 
   <div class="dash-header">
@@ -826,17 +935,30 @@
   </div>
 
   {% if alerts %}
-  <div class="dashboard-alerts" aria-label="Account notices">
-    {% for alert in alerts %}
-    <div class="dashboard-alert">
-      <div class="dashboard-alert-icon" aria-hidden="true">!</div>
-      <div>
-        <strong>{{ alert.title }}</strong>
-        <p>{{ alert.message }}</p>
+  <section class="dashboard-alerts" id="dashboard-alerts" aria-label="Account notices">
+    <div class="dashboard-alerts-header">
+      <div class="dashboard-alerts-title">
+        <span>Account notices</span>
+        <span class="dashboard-alerts-count">{{ alerts|length }}</span>
       </div>
+      <button type="button" class="dashboard-alerts-toggle" id="dashboard-alerts-toggle"
+              aria-controls="dashboard-alerts-list" aria-expanded="true">
+        Hide notices
+      </button>
     </div>
-    {% endfor %}
-  </div>
+
+    <div class="dashboard-alerts-list" id="dashboard-alerts-list">
+      {% for alert in alerts %}
+      <div class="dashboard-alert">
+        <div class="dashboard-alert-icon" aria-hidden="true">!</div>
+        <div class="dashboard-alert-copy">
+          <strong>{{ alert.title }}</strong>
+          <p>{{ alert.message }}</p>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
   {% endif %}
 
   <div class="wealth-section">
