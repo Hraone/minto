@@ -115,6 +115,26 @@ def save_theme(client, user_id, theme):
         return False
 
 
+def load_genz_mode(client, user_id):
+    """Load the optional lighter, Gen Z wording preference."""
+    try:
+        rows = client.table("profiles").select("genz_mode").eq("id", user_id).execute().data
+        return bool(rows and rows[0].get("genz_mode"))
+    except Exception:
+        return False
+
+
+def save_genz_mode(client, user_id, enabled):
+    try:
+        client.table("profiles").upsert({
+            "id": user_id,
+            "genz_mode": bool(enabled),
+        }).execute()
+        return True
+    except Exception:
+        return False
+
+
 def load_biometric_flag(client, user_id):
     """Whether this account turned biometric login on. Safe on databases that
     don't have the column yet."""
@@ -231,6 +251,7 @@ def inject_template_globals():
         "asset_version": "1",
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
+        "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
         "nav_name": name,
         "profile_emoji": profile_emoji,
         "supabase_url": SUPABASE_URL,
@@ -846,6 +867,7 @@ def login():
         user_client = get_user_client()
         session["mode"] = load_saved_mode(user_client, result.user.id)
         session["theme"] = load_saved_theme(user_client, result.user.id)
+        session["genz_mode"] = load_genz_mode(user_client, result.user.id)
         session["display_name"] = load_display_name(user_client, result.user.id)
         session["biometric_enabled"] = load_biometric_flag(user_client, result.user.id)
 
@@ -1002,6 +1024,7 @@ def profile():
     theme = profile_data.get("theme") if profile_data.get("theme") in ("light", "dark") else session.get("theme", "light")
     profile_emoji = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_EMOJIS else load_profile_emoji(client, user_id)
     biometric_enabled = bool(profile_data.get("biometric_enabled"))
+    genz_mode = bool(profile_data.get("genz_mode"))
     session["display_name"] = name  # keeps the top bar in step
     session["profile_emoji"] = profile_emoji
     session["theme"] = theme
@@ -1023,7 +1046,22 @@ def profile():
         monthly_salary=profile_data.get("monthly_salary") or "",
         salary_day=profile_data.get("salary_day") or "",
         reminder_days_before=profile_data.get("reminder_days_before") or 5,
+        genz_mode=genz_mode,
     )
+
+
+@app.route("/profile/genz-mode", methods=["POST"])
+@login_required
+def update_profile_genz_mode():
+    wants_json = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    enabled = request.form.get("enabled", "").strip().lower() in ("1", "true", "on", "yes")
+    saved = save_genz_mode(get_user_client(), session["user_id"], enabled)
+    if saved:
+        session["genz_mode"] = enabled
+    if wants_json:
+        return jsonify(ok=saved, enabled=enabled), (200 if saved else 500)
+    flash("Gen Z mode " + ("on." if enabled else "off."))
+    return redirect(url_for("profile"))
 
 
 @app.route("/profile/emoji", methods=["POST"])
