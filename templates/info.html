@@ -9,6 +9,20 @@
   .about-logo .dark-logo { display: none; }
   [data-theme="dark"] .about-logo .light-logo { display: none; }
   [data-theme="dark"] .about-logo .dark-logo { display: block; }
+  .about-version {
+    display: inline-flex;
+    align-items: center;
+    margin: 0 0 14px;
+    padding: 5px 9px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted-2);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .2px;
+  }
+
   .about-hero h1 { margin: 0; color: var(--text); font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -1.8px; }
   .about-hero .lead { max-width: 700px; margin: 16px auto 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
   .about-kicker { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: var(--surface-subtle); border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 15px; }
@@ -284,6 +298,7 @@
       <img class="dark-logo" src="{{ url_for('static', filename='logo-dark.svg') }}?v={{ asset_version }}" alt="">
     </div>
     <div class="about-kicker">PERSONAL FINANCE · TRIP EXPENSES</div>
+    <div class="about-version">Minto {{ minto_version }}</div>
     <h1>Welcome to Minto</h1>
     <p class="lead">
       Minto is a simple personal finance workspace for tracking everyday money,
