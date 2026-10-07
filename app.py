@@ -859,7 +859,8 @@ def signup():
         try:
             result = client.auth.sign_up({"email": email, "password": password})
         except Exception as e:
-            flash(f"Signup failed: {e}")
+            app.logger.warning("Signup failed (%s)", type(e).__name__)
+            flash("We couldn't create your account. Check the details and try again, or log in if you already have an account.")
             return render_template("signup.html")
 
         if result.user is None:
@@ -898,7 +899,8 @@ def login():
         try:
             result = client.auth.sign_in_with_password({"email": email, "password": password})
         except Exception as e:
-            flash(f"Login failed: {e}")
+            app.logger.warning("Login failed (%s)", type(e).__name__)
+            flash("We couldn't log you in. Check your email and password, and confirm your email if required.")
             return render_template("login.html")
 
         session.permanent = True  # survive browser restarts, not just the tab
