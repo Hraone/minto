@@ -254,12 +254,26 @@
   }
 
   @media (max-width: 680px) {
-    .about-page { padding: 20px 16px 55px; }
-    .about-hero { padding-top: 18px; }
-    .about-grid, .about-modes, .about-list { grid-template-columns: 1fr; }
-    .about-card, .mode-card, .about-wide { padding: 20px; }
+    .about-page { padding: 18px 14px 48px; }
+    .about-hero { padding: 16px 4px 34px; }
+    .about-hero .lead { font-size: 15px; line-height: 1.6; }
+    .about-hero h1 { font-size: clamp(32px, 11vw, 44px); }
+    .about-grid, .about-modes, .about-list, .about-steps { grid-template-columns: 1fr; }
+    .about-section { margin-top: 28px; }
+    .about-section-title { font-size: 20px; }
+    .about-card, .mode-card, .about-wide { padding: 18px; }
+    .about-step {
+      padding: 17px 18px;
+      min-height: 0;
+    }
+    .about-step strong { margin-bottom: 5px; }
+    .about-step span { display: block; line-height: 1.5; }
     .about-actions { flex-direction: column; }
     .about-primary, .about-secondary { width: 100%; box-sizing: border-box; }
+  }
+
+  @media (max-width: 820px) and (min-width: 681px) {
+    .about-steps { grid-template-columns: 1fr; }
   }
 </style>
 
