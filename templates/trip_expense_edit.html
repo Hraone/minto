@@ -29,18 +29,18 @@
       <label for="expense_date">Date</label><input type="date" id="expense_date" name="expense_date" class="minto-date-input" value="{{ expense.expense_date }}" autocomplete="off" required>
 
       {% if trip.is_group %}
-      <label>Paid by</label><div class="chip-group">{% for key,name in people.items() %}<label class="chip"><input type="radio" name="paid_by" value="{{ key }}" {% if expense.paid_by==name %}checked{% endif %}> {{ name }}</label>{% endfor %}</div>
+      <label>Paid by</label><div class="chip-group">{% for member in members if member.active and (member.is_you or not member.is_minto) %}<label class="chip"><input type="radio" name="paid_by" value="{{ member.id }}" {% if expense.payer_member_id == member.id %}checked{% endif %}> {{ member.name }}</label>{% endfor %}</div>
       <label>Split</label><div class="chip-group">
         <label class="chip"><input type="radio" name="split_type" value="equal" {% if not splits %}checked{% endif %} onclick="toggleSplitBlocks()"> Equally, everyone</label>
         <label class="chip"><input type="radio" name="split_type" value="subset" onclick="toggleSplitBlocks()"> Equally, some people</label>
         <label class="chip"><input type="radio" name="split_type" value="custom" {% if splits %}checked{% endif %} onclick="toggleSplitBlocks()"> Exact amounts</label>
       </div>
-      <div id="split-subset" class="split-block"><div class="chip-group">{% for key,name in people.items() %}<label class="chip"><input type="checkbox" name="split_with" value="{{ key }}"> {{ name }}</label>{% endfor %}</div></div>
+      <div id="split-subset" class="split-block"><div class="chip-group">{% for member in members if member.active %}<label class="chip"><input type="checkbox" name="split_with" value="{{ member.id }}" {% for s in splits %}{% if s.trip_member_id == member.id %}checked{% endif %}{% endfor %}> {{ member.name }}</label>{% endfor %}</div></div>
       <div id="split-custom" class="split-block">
-        {% for key,name in people.items() %}
+        {% for member in members if member.active %}
         {% set current = namespace(value='') %}
-        {% for s in splits %}{% if s.participant_name==name %}{% set current.value = s.share_amount %}{% endif %}{% endfor %}
-        <div class="custom-row"><span>{{ name }}</span><input type="number" step="0.01" min="0" name="share_{{ key }}" value="{{ current.value }}" oninput="updateCustomSum()"></div>
+        {% for s in splits %}{% if s.trip_member_id == member.id %}{% set current.value = s.share_amount %}{% endif %}{% endfor %}
+        <div class="custom-row"><span>{{ member.name }}</span><input type="number" step="0.01" min="0" name="share_{{ member.id }}" value="{{ current.value }}" oninput="updateCustomSum()"></div>
         {% endfor %}
         <p class="custom-sum" id="custom-sum">Amounts must add up to the expense total.</p>
       </div>

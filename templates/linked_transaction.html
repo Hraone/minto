@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Linked transaction · Minto{% endblock %}
+
+{% block content %}
+<div style="max-width:640px;margin:18px auto 48px;padding:24px;background:var(--surface-translucent);border:1px solid var(--shadow-card);border-radius:20px;box-shadow:0 12px 34px var(--shadow-soft)">
+  <a href="{{ url_for('trip_home') }}" style="color:var(--muted);font-size:13px;text-decoration:none">← Back to Trip Mode</a>
+  <h2 style="margin:18px 0 4px">Linked transaction</h2>
+  <p style="margin:0 0 18px;color:var(--muted);font-size:13px">This record belongs to your personal account and is linked to a trip expense or settlement.</p>
+  <div style="display:grid;grid-template-columns:1fr auto;gap:10px;padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--surface-subtle)">
+    <strong>{{ transaction.description or transaction.category|replace('_',' ')|title }}</strong>
+    <strong>{% if transaction.direction == "out" %}−{% else %}+{% endif %}{{ transaction.amount|inr }}</strong>
+    <span style="color:var(--muted);font-size:12px">{{ transaction.transaction_date|nice_date }} · {{ transaction.category|replace('_',' ')|title }}</span>
+    <span style="color:var(--muted);font-size:12px;text-align:right">{{ transaction.direction|capitalize }}</span>
+  </div>
+  {% if transaction.trip_expense_id %}<p style="margin:14px 0 0;color:var(--muted);font-size:12px">Linked to a trip expense.</p>{% elif transaction.trip_settlement_id %}<p style="margin:14px 0 0;color:var(--muted);font-size:12px">Linked to a trip settlement.</p>{% endif %}
+</div>
+{% endblock %}

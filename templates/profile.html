@@ -18,6 +18,23 @@
     background: var(--surface);
   }
 
+  .friend-section-title { margin:18px 0 8px;font-size:13px;color:var(--muted); }
+  .friend-list { display:flex;flex-direction:column;gap:7px; }
+  .friend-row { display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle); }
+  .friend-avatar { width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--surface);overflow:hidden; }
+  .friend-avatar svg { width:100%;height:100%;display:block; }
+  .friend-copy { flex:1;min-width:0; }
+  .friend-copy strong,.friend-copy small { display:block;overflow-wrap:anywhere; }
+  .friend-copy strong { font-size:13px;color:var(--text); }
+  .friend-copy small,.friend-status { margin-top:2px;font-size:11px;color:var(--muted-2); }
+  .friend-status { flex:none; }
+  .friend-actions { display:flex;gap:6px; }
+  .friend-actions form,.friend-action-form { width:auto;margin:0; }
+  .friend-action { width:auto;margin:0;padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--positive);color:#fff;font-size:11px;font-weight:700;white-space:nowrap; }
+  .friend-action.secondary { background:var(--surface);color:var(--text); }
+  .friend-empty { padding:10px 12px;border-radius:10px;background:var(--surface-subtle);color:var(--muted);font-size:13px; }
+  @media (max-width:520px) { .friend-row{flex-wrap:wrap}.friend-actions{width:100%;padding-left:44px}.friend-actions form{flex:1}.friend-actions button{width:100%}.friend-action-form{margin-left:auto} }
+
   .profile-head {
     display: flex;
     align-items: center;
@@ -720,6 +737,87 @@
     </div>
   </div>
 
+  <section class="profile-card" id="friends" style="padding:22px;">
+    <h3 style="margin:0 0 6px;">Minto Friends</h3>
+    <p class="profile-email" style="margin:0 0 14px;">Use your username to connect accounts. Email addresses and account IDs stay private.</p>
+    <form method="post" action="{{ url_for('update_profile_username') }}" style="margin-bottom:18px;">
+      <label for="minto-username">Your username</label>
+      <div class="field-row">
+        <input type="text" id="minto-username" name="username" value="{{ username }}" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username" placeholder="e.g. rohan_mehta" required>
+        <button type="submit" class="profile-save" style="margin:0;">Save username</button>
+      </div>
+      <p class="profile-email" style="margin:7px 0 0;">3–24 characters: letters, numbers, and underscores.</p>
+    </form>
+
+    <form method="get" action="{{ url_for('profile') }}#friends" style="margin-bottom:14px;">
+      <label for="friend-search">Find a Minto user</label>
+      <div class="field-row">
+        <input type="text" id="friend-search" name="friend_q" value="{{ friend_query }}" minlength="2" maxlength="24" pattern="[a-zA-Z0-9_]{2,24}" placeholder="Search by username" autocomplete="off">
+        <button type="submit" class="profile-save" style="margin:0;">Search</button>
+      </div>
+    </form>
+    {% if friend_query %}
+      {% if friend_search %}
+      <div class="friend-list">
+        {% for person in friend_search %}
+        <div class="friend-row">
+          <span class="friend-avatar"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span>
+          <div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div>
+          {% if person.relationship == 'friend' %}
+            <span class="friend-status">Friends</span>
+          {% elif person.relationship == 'outgoing' %}
+            <span class="friend-status">Request sent</span>
+          {% elif person.relationship == 'incoming' %}
+            <span class="friend-status">Request received</span>
+          {% else %}
+            <form method="post" action="{{ url_for('send_friend_request') }}" class="friend-action-form">
+              <input type="hidden" name="username" value="{{ person.username }}">
+              <button type="submit" class="friend-action">Add friend</button>
+            </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="friend-empty">No Minto user found.</p>
+      {% endif %}
+    {% endif %}
+
+    {% if incoming_requests %}
+    <h4 class="friend-section-title">Incoming requests</h4>
+    <div class="friend-list">
+      {% for item in incoming_requests %}
+      <div class="friend-row">
+        <span class="friend-avatar"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span>
+        <div class="friend-copy"><strong>{{ item.display_name }} wants to add you</strong><small>@{{ item.username }}</small></div>
+        <div class="friend-actions">
+          <form method="post" action="{{ url_for('respond_friend_request', request_id=item.request_id) }}"><input type="hidden" name="action" value="accept"><button class="friend-action" type="submit">Accept</button></form>
+          <form method="post" action="{{ url_for('respond_friend_request', request_id=item.request_id) }}"><input type="hidden" name="action" value="reject"><button class="friend-action secondary" type="submit">Reject</button></form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if outgoing_requests %}
+    <h4 class="friend-section-title">Outgoing requests</h4>
+    <div class="friend-list">
+      {% for item in outgoing_requests %}
+      <div class="friend-row"><span class="friend-avatar"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span><div class="friend-copy"><strong>{{ item.display_name }}</strong><small>@{{ item.username }}</small></div><span class="friend-status">Request sent</span></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if friends %}
+    <h4 class="friend-section-title">Friends</h4>
+    <div class="friend-list">
+      {% for person in friends %}
+      <div class="friend-row"><span class="friend-avatar"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
   <div class="profile-preferences">
     <div class="profile-card profile-preference-card">
       <div class="preference-head">
@@ -760,6 +858,25 @@
       </div>
     </div>
   </div>
+
+  <details class="profile-card" style="padding:0;overflow:hidden;">
+    <summary style="padding:22px;cursor:pointer;list-style:none;font-size:15px;font-weight:700;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
+      <span>Default expense account</span><span style="color:var(--muted);font-size:20px;">+</span>
+    </summary>
+    <div style="padding:0 22px 22px;">
+      <p class="profile-email" style="margin:0 0 14px;">Minto will preselect this account when you accept a shared trip expense. Accepting an expense does not change its balance.</p>
+      <form method="post" action="{{ url_for('update_default_expense_account') }}">
+        <label for="default-expense-source">Account</label>
+        <select id="default-expense-source" name="source_id">
+          <option value="">Choose manually each time</option>
+          {% for source in expense_accounts %}
+          <option value="{{ source.id }}" {% if default_expense_source_id == source.id %}selected{% endif %}>{{ source.name }} · {{ source.source_type|replace('_',' ')|title }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="profile-save">Save account</button>
+      </form>
+    </div>
+  </details>
 
   <details class="profile-card" style="padding:0; overflow:hidden;">
     <summary style="padding:22px;cursor:pointer;list-style:none;font-size:15px;font-weight:700;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
