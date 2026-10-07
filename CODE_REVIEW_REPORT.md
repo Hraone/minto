@@ -9,7 +9,7 @@
 
 Minto has a coherent separation between personal account movements and trip expense shares. Shared-trip SQL functions use database transactions, validate member/owner authority, and make share acceptance idempotent. The database sources include owner RLS for personal tables and membership-aware policies for Trip Mode. The 24 avatar IDs exist in the SVG sprite, username uniqueness is case-insensitive in SQL, and theme-aware favicon selection is present.
 
-The app is **not production-audit ready** based on this source review. The audit branch now fails closed when required Net Worth, trip, fixed-expense, or card-EMI reads fail: affected financial pages return an explicit unavailable response instead of displaying incomplete totals, and snapshot calculation stops before its write. This still needs deployment and live verification. Trip Case B, ledger atomicity, CSRF, and other open findings remain. Production UI and actual Supabase RLS behavior could not be exercised here.
+The app is **not production-audit ready** based on this source review. The audit branch now fails closed when required Net Worth, trip, fixed-expense, or card-EMI reads fail: affected financial pages return an explicit unavailable response instead of displaying incomplete totals, and snapshot calculation stops before its write. It also counts pending trip shares immediately and validates CSRF tokens on unsafe requests. These changes still need deployment and live verification. Ledger atomicity, pagination, and other open findings remain. Production UI and actual Supabase RLS behavior could not be exercised here.
 
 The audit branch includes three mitigations: signup/login no longer display raw Supabase exception text, destructive confirmations use escaped HTML data attributes instead of inserting dynamic names into inline JavaScript, and required financial reads fail closed. These changes are not live until the PR is merged and deployed.
 
@@ -21,7 +21,7 @@ The audit branch includes three mitigations: signup/login no longer display raw 
 | P1 | Trip Case B expected outstanding is absent while a Minto friend's share is pending | Fixed on audit branch; apply migration and verify against Supabase |
 | P1 | Some ledger/transfer workflows span independent database requests and rely on best-effort cleanup | Open |
 | P1 | Account-balance and dashboard transaction reads are unpaged, unlike report reads | Open; impact depends on PostgREST row cap and account size |
-| P1 | Cookie-authenticated POST routes have no CSRF token or origin validation | Open |
+| P1 | Cookie-authenticated POST routes have no CSRF token or origin validation | CSRF tokens added in source; browser/cross-origin verification pending |
 | P2 | Safe to Spend forecast omits existing card outstanding; “after salary” adds salary without later commitments | Open |
 | P2 | Three manifest icon paths and the PDF logo path point to absent files | Open |
 | P2 | Some default transaction dates use database current_date, not the app's Asia/Kolkata date | Open |
@@ -64,11 +64,11 @@ The report helper explicitly pages in 1,000-row batches because Supabase/PostgRE
 
 **Required fix:** use a shared deterministic paging helper for every aggregate read, or verify/configure a safe higher database cap and test beyond it. Verify ordering and deduplication.
 
-### P1 — Cookie-authenticated POSTs have no CSRF token or origin check
+### P1 — Cookie-authenticated POSTs had no CSRF token or origin check
 
-The Flask session uses a signed cookie with HttpOnly, Secure by default and SameSite=Lax (app.py:28). No CSRF token validation or Origin/Referer check was found. Lax reduces ordinary cross-site form POST exposure but is not a complete origin policy; same-site sibling origins and other browser flows remain outside that mitigation. Authenticated routes mutate profile, finances, friends, trips and Net Worth. /logout and /mode also accept GET and change session state.
+The Flask session uses a signed cookie with HttpOnly, Secure by default and SameSite=Lax. The audit branch now issues a session-bound synchronizer token, checks it on unsafe methods, adds it to native forms and same-origin fetch requests, and rotates it after password or passkey login. The monthly-report job is the only exception because it requires a separate long secret and does not use a browser session. `/logout` and `/mode` are POST-only now.
 
-**Required fix:** implement synchronizer tokens for HTML forms and same-origin AJAX, validate them on unsafe methods, exempt only explicitly authenticated machine calls (cron already has a separate secret), and convert state-changing GETs to POST. Add cross-origin request tests.
+**Status:** fixed in source on the audit branch. Automated cross-origin and browser form checks remain pending; SameSite=Lax remains defense in depth.
 
 ### P2 — Safe to Spend does not fully account for card obligations or salary-cycle commitments
 
@@ -227,7 +227,7 @@ PASS is used only for executed checks. Static review is WARNING; unavailable pro
 
 | Feature | Desktop | Mobile | Light | Dark | Logic | Security | Result |
 |---|---|---|---|---|---|---|---|
-| Signup/login | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | WARNING — source reviewed; CSRF unresolved | WARNING |
+| Signup/login | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | WARNING — CSRF token source fix; browser check pending | WARNING |
 | Dashboard/account balances | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | WARNING — read failures/unpaged totals | WARNING — RLS not live-tested | WARNING |
 | Safe to Spend | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | WARNING — current-month formula; card/salary gaps | WARNING — failed reads can be empty | WARNING |
 | Net Worth/snapshots | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | NOT TESTABLE | FAIL — incomplete snapshot may be persisted | WARNING — service-role path source-reviewed | FAIL |
@@ -246,7 +246,7 @@ PASS is used only for executed checks. Static review is WARNING; unavailable pro
 ## Verification and limitations
 
 - python.exe -m unittest discover -s tests -v: **9 tests passed**.
-- Standard-library static scan: 20 templates; 52 form tags; no missing literal url_for() endpoint, duplicate literal ID, old profile_emojis reference or inline onsubmit=confirm in the audit branch.
+- Standard-library static scan: 20 templates; 52 form tags; no missing literal url_for() endpoint, duplicate literal ID, old profile_emojis reference or inline onsubmit=confirm in the audit branch. Unsafe requests now require the session token; native forms and same-origin fetches receive it from the shared layout script.
 - SVG XML parse: 24 unique avatar symbols from avatar-01 through avatar-24.
 - Each manifest icon path was checked against repository files: all 3 are absent.
 - Source scan found no innerHTML, outerHTML, insertAdjacentHTML, document.write, eval or new Function. This does not prove all browser behavior safe.
@@ -259,8 +259,7 @@ PASS is used only for executed checks. Static review is WARNING; unavailable pro
 2. Decide and implement Case B pending-share behavior across Python, SQL migration, settlement validation, rejection/reassignment and tests.
 3. Move paired ledger and card-loan operations into atomic RPCs; add failure-injection tests.
 4. Page every aggregate transaction query and test beyond the configured PostgREST cap.
-5. Add CSRF tokens and Origin validation; convert GET state changes to POST.
+5. Complete browser/cross-origin checks for the CSRF token implementation.
 6. Revisit Safe to Spend's current card bill and post-salary commitment semantics.
 7. Add PWA/PDF icon assets or point all references to verified existing assets.
 8. Run visual/browser, accessibility, live RLS and migration rehearsal checks against staging before calling the release audit-ready.
-
