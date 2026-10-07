@@ -781,6 +781,8 @@ def login_required(view):
 
         if session.get("theme") not in ("light", "dark"):
             session["theme"] = load_saved_theme(get_user_client(), session["user_id"])
+        if "genz_mode" not in session:
+            session["genz_mode"] = load_genz_mode(get_user_client(), session["user_id"])
 
         now = datetime.now(timezone.utc).timestamp()
         last_verified = session.get("verified_at", 0)
