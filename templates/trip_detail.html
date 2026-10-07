@@ -101,7 +101,7 @@
     </div>
     {% if trip_owner and trip.status != "archived" %}<div class="head-actions">
       <button type="button" class="mini-btn" onclick="openTripSettings()">Edit trip</button>
-      <form method="post" action="{{ url_for('delete_trip', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip and all of its expenses? This cannot be undone.');">
+      <form method="post" action="{{ url_for('delete_trip', trip_id=trip.id) }}" data-confirm="Delete this trip and all of its expenses? This cannot be undone.">
         <button type="submit" class="mini-btn danger-btn">Delete</button>
       </form>
     </div>{% endif %}
@@ -122,7 +122,7 @@
     <div class="people-list">
       {% for member in members %}{% if member.active %}
       <span class="person{% if member.is_you %} you{% endif %}">{{ member.name }}{% if member.is_minto and not member.is_you %}<small style="color:var(--muted-2)"> · Minto</small>{% elif not member.is_minto %}<small style="color:var(--muted-2)"> · guest</small>{% endif %}
-        {% if trip_owner and not member.is_you and trip.status != "archived" %}<form method="post" action="{{ url_for('remove_trip_friend', trip_id=trip.id, friend_id=member.id) }}" onsubmit="return confirm('Remove {{ member.name }} from future splits? Past history stays.');"><button type="submit" class="person-x" aria-label="Remove {{ member.name }}" title="Remove from future splits">×</button></form>{% endif %}
+        {% if trip_owner and not member.is_you and trip.status != "archived" %}<form method="post" action="{{ url_for('remove_trip_friend', trip_id=trip.id, friend_id=member.id) }}" data-confirm="Remove {{ member.name }} from future splits? Past history stays."><button type="submit" class="person-x" aria-label="Remove {{ member.name }}" title="Remove from future splits">×</button></form>{% endif %}
       </span>
       {% endif %}{% endfor %}
     </div>
@@ -276,7 +276,7 @@
         <div class="expense-amount">{{ e.amount|inr }}</div>
         {% if e.can_edit and trip.status != "archived" %}<div class="expense-actions">
           <a class="icon-btn" href="{{ url_for('edit_trip_expense', trip_id=trip.id, expense_id=e.id) }}" aria-label="Edit expense" title="Edit">✎</a>
-          <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}" onsubmit="return confirm('Delete this expense?');"><button type="submit" class="icon-btn danger" aria-label="Delete expense" title="Delete">×</button></form>
+          <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}" data-confirm="Delete this expense?"><button type="submit" class="icon-btn danger" aria-label="Delete expense" title="Delete">×</button></form>
         </div>{% endif %}
       </li>
       {% endfor %}
