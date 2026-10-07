@@ -1100,6 +1100,7 @@ def profile():
         expense_accounts=expense_accounts,
         default_expense_source_id=profile_data.get("default_expense_source_id"),
         friend_query=request.args.get("friend_q", "").strip(),
+        edit_username=request.args.get("edit_username") == "1",
         **friend_center,
     )
 
@@ -1110,7 +1111,8 @@ def update_profile_username():
     username = (request.form.get("username") or "").strip().lower()
     if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
         flash("Usernames must be 3–24 characters using letters, numbers, or underscores.")
-        return redirect(url_for("profile", _anchor="friends"))
+        return redirect(url_for("profile", edit_username="1", _anchor="friends"))
+    keep_editor_open = False
     try:
         get_user_client().table("profiles").upsert({
             "id": session["user_id"], "username": username,
@@ -1123,7 +1125,11 @@ def update_profile_username():
         else:
             app.logger.exception("Could not save username")
             flash("Couldn't save your username. Please try again.")
-    return redirect(url_for("profile", _anchor="friends"))
+        keep_editor_open = True
+    redirect_args = {"_anchor": "friends"}
+    if keep_editor_open:
+        redirect_args["edit_username"] = "1"
+    return redirect(url_for("profile", **redirect_args))
 
 
 @app.route("/profile/default-expense-account", methods=["POST"])
