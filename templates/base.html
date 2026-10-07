@@ -1906,6 +1906,12 @@
       }
 
       document.addEventListener("submit", function (e) {
+        var form = e.target;
+        if (!form || !form.hasAttribute("data-confirm")) return;
+        if (!window.confirm(form.getAttribute("data-confirm"))) e.preventDefault();
+      });
+
+      document.addEventListener("submit", function (e) {
         // A cancelled confirm() (e.g. delete) stops the submit: show nothing.
         if (e.defaultPrevented) return;
         var form = e.target;
