@@ -574,7 +574,7 @@
 
   .avatar-picker {
     display: grid;
-    grid-template-columns: repeat(8, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
     gap: 10px;
     padding: 4px 2px 2px;
   }
@@ -729,7 +729,7 @@
           {% for avatar in profile_avatars %}
           <div class="avatar-option">
             <input type="radio" id="profile-avatar-{{ loop.index }}" name="profile_avatar" value="{{ avatar }}" {% if profile_avatar == avatar %}checked{% endif %}>
-            <label for="profile-avatar-{{ loop.index }}" aria-label="Choose avatar {{ loop.index }}">
+            <label for="profile-avatar-{{ loop.index }}" aria-label="Choose {{ profile_avatar_labels[avatar] }}" title="{{ profile_avatar_labels[avatar] }}">
               <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
                 <use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ avatar }}"></use>
               </svg>
