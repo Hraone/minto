@@ -5,6 +5,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token }}">
 
   <!-- If the last click was the Personal/Trip switch, mark the page so the
        curtain (.mode-veil) lifts off it (see .shift-to-* in the CSS). -->
@@ -481,6 +482,30 @@
       color: var(--positive);
     }
 
+    .nav-dropdown form {
+      margin: 0;
+    }
+
+    .nav-dropdown form button {
+      display: block;
+      width: 100%;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      font: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .nav-dropdown form button:hover {
+      background: var(--nav-hover-bg);
+    }
+
     .profile-dropdown {
       left: auto;
       right: 0;
@@ -495,6 +520,12 @@
 
     .logout-link {
       color: var(--muted);
+      border: 0;
+      background: transparent;
+      font-family: inherit;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
     }
 
     .nav-link.primary {
@@ -515,16 +546,25 @@
       background: var(--surface-alt);
     }
 
+    .mode-toggle form,
+    .logout-form {
+      margin: 0;
+    }
+
     .mode-option {
       padding: 7px 13px;
+      border: 0;
+      background: transparent;
 
       border-radius: 999px;
 
       color: var(--muted);
       text-decoration: none;
+      font-family: inherit;
 
       font-size: 12.5px;
       font-weight: 700;
+      cursor: pointer;
 
       transition: background 0.15s ease, color 0.15s ease;
     }
@@ -1329,20 +1369,16 @@
          app.py) so a screen passed around a group only ever shows trip
          details, never personal balances. -->
     <div class="mode-toggle" role="group" aria-label="App mode">
-      <a
-        class="mode-option {{ 'active' if app_mode != 'trip' else '' }}"
-        data-mode="personal"
-        href="{{ url_for('set_mode', mode='personal') }}"
-      >
-        Personal
-      </a>
-      <a
-        class="mode-option {{ 'active' if app_mode == 'trip' else '' }}"
-        data-mode="trip"
-        href="{{ url_for('set_mode', mode='trip') }}"
-      >
-        Trip
-      </a>
+      <form method="post" action="{{ url_for('set_mode') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="mode" value="personal">
+        <button type="submit" class="mode-option {{ 'active' if app_mode != 'trip' else '' }}" data-mode="personal" aria-pressed="{{ 'true' if app_mode != 'trip' else 'false' }}">Personal</button>
+      </form>
+      <form method="post" action="{{ url_for('set_mode') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="mode" value="trip">
+        <button type="submit" class="mode-option {{ 'active' if app_mode == 'trip' else '' }}" data-mode="trip" aria-pressed="{{ 'true' if app_mode == 'trip' else 'false' }}">Trip</button>
+      </form>
     </div>
 
     {% endif %}
@@ -1364,7 +1400,10 @@
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
         <a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>
-        <a role="menuitem" href="{{ url_for('logout') }}">Log Out</a>
+        <form method="post" action="{{ url_for('logout') }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+          <button type="submit" role="menuitem">Log Out</button>
+        </form>
       </div>
     </div>
     {% endif %}
@@ -1375,25 +1414,21 @@
 
     {% if session.get('user_id') %}
 
-    <a
-      class="nav-link logout-link logout-text"
-      href="{{ url_for('logout') }}"
-    >
-      Log Out
-    </a>
+    <form class="logout-form logout-text" method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="nav-link logout-link">Log Out</button>
+    </form>
 
-    <a
-      class="theme-toggle logout-icon"
-      href="{{ url_for('logout') }}"
-      aria-label="Log Out"
-      title="Log Out"
-    >
+    <form class="logout-form logout-icon" method="post" action="{{ url_for('logout') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+      <button type="submit" class="theme-toggle" aria-label="Log Out" title="Log Out">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
         <polyline points="16 17 21 12 16 7"></polyline>
         <line x1="21" y1="12" x2="9" y2="12"></line>
       </svg>
-    </a>
+      </button>
+    </form>
 
     {% else %}
 
@@ -1550,6 +1585,53 @@
   {% endif %}
 
   <script>
+    // Attach the server-issued CSRF token to native forms and same-origin
+    // fetch mutations. The server remains the source of truth and rejects
+    // unsafe requests without a matching token.
+    (function () {
+      var meta = document.querySelector('meta[name="csrf-token"]');
+      if (!meta || !meta.content) return;
+      var token = meta.content;
+
+      function addFormToken(form) {
+        if (!form || (form.method || "get").toLowerCase() !== "post") return;
+        var action;
+        try { action = new URL(form.action || location.href, location.href); } catch (err) { return; }
+        if (action.origin !== location.origin) return;
+        var field = form.querySelector('input[name="csrf_token"]');
+        if (!field) {
+          field = document.createElement("input");
+          field.type = "hidden";
+          field.name = "csrf_token";
+          form.appendChild(field);
+        }
+        field.value = token;
+      }
+
+      document.querySelectorAll("form").forEach(addFormToken);
+      document.addEventListener("submit", function (event) {
+        addFormToken(event.target);
+      }, true);
+
+      if (typeof window.fetch === "function") {
+        var nativeFetch = window.fetch.bind(window);
+        window.fetch = function (input, init) {
+          var sourceRequest = input instanceof Request ? input : null;
+          var method = String((init && init.method) || (sourceRequest && sourceRequest.method) || "GET").toUpperCase();
+          if (["GET", "HEAD", "OPTIONS"].indexOf(method) === -1) {
+            var url;
+            try { url = new URL(sourceRequest ? sourceRequest.url : String(input), location.href); } catch (err) {}
+            if (url && url.origin === location.origin) {
+              var headers = new Headers((init && init.headers) || (sourceRequest && sourceRequest.headers) || {});
+              if (!headers.has("X-CSRF-Token")) headers.set("X-CSRF-Token", token);
+              init = Object.assign({}, init || {}, { headers: headers });
+            }
+          }
+          return nativeFetch(input, init);
+        };
+      }
+    })();
+
     function toggleNavAccounts(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -1675,14 +1757,15 @@
 
     // Personal <-> Trip: the curtain slides up, then we go. The next page
     // reads the flag set here (see the script in <head>) and lifts it.
-    document.querySelectorAll(".mode-option").forEach(function (a) {
-      a.addEventListener("click", function (e) {
+    document.querySelectorAll(".mode-option").forEach(function (button) {
+      button.addEventListener("click", function (e) {
         if (e.defaultPrevented || e.button !== 0) return;
         if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        if (a.classList.contains("active")) return;
-        var target = a.getAttribute("data-mode");
+        if (button.classList.contains("active")) { e.preventDefault(); return; }
+        var target = button.getAttribute("data-mode");
+        var form = button.form || button.closest("form");
         var veil = document.getElementById("mode-veil");
-        if (!target || !veil) return;
+        if (!target || !form || !veil) return;
         e.preventDefault();
         var root = document.documentElement;
         // Drop what the last switch left behind (its animation would
@@ -1694,7 +1777,8 @@
         veil.classList.add("cover");
         setTimeout(function () {
           try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
-          window.location.href = a.href;
+          if (typeof form.requestSubmit === "function") form.requestSubmit(button);
+          else form.submit();
         }, 320);
       });
     });
@@ -1904,6 +1988,12 @@
         loader.classList.remove("show");
         bar.classList.remove("run");
       }
+
+      document.addEventListener("submit", function (e) {
+        var form = e.target;
+        if (!form || !form.hasAttribute("data-confirm")) return;
+        if (!window.confirm(form.getAttribute("data-confirm"))) e.preventDefault();
+      });
 
       document.addEventListener("submit", function (e) {
         // A cancelled confirm() (e.g. delete) stops the submit: show nothing.

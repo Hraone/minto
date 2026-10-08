@@ -857,7 +857,7 @@
     <h4 class="friend-section-title">Friends</h4>
     <div class="friend-list">
       {% for person in friends %}
-      <div class="friend-row"><span class="friend-avatar"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
+      <div class="friend-row"><span class="friend-avatar"><svg viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" data-confirm="Remove {{ person.username }} as a friend? Their trip history will stay."><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
       {% endfor %}
     </div>
     {% endif %}

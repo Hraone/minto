@@ -28,16 +28,60 @@ load_dotenv()
 app = Flask(__name__)
 MINTO_VERSION = "2.0.0"
 app.secret_key = os.environ["SECRET_KEY"]
+
+
+class FinancialDataUnavailable(HTTPException):
+    """A required financial read failed, so derived totals must not be shown."""
+
+    code = 503
+    description = (
+        "Minto couldn't load all the data needed to safely display this financial information. "
+        "The affected totals are hidden. Please try again in a moment."
+    )
+
+
 # How long a logged-in session survives with no activity at all — separate
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
 # renews automatically as long as this outer session is still alive.
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
-# Cookie hardening. Lax stops other sites from making a logged-in browser
-# submit this app's POST forms (there are no CSRF tokens). Secure keeps the
+# Cookie hardening. SameSite=Lax is an additional layer alongside the CSRF
+# token checked on every state-changing browser request. Secure keeps the
 # cookie off plain HTTP; set SESSION_COOKIE_SECURE=0 only for local http dev.
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"
+
+
+@app.before_request
+def enforce_csrf_protection():
+    """Require a session-bound token on every state-changing browser request.
+
+    The monthly report job has separate long-secret authentication and does
+    not use a browser session, so it is the sole exception.
+    """
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+
+    if (
+        request.endpoint is None
+        or request.method in ("GET", "HEAD", "OPTIONS")
+        or request.endpoint == "monthly_reports_cron"
+    ):
+        return None
+
+    supplied = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if not secrets.compare_digest(
+        str(supplied).encode("utf-8"), str(token).encode("utf-8")
+    ):
+        return render_template(
+            "error.html",
+            code=400,
+            title="Request expired",
+            message="This form is out of date or missing its security token. Reload the page and try again.",
+        ), 400
+    return None
 
 
 @app.after_request
@@ -295,6 +339,7 @@ def inject_template_globals():
         "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
         "nav_name": name,
         "profile_avatar": profile_avatar,
+        "csrf_token": session.get("csrf_token", ""),
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
     }
@@ -522,7 +567,8 @@ def net_worth_password_hash_exists():
 def get_net_worth_snapshots(limit=12):
     service = get_service_client()
     if service is None:
-        return []
+        app.logger.error("Net Worth snapshots are unavailable: service client is not configured")
+        raise FinancialDataUnavailable()
     try:
         return (
             service.table("net_worth_snapshots")
@@ -535,13 +581,14 @@ def get_net_worth_snapshots(limit=12):
         )
     except Exception:
         app.logger.exception("Could not load Net Worth snapshots")
-        return []
+        raise FinancialDataUnavailable() from None
 
 
 def get_net_worth_manual_items():
     service = get_service_client()
     if service is None:
-        return []
+        app.logger.error("Net Worth items are unavailable: service client is not configured")
+        raise FinancialDataUnavailable()
     try:
         return (
             service.table("net_worth_items")
@@ -556,7 +603,7 @@ def get_net_worth_manual_items():
         )
     except Exception:
         app.logger.exception("Could not load Net Worth items")
-        return []
+        raise FinancialDataUnavailable() from None
 
 
 def compute_net_worth_manual_totals(items):
@@ -622,7 +669,7 @@ def get_active_cc_loans(client, user_id):
         )
     except Exception:
         app.logger.exception("Could not load credit-card loans")
-        return {}
+        raise FinancialDataUnavailable() from None
 
     loans = {}
     for row in rows:
@@ -714,10 +761,7 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
     next_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
 
     for month_anchor in (current_month, next_month):
-        try:
-            fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
-        except Exception:
-            fixed = []
+        fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
         for item in fixed:
             due = item.get("due_date")
             if isinstance(due, datetime):
@@ -785,6 +829,14 @@ def handle_unexpected_error(e):
     # to `raise e` below and turn into "Internal Server Error". Visitors who
     # aren't logged in get the public info page instead; everyone else gets
     # the normal error page.
+    if isinstance(e, FinancialDataUnavailable):
+        return render_template(
+            "error.html",
+            code=e.code,
+            title="Financial data temporarily unavailable",
+            message=e.description,
+        ), e.code
+
     if isinstance(e, HTTPException):
         if (
             not session.get("user_id")
@@ -859,7 +911,8 @@ def signup():
         try:
             result = client.auth.sign_up({"email": email, "password": password})
         except Exception as e:
-            flash(f"Signup failed: {e}")
+            app.logger.warning("Signup failed (%s)", type(e).__name__)
+            flash("We couldn't create your account. Check the details and try again, or log in if you already have an account.")
             return render_template("signup.html")
 
         if result.user is None:
@@ -898,10 +951,12 @@ def login():
         try:
             result = client.auth.sign_in_with_password({"email": email, "password": password})
         except Exception as e:
-            flash(f"Login failed: {e}")
+            app.logger.warning("Login failed (%s)", type(e).__name__)
+            flash("We couldn't log you in. Check your email and password, and confirm your email if required.")
             return render_template("login.html")
 
         session.permanent = True  # survive browser restarts, not just the tab
+        session["csrf_token"] = secrets.token_urlsafe(32)
         session["user_id"] = result.user.id
         session["email"] = result.user.email
         session["access_token"] = result.session.access_token
@@ -956,6 +1011,7 @@ def passkey_login():
 
     session.clear()
     session.permanent = True
+    session["csrf_token"] = secrets.token_urlsafe(32)
     session["user_id"] = user.id
     session["email"] = user.email
     session["access_token"] = access_token
@@ -1663,7 +1719,7 @@ def info():
     return render_template("info.html")
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return redirect(url_for("login"))
@@ -2377,7 +2433,7 @@ def get_active_sources(client):
 
 
 def get_trip_payables(client, user_id):
-    """Accepted trip shares that are still owed by this account."""
+    """Pending or accepted trip shares that are still owed by this account."""
     try:
         result = client.rpc("current_trip_payables").execute().data
         if isinstance(result, list):
@@ -2385,13 +2441,13 @@ def get_trip_payables(client, user_id):
         return float(result or 0)
     except Exception:
         app.logger.exception("Could not load trip payables")
-        return 0
+        raise FinancialDataUnavailable() from None
 
 
-@app.route("/mode", methods=["GET", "POST"])
+@app.route("/mode", methods=["POST"])
 @login_required
 def set_mode():
-    mode = request.values.get("mode")
+    mode = request.form.get("mode")
     if mode in MODES:
         session["mode"] = mode
         save_mode(get_user_client(), session["user_id"], mode)
@@ -3631,7 +3687,7 @@ def compute_net_worth(all_txns, savings, credit_cards, manual_items=None, trip_p
 
     def counts_as_lending_asset(transaction):
         if transaction.get("trip_expense_share_id") is not None:
-            return transaction.get("trip_share_status") in ("accepted", "settled")
+            return transaction.get("trip_share_status") in ("pending", "accepted", "settled")
         return True
 
     lent_out = sum(
@@ -3823,7 +3879,7 @@ def get_fixed_expenses_for_month(client, user_id, year=None, month=None):
         return _get_fixed_expenses_for_month(client, user_id, year, month)
     except Exception:
         app.logger.exception("Fixed expenses unavailable (has the database update been run?)")
-        return []
+        raise FinancialDataUnavailable() from None
 
 
 def _get_fixed_expenses_for_month(client, user_id, year=None, month=None):
@@ -4401,11 +4457,7 @@ def dashboard():
     today = datetime.now(APP_TZ).date()
     cc_loans = get_active_cc_loans(client, user_id)
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
-    try:
-        upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
-    except Exception:
-        app.logger.exception("Upcoming commitments could not be loaded")
-        upcoming_commitments = []
+    upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
 
     salary_cycle = get_salary_cycle(profile_settings, today)
     category_budgets = get_category_budget_status(client, user_id, all_txns, today)
@@ -4430,13 +4482,7 @@ def dashboard():
         )
     ]
 
-    try:
-        fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
-    except Exception:
-        # An extra on this page: if its tables are missing or unreachable, the
-        # Overview should still open instead of showing an error page.
-        app.logger.exception("Fixed expenses could not be loaded for the Overview")
-        fixed_expenses = []
+    fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     fixed_total = sum(
         float(x["amount"] or 0) for x in fixed_expenses
         if not x["paid"] and (x.get("kind") or "expense") == "expense"
@@ -4565,4 +4611,3 @@ def health():
 
 if __name__ == "__main__":
     app.run(debug=True)
-

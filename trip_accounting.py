@@ -1,8 +1,8 @@
 """Pure Trip Mode accounting helpers shared by routes and unit tests.
 
 Money is converted to whole paise before sums are compared. A trip expense is
-allocated to its payer and shares; pending shares remain visible as requested
-balances, while rejected shares are excluded from the debt calculation.
+allocated to its payer and shares; pending shares count as outstanding as soon
+as assigned, while rejected shares are excluded from the debt calculation.
 """
 
 from collections import defaultdict
@@ -35,9 +35,9 @@ def calculate_trip_balances(members, expenses, shares, settlements, legacy_split
     """Return paid, owed and net paise keyed by trip_member id.
 
     `paid` counts the full trip bill against the member recorded as payer.
-    `owed` counts accepted shares only; pending requests are visible in the
-    expense history but do not become debt until acknowledged. Paid
-    settlements transfer net between members; pending settlements do not.
+    `owed` counts pending, accepted and settled shares. Rejected shares are
+    excluded. Paid settlements transfer net between members; pending
+    settlements do not.
     Legacy name-only expenses are resolved through aliases populated from the
     additive migration's trip_members snapshots.
     """
@@ -61,7 +61,7 @@ def calculate_trip_balances(members, expenses, shares, settlements, legacy_split
     for share in shares:
         expense_id = share.get("trip_expense_id")
         expense_ids_with_shares.add(expense_id)
-        if share.get("status") not in ("accepted", "settled"):
+        if share.get("status") not in ("pending", "accepted", "settled"):
             continue
         member_id = share.get("trip_member_id") or share.get("member_id") or resolve(share.get("participant_name"))
         if member_id in owed:
@@ -118,13 +118,13 @@ def suggested_settlements(net_paise):
 
 
 def trip_payables_for_user(member_ids, expenses, shares, settlements):
-    """Accepted and unpaid responsibility belonging to one user's trip rows."""
+    """Unpaid pending or accepted responsibility belonging to one user's trip rows."""
     member_ids = set(member_ids)
     payer_by_expense = {e.get("id"): e.get("payer_member_id") for e in expenses}
     owed = defaultdict(int)
     for share in shares:
         member_id = share.get("trip_member_id") or share.get("member_id")
-        if member_id not in member_ids or share.get("status") not in ("accepted", "settled"):
+        if member_id not in member_ids or share.get("status") not in ("pending", "accepted", "settled"):
             continue
         if payer_by_expense.get(share.get("trip_expense_id")) == member_id:
             continue
@@ -133,3 +133,4 @@ def trip_payables_for_user(member_ids, expenses, shares, settlements):
         if settlement.get("status") == "paid" and settlement.get("from_member_id") in member_ids:
             owed[settlement["from_member_id"]] -= to_paise(settlement.get("amount"))
     return sum(max(amount, 0) for amount in owed.values()) / 100
+
