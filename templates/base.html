@@ -551,6 +551,12 @@
       margin: 0;
     }
 
+    /* The global form rule is full-width for page forms; the two mode forms
+       are inline controls and must keep their natural width. */
+    .mode-toggle form {
+      width: auto;
+    }
+
     .mode-option {
       padding: 7px 13px;
       border: 0;
@@ -1755,31 +1761,14 @@
       }
     });
 
-    // Personal <-> Trip: the curtain slides up, then we go. The next page
-    // reads the flag set here (see the script in <head>) and lifts it.
+    // Personal <-> Trip: use the native form submit path. This keeps the
+    // mode switch reliable with CSRF protection and browser form behavior.
+    // The destination page still clears any stale transition flags safely.
     document.querySelectorAll(".mode-option").forEach(function (button) {
-      button.addEventListener("click", function (e) {
-        if (e.defaultPrevented || e.button !== 0) return;
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-        if (button.classList.contains("active")) { e.preventDefault(); return; }
+      button.addEventListener("click", function () {
         var target = button.getAttribute("data-mode");
-        var form = button.form || button.closest("form");
-        var veil = document.getElementById("mode-veil");
-        if (!target || !form || !veil) return;
-        e.preventDefault();
-        var root = document.documentElement;
-        // Drop what the last switch left behind (its animation would
-        // otherwise keep overriding the curtain), then start from the
-        // correct side before sliding in.
-        root.classList.remove("shift-to-trip", "shift-to-personal");
-        root.setAttribute("data-veil", target);
-        void veil.offsetWidth;
-        veil.classList.add("cover");
-        setTimeout(function () {
-          try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
-          if (typeof form.requestSubmit === "function") form.requestSubmit(button);
-          else form.submit();
-        }, 320);
+        if (!target || button.classList.contains("active")) return;
+        try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
       });
     });
 
