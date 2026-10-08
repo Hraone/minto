@@ -1765,10 +1765,26 @@
     // mode switch reliable with CSRF protection and browser form behavior.
     // The destination page still clears any stale transition flags safely.
     document.querySelectorAll(".mode-option").forEach(function (button) {
-      button.addEventListener("click", function () {
+      button.addEventListener("click", function (event) {
         var target = button.getAttribute("data-mode");
-        if (!target || button.classList.contains("active")) return;
+        var form = button.form;
+        if (!target || button.classList.contains("active") || !form) return;
+
+        // Submit the mode form directly. Using HTMLFormElement.submit() here
+        // deliberately bypasses other generic submit listeners (date validation,
+        // loaders, etc.) because the Personal/Trip switch has no user-entered
+        // fields and must always be able to change mode on mobile.
+        event.preventDefault();
+        event.stopPropagation();
         try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
+
+        window.setTimeout(function () {
+          try {
+            HTMLFormElement.prototype.submit.call(form);
+          } catch (err) {
+            form.submit();
+          }
+        }, 40);
       });
     });
 
