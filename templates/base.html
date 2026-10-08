@@ -5,28 +5,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="csrf-token" content="{{ csrf_token }}">
 
-  <!-- If the last click was the Personal/Trip switch, mark the page so the
-       curtain (.mode-veil) lifts off it (see .shift-to-* in the CSS). -->
+  <!-- Applies the saved/system theme before first paint, so there's no
+       flash of the wrong theme while the page loads. -->
   <script>
     (function () {
       try {
-        var d = sessionStorage.getItem("minto-mode-shift");
-        if (d === "trip" || d === "personal") {
-          sessionStorage.removeItem("minto-mode-shift");
-          document.documentElement.classList.add("shift-to-" + d);
-          document.documentElement.setAttribute("data-veil", d);
-        }
-      } catch (e) {}
+        var stored = localStorage.getItem("minto-theme");
+        var theme = stored || (
+          window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light"
+        );
+        document.documentElement.setAttribute("data-theme", theme);
+      } catch (e) {
+        document.documentElement.setAttribute("data-theme", "light");
+      }
     })();
-  </script>
-
-  <!-- Theme is a signed-in user's profile preference. It is loaded from the
-       server before the first paint, so it follows the account across browsers. -->
-  <script>
-    document.documentElement.setAttribute("data-theme", {{ user_theme|tojson }});
-    document.documentElement.setAttribute("data-minto-tone", {{ ('casual' if genz_mode else 'classic')|tojson }});
   </script>
 
   <title>{% block title %}Minto{% endblock %}</title>
@@ -40,29 +35,17 @@
   >
   <script>
     (function () {
-      var favicon = document.getElementById("minto-favicon");
-      if (!favicon) return;
-
-      var lightFavicon = "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
-      var darkFavicon = "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}";
-
       function setFavicon(theme) {
-        var href = theme === "dark" ? darkFavicon : lightFavicon;
-        if (favicon.getAttribute("href") !== href) favicon.setAttribute("href", href);
+        var favicon = document.getElementById("minto-favicon");
+        if (!favicon) return;
+        favicon.href = theme === "dark"
+          ? "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}"
+          : "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
       }
 
       try {
         setFavicon(document.documentElement.getAttribute("data-theme") || "light");
       } catch (e) {}
-
-      if (window.MutationObserver) {
-        new MutationObserver(function () {
-          setFavicon(document.documentElement.getAttribute("data-theme") || "light");
-        }).observe(document.documentElement, {
-          attributes: true,
-          attributeFilter: ["data-theme"]
-        });
-      }
     })();
   </script>
 
@@ -77,7 +60,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <style>
 
@@ -136,11 +119,6 @@
       --radius-sm: 10px;
       --radius-md: 14px;
       --radius-lg: 20px;
-      --minto-font: "Manrope";
-    }
-
-    [data-minto-tone="casual"] {
-      --minto-font: "DM Sans";
     }
 
     [data-theme="dark"] {
@@ -195,114 +173,21 @@
       margin: 0;
       min-height: 100vh;
 
-      font-family: var(--minto-font), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+      font-family: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
       color: var(--text);
       background:
-        radial-gradient(circle at 12% 8%, var(--bg-gradient-1) 0, transparent 32%),
-        radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--positive) 4%, transparent) 0, transparent 26%),
-        linear-gradient(180deg, var(--bg-gradient-2) 0%, var(--background) 58%, var(--bg-gradient-3) 100%);
+        radial-gradient(
+          circle at top left,
+          var(--bg-gradient-1) 0%,
+          var(--bg-gradient-2) 45%,
+          var(--bg-gradient-3) 100%
+        );
       background-attachment: fixed;
 
       transition: background 0.25s ease, color 0.25s ease;
 
       -webkit-font-smoothing: antialiased;
-      position: relative;
-      overflow-x: hidden;
-    }
-
-    /* A very light paper grain / ledger treatment. It stays behind the app
-       chrome so the interface still feels clean rather than decorative. */
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      z-index: -2;
-      pointer-events: none;
-      opacity: 0.34;
-      background:
-        repeating-linear-gradient(
-          0deg,
-          transparent 0,
-          transparent 31px,
-          color-mix(in srgb, var(--text) 3%, transparent) 32px
-        ),
-        repeating-linear-gradient(
-          90deg,
-          transparent 0,
-          transparent 31px,
-          color-mix(in srgb, var(--text) 2%, transparent) 32px
-        ),
-        radial-gradient(
-          circle at 20% 20%,
-          color-mix(in srgb, var(--text) 3%, transparent) 0 0.7px,
-          transparent 0.8px
-        );
-      background-size: auto, auto, 7px 7px;
-    }
-
-    /* Faint finance watermark: intentionally subtle, so it reads as a
-       financial notebook / ledger motif instead of looking like a banner. */
-    body::after {
-      content: "₹";
-      position: fixed;
-      right: -34px;
-      bottom: 8vh;
-      z-index: -1;
-      pointer-events: none;
-      font-size: min(34vw, 420px);
-      line-height: 0.8;
-      font-weight: 800;
-      color: var(--positive);
-      opacity: 0.025;
-      transform: rotate(-8deg);
-      user-select: none;
-    }
-
-    /* Ledger edge on major cards: a tiny financial-report cue without
-       changing the existing Minto card language. */
-    .summary-card,
-    .chart-card,
-    .recent-card,
-    .safe-spend-card,
-    .commitments-section,
-    .money-plan-card,
-    .due-soon-card,
-    .budget-dashboard-card,
-    .fixed-card,
-    .wealth-hero,
-    .wealth-card,
-    .net-worth-locked {
-      position: relative;
-      overflow: hidden;
-    }
-
-    .summary-card::after,
-    .chart-card::after,
-    .recent-card::after,
-    .safe-spend-card::after,
-    .commitments-section::after,
-    .money-plan-card::after,
-    .due-soon-card::after,
-    .budget-dashboard-card::after,
-    .fixed-card::after,
-    .wealth-hero::after,
-    .wealth-card::after,
-    .net-worth-locked::after {
-      content: "";
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: 0;
-      height: 2px;
-      background: linear-gradient(
-        90deg,
-        transparent 0%,
-        color-mix(in srgb, var(--positive) 18%, transparent) 18%,
-        color-mix(in srgb, var(--positive) 8%, transparent) 50%,
-        transparent 82%
-      );
-      pointer-events: none;
     }
 
     /* Respect people who've asked their OS to cut down on motion */
@@ -333,12 +218,11 @@
     .navbar {
       position: sticky;
       top: 0;
-      z-index: 20;
+      z-index: 50;
 
-      height: 72px;
-      width: 100vw;
-      margin: 0 calc(50% - 50vw) 25px;
-      padding: 0 max(20px, calc((100vw - 1000px) / 2 + 20px));
+      height: 64px;
+      margin: 0 -20px 20px;
+      padding: 0 20px;
 
       display: flex;
       align-items: center;
@@ -359,14 +243,14 @@
       color: var(--text);
       text-decoration: none;
 
-      font-size: 19px;
+      font-size: 18px;
       font-weight: 800;
       letter-spacing: -0.4px;
     }
 
     .brand-icon {
-      width: 32px;
-      height: 32px;
+      width: 38px;
+      height: 38px;
 
       display: block;
       object-fit: contain;
@@ -482,37 +366,6 @@
       color: var(--positive);
     }
 
-    .nav-dropdown form {
-      margin: 0;
-    }
-
-    .nav-dropdown form button {
-      display: block;
-      width: 100%;
-      padding: 10px 12px;
-      border: 0;
-      border-radius: 10px;
-      background: transparent;
-      color: var(--text);
-      text-align: left;
-      font: inherit;
-      font-size: 13.5px;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    .nav-dropdown form button:hover {
-      background: var(--nav-hover-bg);
-    }
-
-    .profile-dropdown {
-      left: auto;
-      right: 0;
-      min-width: 190px;
-    }
-
-
     .nav-link.active {
       background: var(--surface-alt);
       color: var(--text);
@@ -520,12 +373,6 @@
 
     .logout-link {
       color: var(--muted);
-      border: 0;
-      background: transparent;
-      font-family: inherit;
-      font-size: 13.5px;
-      font-weight: 600;
-      cursor: pointer;
     }
 
     .nav-link.primary {
@@ -546,31 +393,16 @@
       background: var(--surface-alt);
     }
 
-    .mode-toggle form,
-    .logout-form {
-      margin: 0;
-    }
-
-    /* The global form rule is full-width for page forms; the two mode forms
-       are inline controls and must keep their natural width. */
-    .mode-toggle form {
-      width: auto;
-    }
-
     .mode-option {
       padding: 7px 13px;
-      border: 0;
-      background: transparent;
 
       border-radius: 999px;
 
       color: var(--muted);
       text-decoration: none;
-      font-family: inherit;
 
       font-size: 12.5px;
       font-weight: 700;
-      cursor: pointer;
 
       transition: background 0.15s ease, color 0.15s ease;
     }
@@ -586,8 +418,8 @@
       align-items: center;
       justify-content: center;
 
-      width: 36px;
-      height: 36px;
+      width: 42px;
+      height: 42px;
       margin: 0;
       padding: 0;
 
@@ -640,6 +472,52 @@
 
     [data-theme="dark"] .theme-toggle .icon-sun {
       display: none;
+    }
+
+
+    /* ---------- Secondary context navigation ---------- */
+    .context-nav {
+      position: sticky;
+      top: 64px;
+      z-index: 45;
+      display: flex;
+      justify-content: center;
+      margin: -20px -20px 24px;
+      padding: 8px 20px;
+      background: var(--surface-translucent);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--hairline);
+    }
+    .context-nav-inner {
+      width: 100%;
+      max-width: 1000px;
+      min-height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .context-mode { margin: 0; }
+    .context-info {
+      position: absolute;
+      right: 0;
+      width: 40px;
+      height: 40px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--nav-text);
+      text-decoration: none;
+      transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .context-info.active, .context-info:hover {
+      color: var(--positive);
+      border-color: var(--positive);
+      background: var(--surface-subtle);
     }
 
     /* ---------- Bottom tab bar (mobile only) ---------- */
@@ -743,22 +621,14 @@
       -moz-appearance: textfield;
     }
 
-    .minto-date-input {
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
+    /* The native calendar icon on date inputs renders dark by default in
+       every browser — invisible against a dark-mode input without this. */
+    input[type="date"]::-webkit-calendar-picker-indicator {
+      cursor: pointer;
     }
 
-    /* Paper-like fields: soft ink border + warm ledger surface. */
-    input,
-    select,
-    textarea {
-      box-shadow: inset 0 1px 0 color-mix(in srgb, white 55%, transparent);
-    }
-
-    [data-theme="dark"] input,
-    [data-theme="dark"] select,
-    [data-theme="dark"] textarea {
-      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    [data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator {
+      filter: invert(1);
     }
 
     input::placeholder,
@@ -889,21 +759,89 @@
       font-feature-settings: "tnum" 1;
     }
 
+    /* Compact header for tablet / landscape phone layouts. Some mobile browsers
+       expose a wide CSS viewport even when the device is physically small, so
+       this breakpoint intentionally starts above the normal phone breakpoint. */
+    @media (max-width: 1200px) {
+      .navbar {
+        height: 56px !important;
+        margin-bottom: 14px !important;
+        padding: 0 12px !important;
+      }
+
+      .brand {
+        font-size: 17px !important;
+        gap: 7px !important;
+      }
+
+      .brand-icon {
+        width: 30px !important;
+        height: 30px !important;
+      }
+
+      .nav-right {
+        gap: 6px !important;
+      }
+
+      .mode-toggle {
+        padding: 2px !important;
+      }
+
+      .mode-option {
+        padding: 6px 10px !important;
+        font-size: 12px !important;
+      }
+
+      .user-avatar,
+      .about-icon,
+      .theme-toggle {
+        width: 38px !important;
+        height: 38px !important;
+      }
+
+      .about-icon svg,
+      .theme-toggle svg {
+        width: 18px !important;
+        height: 18px !important;
+      }
+    }
+
+    @media (max-width: 1200px) {
+      .context-nav { top: 56px; }
+    }
+
     @media (max-width: 880px) {
 
       .app-container {
         padding: 0 16px 96px;
       }
 
+      .context-nav {
+        margin: -14px -16px 18px;
+        padding: 5px 12px;
+      }
+      .context-nav-inner { min-height: 40px; }
+      .context-info { width: 38px; height: 38px; right: 4px; }
+
       .navbar {
         height: 60px;
-        width: auto;
         margin: 0 -16px 20px;
-        padding: 0 16px;
+        padding: 0 12px 0 16px;
+        gap: 8px;
       }
+
+      .nav-left,
+      .nav-right {
+        min-width: 0;
+      }
+
+      .nav-left { flex: 1 1 auto; }
+      .nav-right { flex: 0 0 auto; gap: 6px; }
+      .brand { min-width: 0; }
 
       .brand {
         font-size: 17px;
+        gap: 8px;
       }
 
       .brand-icon {
@@ -918,7 +856,7 @@
       }
 
       .about-icon {
-        display: none;
+        display: flex;
       }
 
       /* The avatar takes the logout icon's place on small screens (Log Out
@@ -1000,6 +938,7 @@
 
       .mode-toggle {
         padding: 2px;
+        flex: 0 0 auto;
       }
 
       .mode-option {
@@ -1067,6 +1006,128 @@
 
     }
 
+    /* Compact top bar on small/tablet-width mobile viewports.
+       This also catches high-DPI phones/emulators whose CSS viewport can be
+       wider than 430px even though the physical screen is mobile-sized. */
+    @media (max-width: 600px) {
+      .navbar {
+        height: 56px;
+        margin-bottom: 16px;
+        padding: 0 10px 0 12px;
+        gap: 6px;
+      }
+
+      .brand {
+        font-size: 16px;
+        gap: 7px;
+      }
+
+      .brand-icon {
+        width: 27px;
+        height: 27px;
+      }
+
+      .nav-right {
+        gap: 5px;
+      }
+
+      .mode-toggle {
+        padding: 2px;
+      }
+
+      .mode-option {
+        padding: 6px 9px;
+        font-size: 11px;
+      }
+
+      .user-avatar {
+        width: 36px;
+        height: 36px;
+        font-size: 14px;
+      }
+
+      .about-icon,
+      .theme-toggle {
+        width: 36px;
+        height: 36px;
+      }
+
+      .about-icon svg,
+      .theme-toggle svg {
+        width: 17px;
+        height: 17px;
+      }
+    }
+
+    @media (max-width: 430px) {
+      .navbar { padding-left: 12px; padding-right: 10px; }
+      .brand { font-size: 16px; gap: 7px; }
+      .brand-icon { width: 27px; height: 27px; }
+      .mode-option { padding: 6px 8px; font-size: 11px; }
+      .theme-toggle { width: 34px; height: 34px; }
+      .about-icon { width: 38px; height: 38px; }
+      .user-avatar { width: 34px; height: 34px; }
+    }
+
+
+    /* Final responsive navbar tuning */
+    @media (max-width: 700px) {
+      .navbar {
+        width: calc(100% + 32px);
+        box-sizing: border-box;
+        margin-left: -16px;
+        margin-right: -16px;
+        padding-left: 14px !important;
+        padding-right: 10px !important;
+        min-width: 0;
+        overflow: hidden;
+      }
+      .nav-left {
+        min-width: 0;
+        flex: 0 1 auto;
+      }
+      .brand {
+        flex: 0 0 auto;
+        white-space: nowrap;
+      }
+      .nav-right {
+        min-width: 0;
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+      .mode-toggle {
+        flex: 0 0 auto;
+      }
+      .mode-option {
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 390px) {
+      .navbar { padding-left: 10px !important; padding-right: 8px !important; }
+      .brand { font-size: 15px !important; gap: 5px !important; }
+      .brand-icon { width: 25px !important; height: 25px !important; }
+      .mode-option { padding-left: 7px !important; padding-right: 7px !important; }
+      .nav-right { gap: 4px !important; }
+      .user-avatar, .about-icon, .theme-toggle { width: 34px !important; height: 34px !important; }
+    }
+
+    /* Secondary navigation: Personal/Trip stays centered; About is an icon-only
+       action on the right so the row remains clean on small screens. */
+    .context-info span { display: none !important; }
+    .context-info svg { width: 18px; height: 18px; }
+
+    @media (max-width: 430px) {
+      .context-nav {
+        margin-top: -14px;
+        margin-bottom: 16px;
+        padding-left: 10px;
+        padding-right: 10px;
+      }
+      .context-nav-inner { min-height: 44px; }
+      .context-info { right: 2px; width: 38px; height: 38px; }
+      .context-info svg { width: 18px; height: 18px; }
+    }
 
     /* Profile avatar in the top bar: just the initial, the name lives on the
        Overview and Profile pages so the bar stays compact. */
@@ -1077,27 +1138,74 @@
       width: 36px;
       height: 36px;
       border-radius: 50%;
-      background: var(--surface-subtle);
-      border: 1px solid var(--border);
-      color: var(--text);
+      background: var(--positive);
+      color: #fff;
       text-decoration: none;
-      overflow: hidden;
-      box-shadow: 0 2px 8px var(--shadow-soft);
+      font-size: 14px;
+      font-weight: 700;
     }
 
     .user-avatar.static {
       opacity: 0.85;
     }
 
-    .profile-avatar-svg {
-      width: 100%;
-      height: 100%;
-      display: block;
+    /* ---------- Personal <-> Trip mode switch ---------- */
+    .mode-toggle {
+      position: relative;
+      display: flex;
+      align-items: center;
+      padding: 3px;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface-alt);
+      box-shadow: inset 0 1px 2px var(--shadow-soft);
+      isolation: isolate;
     }
 
-    /* Personal <-> Trip: a curtain slides up over the page, the next page
-       loads behind it, then the curtain slides away. It doubles as the
-       loading indicator while the new mode loads. */
+    .mode-toggle::before {
+      content: "";
+      position: absolute;
+      z-index: -1;
+      top: 3px;
+      bottom: 3px;
+      left: 3px;
+      width: calc(50% - 3px);
+      border-radius: 999px;
+      background: var(--surface);
+      box-shadow: 0 2px 8px var(--shadow-card);
+      transform: translateX(0);
+      transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    .mode-toggle[data-active="trip"]::before {
+      transform: translateX(100%);
+    }
+
+    .mode-option {
+      position: relative;
+      z-index: 1;
+      min-width: 62px;
+      padding: 7px 13px;
+      border-radius: 999px;
+      color: var(--muted);
+      text-decoration: none;
+      text-align: center;
+      font-size: 12.5px;
+      font-weight: 700;
+      white-space: nowrap;
+      transition: color 0.2s ease, transform 0.2s ease;
+    }
+
+    .mode-option.active {
+      color: var(--text);
+    }
+
+    .mode-option:active {
+      transform: scale(0.96);
+    }
+
+    /* Full-screen transition layer. It is hidden until a mode change starts. */
     .mode-veil {
       position: fixed;
       inset: 0;
@@ -1106,23 +1214,37 @@
       align-items: center;
       justify-content: center;
       background: var(--background);
-      /* Waits off-screen on the side it will arrive from: the right when
-         going to Trip, the left when going back to Personal. */
-      --veil-from: 100%;
-      transform: translateX(var(--veil-from));
+      opacity: 0;
       visibility: hidden;
       pointer-events: none;
+      transform: translateX(100%);
     }
 
-    html[data-veil="personal"] .mode-veil {
-      --veil-from: -100%;
-    }
-
-    .mode-veil.cover {
+    .mode-veil.is-entering {
       visibility: visible;
-      transform: none;
+      opacity: 1;
       pointer-events: auto;
-      transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1);
+      animation: mode-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    .mode-veil.is-leaving {
+      visibility: visible;
+      opacity: 1;
+      pointer-events: none;
+      transform: translateX(0);
+      animation: mode-leave 0.42s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+    }
+
+    html[data-mode-transition="personal"] .mode-veil {
+      transform: translateX(-100%);
+    }
+
+    html[data-mode-transition="personal"] .mode-veil.is-entering {
+      animation-name: mode-enter-from-left;
+    }
+
+    html[data-mode-transition="personal"] .mode-veil.is-leaving {
+      animation-name: mode-leave-to-right;
     }
 
     .mode-veil-card {
@@ -1145,50 +1267,35 @@
       display: none;
     }
 
-    html[data-veil="trip"] .veil-trip,
-    html[data-veil="personal"] .veil-personal {
+    html[data-mode-transition="trip"] .veil-trip,
+    html[data-mode-transition="personal"] .veil-personal {
       display: inline;
     }
 
-    /* On the new page the curtain starts closed, holds a beat, then keeps
-       moving the way it came: off to the left for Trip, to the right for
-       Personal. */
-    .shift-to-trip .mode-veil {
-      visibility: visible;
-      transform: none;
-      animation: veil-exit-left 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
+    @keyframes mode-enter {
+      from { transform: translateX(100%); }
+      to { transform: translateX(0); }
     }
 
-    .shift-to-personal .mode-veil {
-      visibility: visible;
-      transform: none;
-      animation: veil-exit-right 0.45s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
+    @keyframes mode-enter-from-left {
+      from { transform: translateX(-100%); }
+      to { transform: translateX(0); }
     }
 
-    @keyframes veil-exit-left {
-      from { transform: none; visibility: visible; }
-      to { transform: translateX(-100%); visibility: hidden; }
+    @keyframes mode-leave {
+      from { transform: translateX(0); opacity: 1; visibility: visible; }
+      to { transform: translateX(-100%); opacity: 1; visibility: hidden; }
     }
 
-    @keyframes veil-exit-right {
-      from { transform: none; visibility: visible; }
-      to { transform: translateX(100%); visibility: hidden; }
-    }
-
-    @keyframes veil-fade {
-      from { opacity: 1; visibility: visible; }
-      to { opacity: 0; visibility: hidden; }
+    @keyframes mode-leave-to-right {
+      from { transform: translateX(0); opacity: 1; visibility: visible; }
+      to { transform: translateX(100%); opacity: 1; visibility: hidden; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      .mode-veil,
-      html[data-veil="personal"] .mode-veil { transform: none; opacity: 0; }
-      .mode-veil.cover { opacity: 1; transition: opacity 0.2s ease; }
-      .shift-to-trip .mode-veil,
-      .shift-to-personal .mode-veil {
-        opacity: 1;
-        animation: veil-fade 0.3s ease 0.3s forwards;
-      }
+      .mode-toggle::before { transition: none; }
+      .mode-veil.is-entering,
+      .mode-veil.is-leaving { animation: none; opacity: 1; visibility: visible; transform: translateX(0); }
     }
 
     /* Mid-width screens (small laptops, tablets): tighter spacing, and Log Out
@@ -1283,6 +1390,20 @@
     }
   </style>
 
+<script>
+  // Restore the mode-switch curtain on the destination page.
+  (function () {
+    try {
+      var target = sessionStorage.getItem("minto-mode-shift");
+      if (target === "trip" || target === "personal") {
+        sessionStorage.removeItem("minto-mode-shift");
+        document.documentElement.setAttribute("data-mode-transition", target);
+        document.documentElement.setAttribute("data-mode-transition-pending", "1");
+      }
+    } catch (e) {}
+  })();
+</script>
+
 </head>
 
 <body class="{% if session.get('user_id') and app_mode != 'trip' %}has-avatar{% endif %}">
@@ -1317,30 +1438,10 @@
 
       <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Overview</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add</a>
-
-      <div class="nav-menu" id="navAccounts">
-        <a
-          class="nav-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses', 'budgets'] else '' }}"
-          href="{{ url_for('sources') }}"
-          role="button"
-          aria-haspopup="true"
-          aria-expanded="false"
-          aria-controls="navAccountsMenu"
-          onclick="toggleNavAccounts(event)"
-        >
-          Accounts
-          <svg class="nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-        </a>
-        <div class="nav-dropdown" id="navAccountsMenu" role="menu" hidden>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed Expenses</a>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">Budgets</a>
-        </div>
-      </div>
-
+      <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
       <div class="nav-menu" id="navTransfers">
         <a
-          class="nav-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer'] else '' }}"
+          class="nav-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash'] else '' }}"
           href="{{ url_for('pay_cc_bill') }}"
           role="button"
           aria-haspopup="true"
@@ -1354,12 +1455,9 @@
         <div class="nav-dropdown" id="navTransfersMenu" role="menu" hidden>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
         </div>
       </div>
-
       <a class="nav-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">Reports</a>
-
     </div>
 
     {% endif %}
@@ -1368,82 +1466,67 @@
 
   <div class="nav-right">
 
-    {% if session.get('user_id') %}
-
-    <!-- Trip mode is a separate context, not just another page: turning it
-         on hides the rest of the app (see keep_trip_mode_trip_only in
-         app.py) so a screen passed around a group only ever shows trip
-         details, never personal balances. -->
-    <div class="mode-toggle" role="group" aria-label="App mode">
-      <form method="post" action="{{ url_for('set_mode') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="mode" value="personal">
-        <button type="submit" class="mode-option {{ 'active' if app_mode != 'trip' else '' }}" data-mode="personal" aria-pressed="{{ 'true' if app_mode != 'trip' else 'false' }}">Personal</button>
-      </form>
-      <form method="post" action="{{ url_for('set_mode') }}">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-        <input type="hidden" name="mode" value="trip">
-        <button type="submit" class="mode-option {{ 'active' if app_mode == 'trip' else '' }}" data-mode="trip" aria-pressed="{{ 'true' if app_mode == 'trip' else 'false' }}">Trip</button>
-      </form>
-    </div>
-
-    {% endif %}
-
     {% if session.get('user_id') and app_mode != 'trip' %}
-    <div class="nav-menu profile-menu" id="navProfile">
-      <a
-        class="user-avatar"
-        href="{{ url_for('profile') }}"
-        role="button"
-        aria-haspopup="true"
-        aria-expanded="false"
-        aria-controls="navProfileMenu"
-        aria-label="Open profile menu"
-        title="{{ nav_name }}"
-        onclick="toggleNavProfile(event)"
-      ><svg class="profile-avatar-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use></svg></a>
-      <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
-        <a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>
-        <form method="post" action="{{ url_for('logout') }}">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-          <button type="submit" role="menuitem">Log Out</button>
-        </form>
-      </div>
-    </div>
+    <a
+      class="user-avatar"
+      href="{{ url_for('profile') }}"
+      aria-label="Profile: {{ nav_name }}"
+      title="{{ nav_name }}"
+    >{{ nav_name[:1]|upper }}</a>
     {% endif %}
 
     {% if session.get('user_id') and app_mode == 'trip' %}
-    <span class="user-avatar static" title="{{ nav_name }}"><svg class="profile-avatar-svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use></svg></span>
+    <span class="user-avatar static" title="{{ nav_name }}">{{ nav_name[:1]|upper }}</span>
     {% endif %}
+
+    <button
+      type="button"
+      class="theme-toggle"
+      id="themeToggle"
+      onclick="toggleTheme()"
+      aria-label="Toggle dark mode"
+      title="Toggle dark mode"
+    >
+      <svg class="icon-sun" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"></circle>
+        <line x1="12" y1="2" x2="12" y2="4"></line>
+        <line x1="12" y1="20" x2="12" y2="22"></line>
+        <line x1="4.93" y1="4.93" x2="6.34" y2="6.34"></line>
+        <line x1="17.66" y1="17.66" x2="19.07" y2="19.07"></line>
+        <line x1="2" y1="12" x2="4" y2="12"></line>
+        <line x1="20" y1="12" x2="22" y2="12"></line>
+        <line x1="4.93" y1="19.07" x2="6.34" y2="17.66"></line>
+        <line x1="17.66" y1="6.34" x2="19.07" y2="4.93"></line>
+      </svg>
+      <svg class="icon-moon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+      </svg>
+    </button>
 
     {% if session.get('user_id') %}
 
-    <form class="logout-form logout-text" method="post" action="{{ url_for('logout') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="submit" class="nav-link logout-link">Log Out</button>
-    </form>
+    <a
+      class="nav-link logout-link logout-text"
+      href="{{ url_for('logout') }}"
+    >
+      Log Out
+    </a>
 
-    <form class="logout-form logout-icon" method="post" action="{{ url_for('logout') }}">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-      <button type="submit" class="theme-toggle" aria-label="Log Out" title="Log Out">
+    <a
+      class="theme-toggle logout-icon"
+      href="{{ url_for('logout') }}"
+      aria-label="Log Out"
+      title="Log Out"
+    >
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
         <polyline points="16 17 21 12 16 7"></polyline>
         <line x1="21" y1="12" x2="9" y2="12"></line>
       </svg>
-      </button>
-    </form>
+    </a>
 
     {% else %}
 
-    <a
-      class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}"
-      href="{{ url_for('info') }}"
-    >
-      About
-    </a>
 
     <a
       class="nav-link"
@@ -1465,6 +1548,23 @@
 
 </nav>
 
+<div class="context-nav" role="navigation" aria-label="Minto context">
+  <div class="context-nav-inner">
+    {% if session.get('user_id') %}
+    <div class="mode-toggle context-mode" role="group" aria-label="App mode" data-active="{{ 'trip' if app_mode == 'trip' else 'personal' }}">
+      <a class="mode-option {{ 'active' if app_mode != 'trip' else '' }}" data-mode="personal" href="{{ url_for('set_mode', mode='personal') }}" aria-current="{{ 'page' if app_mode != 'trip' else 'false' }}">Personal</a>
+      <a class="mode-option {{ 'active' if app_mode == 'trip' else '' }}" data-mode="trip" href="{{ url_for('set_mode', mode='trip') }}" aria-current="{{ 'page' if app_mode == 'trip' else 'false' }}">Trip</a>
+    </div>
+    {% endif %}
+    <a class="context-info {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}" aria-label="About Minto" title="About Minto">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+    </a>
+  </div>
+</div>
 
 <div class="page-content" id="page-content">
 
@@ -1530,39 +1630,23 @@
       Add
     </a>
 
-    <div class="tab-menu" id="accountsMenu">
-      <div class="tab-sheet" id="accountsSheet" role="menu" hidden>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">Budgets</a>
-      </div>
-      <a
-        href="{{ url_for('sources') }}"
-        role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses', 'budgets'] else '' }}"
-        aria-haspopup="true"
-        aria-expanded="false"
-        aria-controls="accountsSheet"
-        onclick="toggleAccountsMenu(event)"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="1" y="4" width="22" height="16" rx="2"></rect>
-          <line x1="1" y1="10" x2="23" y2="10"></line>
-        </svg>
-        Accounts
-      </a>
-    </div>
+    <a class="tab-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+        <line x1="1" y1="10" x2="23" y2="10"></line>
+      </svg>
+      Accounts
+    </a>
 
     <div class="tab-menu" id="transfersMenu">
       <div class="tab-sheet" id="transfersSheet" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
       </div>
       <a
         href="{{ url_for('pay_cc_bill') }}"
         role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer'] else '' }}"
+        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash'] else '' }}"
         aria-haspopup="true"
         aria-expanded="false"
         aria-controls="transfersSheet"
@@ -1578,108 +1662,10 @@
       </a>
     </div>
 
-    <a class="tab-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
-      About
-    </a>
-
   </nav>
   {% endif %}
 
   <script>
-    // Attach the server-issued CSRF token to native forms and same-origin
-    // fetch mutations. The server remains the source of truth and rejects
-    // unsafe requests without a matching token.
-    (function () {
-      var meta = document.querySelector('meta[name="csrf-token"]');
-      if (!meta || !meta.content) return;
-      var token = meta.content;
-
-      function addFormToken(form) {
-        if (!form || (form.method || "get").toLowerCase() !== "post") return;
-        var action;
-        try { action = new URL(form.action || location.href, location.href); } catch (err) { return; }
-        if (action.origin !== location.origin) return;
-        var field = form.querySelector('input[name="csrf_token"]');
-        if (!field) {
-          field = document.createElement("input");
-          field.type = "hidden";
-          field.name = "csrf_token";
-          form.appendChild(field);
-        }
-        field.value = token;
-      }
-
-      document.querySelectorAll("form").forEach(addFormToken);
-      document.addEventListener("submit", function (event) {
-        addFormToken(event.target);
-      }, true);
-
-      if (typeof window.fetch === "function") {
-        var nativeFetch = window.fetch.bind(window);
-        window.fetch = function (input, init) {
-          var sourceRequest = input instanceof Request ? input : null;
-          var method = String((init && init.method) || (sourceRequest && sourceRequest.method) || "GET").toUpperCase();
-          if (["GET", "HEAD", "OPTIONS"].indexOf(method) === -1) {
-            var url;
-            try { url = new URL(sourceRequest ? sourceRequest.url : String(input), location.href); } catch (err) {}
-            if (url && url.origin === location.origin) {
-              var headers = new Headers((init && init.headers) || (sourceRequest && sourceRequest.headers) || {});
-              if (!headers.has("X-CSRF-Token")) headers.set("X-CSRF-Token", token);
-              init = Object.assign({}, init || {}, { headers: headers });
-            }
-          }
-          return nativeFetch(input, init);
-        };
-      }
-    })();
-
-    function toggleNavAccounts(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var menu = document.getElementById("navAccountsMenu");
-      var trigger = event.currentTarget;
-      var opening = menu.hasAttribute("hidden");
-      closeNavTransfers();
-      closeNavProfile();
-      if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
-      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
-    }
-
-    function closeNavAccounts() {
-      var wrap = document.getElementById("navAccounts");
-      var menu = document.getElementById("navAccountsMenu");
-      if (!wrap || !menu || menu.hasAttribute("hidden")) return;
-      menu.setAttribute("hidden", "");
-      var t = wrap.querySelector(".nav-link");
-      if (t) t.setAttribute("aria-expanded", "false");
-    }
-
-    function toggleNavProfile(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var menu = document.getElementById("navProfileMenu");
-      var trigger = event.currentTarget;
-      var opening = menu.hasAttribute("hidden");
-      closeNavTransfers();
-      closeNavAccounts();
-      if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
-      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
-    }
-
-    function closeNavProfile() {
-      var wrap = document.getElementById("navProfile");
-      var menu = document.getElementById("navProfileMenu");
-      if (!wrap || !menu || menu.hasAttribute("hidden")) return;
-      menu.setAttribute("hidden", "");
-      var t = wrap.querySelector(".user-avatar");
-      if (t) t.setAttribute("aria-expanded", "false");
-    }
-
     function toggleNavTransfers(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -1700,40 +1686,13 @@
     }
 
     document.addEventListener("click", function (e) {
-      var transferWrap = document.getElementById("navTransfers");
-      var accountWrap = document.getElementById("navAccounts");
-      var profileWrap = document.getElementById("navProfile");
-      if (transferWrap && !transferWrap.contains(e.target)) closeNavTransfers();
-      if (accountWrap && !accountWrap.contains(e.target)) closeNavAccounts();
-      if (profileWrap && !profileWrap.contains(e.target)) closeNavProfile();
+      var wrap = document.getElementById("navTransfers");
+      if (wrap && !wrap.contains(e.target)) closeNavTransfers();
     });
 
     document.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") {
-        closeNavTransfers();
-        closeNavAccounts();
-        closeNavProfile();
-      }
+      if (e.key === "Escape") closeNavTransfers();
     });
-
-    function toggleAccountsMenu(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var sheet = document.getElementById("accountsSheet");
-      var btn = event.currentTarget;
-      var open = sheet.hasAttribute("hidden");
-      if (open) { sheet.removeAttribute("hidden"); } else { sheet.setAttribute("hidden", ""); }
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-
-    function closeAccountsMenu() {
-      var menu = document.getElementById("accountsMenu");
-      var sheet = document.getElementById("accountsSheet");
-      if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
-      sheet.setAttribute("hidden", "");
-      var b = menu.querySelector(".tab-link");
-      if (b) b.setAttribute("aria-expanded", "false");
-    }
 
     function toggleTransfersMenu(event) {
       event.preventDefault();
@@ -1748,227 +1707,88 @@
     document.addEventListener("click", function (e) {
       var menu = document.getElementById("transfersMenu");
       var sheet = document.getElementById("transfersSheet");
-      if (menu && sheet && !sheet.hasAttribute("hidden") && !menu.contains(e.target)) {
+      if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
+      if (!menu.contains(e.target)) {
         sheet.setAttribute("hidden", "");
         var b = menu.querySelector(".tab-link");
         if (b) b.setAttribute("aria-expanded", "false");
       }
-
-      var accounts = document.getElementById("accountsMenu");
-      var accountSheet = document.getElementById("accountsSheet");
-      if (accounts && accountSheet && !accountSheet.hasAttribute("hidden") && !accounts.contains(e.target)) {
-        closeAccountsMenu();
-      }
     });
 
-    // Personal <-> Trip: use the native form submit path. This keeps the
-    // mode switch reliable with CSRF protection and browser form behavior.
-    // The destination page still clears any stale transition flags safely.
-    document.querySelectorAll(".mode-option").forEach(function (button) {
-      button.addEventListener("click", function (event) {
-        var target = button.getAttribute("data-mode");
-        var form = button.form;
-        if (!target || button.classList.contains("active") || !form) return;
-
-        // Submit the mode form directly. Using HTMLFormElement.submit() here
-        // deliberately bypasses other generic submit listeners (date validation,
-        // loaders, etc.) because the Personal/Trip switch has no user-entered
-        // fields and must always be able to change mode on mobile.
-        event.preventDefault();
-        event.stopPropagation();
-        try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
-
-        window.setTimeout(function () {
-          try {
-            HTMLFormElement.prototype.submit.call(form);
-          } catch (err) {
-            form.submit();
-          }
-        }, 40);
-      });
-    });
-
-    // Once the curtain has lifted, clear the flags so the next switch (in
-    // either direction) starts from a clean slate.
+    // Personal <-> Trip: animate the switch, cover the screen, then navigate.
     (function () {
+      var options = document.querySelectorAll(".mode-option");
       var veil = document.getElementById("mode-veil");
-      if (!veil) return;
+      var toggle = document.querySelector(".context-mode");
+      if (!options.length || !veil || !toggle) return;
+
+      var switching = false;
+      var root = document.documentElement;
+
+      // If this is the destination page, the head script left a transition
+      // marker. Start the curtain off-screen, then slide it away.
+      if (root.getAttribute("data-mode-transition-pending") === "1") {
+        root.removeAttribute("data-mode-transition-pending");
+        requestAnimationFrame(function () {
+          requestAnimationFrame(function () {
+            veil.classList.add("is-leaving");
+          });
+        });
+      }
+
+      options.forEach(function (a) {
+        a.addEventListener("click", function (e) {
+          if (switching) { e.preventDefault(); return; }
+          if (e.defaultPrevented || e.button !== 0) return;
+          if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+          if (a.classList.contains("active")) return;
+
+          var target = a.getAttribute("data-mode");
+          if (!target) return;
+
+          e.preventDefault();
+          switching = true;
+          toggle.setAttribute("data-active", target);
+          toggle.setAttribute("aria-busy", "true");
+
+          options.forEach(function (item) {
+            var active = item.getAttribute("data-mode") === target;
+            item.classList.toggle("active", active);
+            item.setAttribute("aria-current", active ? "page" : "false");
+          });
+
+          root.setAttribute("data-mode-transition", target);
+          try { sessionStorage.setItem("minto-mode-shift", target); } catch (err) {}
+
+          // Force a clean frame before starting the curtain.
+          veil.classList.remove("is-leaving");
+          void veil.offsetWidth;
+          veil.classList.add("is-entering");
+
+          window.setTimeout(function () {
+            window.location.href = a.href;
+          }, 390);
+        });
+      });
+
       veil.addEventListener("animationend", function () {
-        document.documentElement.classList.remove("shift-to-trip", "shift-to-personal");
-      });
-    })();
-
-    window.addEventListener("pageshow", function (e) {
-      var veil = document.getElementById("mode-veil");
-      if (veil) veil.classList.remove("cover");
-      if (e.persisted) {
-        // Back button restored an old snapshot: reset it fully.
-        document.documentElement.classList.remove("shift-to-trip", "shift-to-personal");
-        try { sessionStorage.removeItem("minto-mode-shift"); } catch (err) {}
-      }
-    });
-
-    // Minto date standard: every user-facing date is DD-MON-YYYY.
-    // Forms submit ISO values after the browser-side format has been validated,
-    // so the database/API contract remains YYYY-MM-DD.
-    (function () {
-      var MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-                    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
-
-      function pad2(n) { return String(n).padStart(2, "0"); }
-
-      window.formatMintoDate = function (value) {
-        if (value instanceof Date && !isNaN(value.getTime())) {
-          return pad2(value.getDate()) + "-" + MONTHS[value.getMonth()] + "-" + value.getFullYear();
-        }
-
-        var s = String(value || "").trim();
-        var iso = s.match(/^\d{4}-\d{2}-\d{2}$/);
-        if (iso) {
-          var p = iso[0].split("-");
-          var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
-          if (!isNaN(d.getTime()) &&
-              d.getFullYear() === Number(p[0]) &&
-              d.getMonth() === Number(p[1]) - 1 &&
-              d.getDate() === Number(p[2])) {
-            return pad2(d.getDate()) + "-" + MONTHS[d.getMonth()] + "-" + d.getFullYear();
-          }
-        }
-
-        var parts = s.toUpperCase().split("-");
-        if (parts.length === 3 && /^\d{1,2}$/.test(parts[0]) && /^[A-Z]{3}$/.test(parts[1]) && /^\d{4}$/.test(parts[2])) {
-          return pad2(Number(parts[0])) + "-" + parts[1] + "-" + parts[2];
-        }
-        return s;
-      };
-
-      window.isoMintoDate = function (value) {
-        var parts = String(value || "").trim().toUpperCase().split("-");
-        if (parts.length !== 3 || !/^\d{2}$/.test(parts[0]) || !/^[A-Z]{3}$/.test(parts[1]) || !/^\d{4}$/.test(parts[2])) {
-          return "";
-        }
-        var month = MONTHS.indexOf(parts[1]) + 1;
-        var day = Number(parts[0]);
-        var year = Number(parts[2]);
-        if (!month || !day || !year) return "";
-        var d = new Date(year, month - 1, day);
-        if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return "";
-        return year + "-" + pad2(month) + "-" + pad2(day);
-      };
-
-      document.querySelectorAll("input[data-minto-date]").forEach(function (input) {
-        input.value = window.formatMintoDate(input.value);
-        input.addEventListener("input", function () {
-          input.value = input.value.toUpperCase();
-          input.setCustomValidity("");
-        });
-        input.addEventListener("blur", function () {
-          input.value = window.formatMintoDate(input.value);
-        });
-      });
-
-      document.addEventListener("submit", function (event) {
-        var form = event.target;
-        if (!form || !form.querySelectorAll) return;
-        var invalid = false;
-        form.querySelectorAll("input[data-minto-date]").forEach(function (input) {
-          var iso = window.isoMintoDate(input.value);
-          if (!iso) {
-            input.setCustomValidity("Use DD-MON-YYYY, for example 06-OCT-2026.");
-            invalid = true;
-          } else {
-            input.setCustomValidity("");
-            input.value = iso;
-          }
-        });
-        if (invalid) {
-          event.preventDefault();
-          var bad = form.querySelector("input[data-minto-date]:invalid");
-          if (bad) bad.reportValidity();
+        if (veil.classList.contains("is-leaving")) {
+          veil.classList.remove("is-leaving");
+          root.removeAttribute("data-mode-transition");
         }
       });
-    })();
 
-    // Optional casual-copy layer. The original text is stored on each
-    // individual text node, so toggling this mode any number of times cannot
-    // confuse a real "You" label with a casual "You" replacement.
-    (function () {
-      var COPY = {
-        "Overview": "Home",
-        "Accounts": "Money",
-        "Transfers": "Move money",
-        "Profile": "You",
-        "Log Out": "Log out",
-        "Fixed Expenses": "Monthly bills",
-        "Fixed": "Bills",
-        "Protected Net Worth": "Net Worth",
-        "Download Report": "Grab report",
-        "Download a report": "Grab a report",
-        "View Overview": "See my money",
-        "Add an entry": "Log something",
-        "Add New Account": "Add money account",
-        "Cash Out": "Move cash",
-        "Bank Transfer": "Move money",
-        "Card Payment": "Pay card",
-        "Upcoming commitments": "Coming up",
-        "Money plan": "Money plan",
-        "Expense history": "Spend history",
-        "Add Expense": "Add spend",
-        "Trip settings": "Trip setup",
-        "Settle Up": "Settle up",
-        "Record a settlement": "Mark a split",
-        "Settlement history": "Past splits"
-      };
-
-      var originals = new WeakMap();
-
-      function applyGenZCopy() {
-        var casual = document.documentElement.getAttribute("data-genz-mode") === "on";
-        var walker = document.createTreeWalker(
-          document.body,
-          NodeFilter.SHOW_TEXT,
-          null,
-          false
-        );
-
-        var node;
-        while ((node = walker.nextNode())) {
-          var parent = node.parentElement;
-          if (!parent || !node.nodeValue.trim()) continue;
-
-          if (parent.closest && parent.closest(
-            "script,style,noscript,input,textarea,select,option,.user-generated-copy"
-          )) continue;
-
-          if (!originals.has(node)) {
-            originals.set(node, node.nodeValue);
-          }
-
-          var original = originals.get(node);
-          var value = original.trim();
-
-          if (casual && COPY[value]) {
-            var leading = original.match(/^\s*/)[0];
-            var trailing = original.match(/\s*$/)[0];
-            node.nodeValue = leading + COPY[value] + trailing;
-          } else {
-            node.nodeValue = original;
-          }
+      window.addEventListener("pageshow", function (e) {
+        // Only reset a restored BFCache snapshot. Do not clear the transition
+        // on a normal page load or the destination animation gets cancelled.
+        if (e.persisted) {
+          switching = false;
+          toggle.removeAttribute("aria-busy");
+          veil.classList.remove("is-entering", "is-leaving");
+          root.removeAttribute("data-mode-transition");
+          root.removeAttribute("data-mode-transition-pending");
+          try { sessionStorage.removeItem("minto-mode-shift"); } catch (err) {}
         }
-      }
-
-      window.mintoApplyGenZCopy = applyGenZCopy;
-
-      document.addEventListener("DOMContentLoaded", function () {
-        document.documentElement.setAttribute(
-          "data-genz-mode",
-          "{{ 'on' if genz_mode else 'off' }}"
-        );
-        document.documentElement.setAttribute(
-          "data-minto-tone",
-          "{{ 'casual' if genz_mode else 'classic' }}"
-        );
-        applyGenZCopy();
       });
     })();
 
@@ -1993,12 +1813,6 @@
         loader.classList.remove("show");
         bar.classList.remove("run");
       }
-
-      document.addEventListener("submit", function (e) {
-        var form = e.target;
-        if (!form || !form.hasAttribute("data-confirm")) return;
-        if (!window.confirm(form.getAttribute("data-confirm"))) e.preventDefault();
-      });
 
       document.addEventListener("submit", function (e) {
         // A cancelled confirm() (e.g. delete) stops the submit: show nothing.
@@ -2047,6 +1861,32 @@
       document.dispatchEvent(new Event("minto-installed"));
     });
 
+    function setMintoFavicon(theme) {
+      var favicon = document.getElementById("minto-favicon");
+      if (!favicon) return;
+
+      favicon.href = theme === "dark"
+        ? "{{ url_for('static', filename='favicon-dark.svg') }}?v={{ asset_version }}"
+        : "{{ url_for('static', filename='favicon-light.svg') }}?v={{ asset_version }}";
+    }
+
+    function toggleTheme() {
+      var current = document.documentElement.getAttribute("data-theme");
+      var next = current === "dark" ? "light" : "dark";
+
+      document.documentElement.setAttribute("data-theme", next);
+      setMintoFavicon(next);
+
+      try {
+        localStorage.setItem("minto-theme", next);
+      } catch (e) {}
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+      setMintoFavicon(
+        document.documentElement.getAttribute("data-theme") || "light"
+      );
+    });
   </script>
 
 </body>
