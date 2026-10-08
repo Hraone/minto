@@ -44,12 +44,44 @@ class FinancialDataUnavailable(HTTPException):
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
 # renews automatically as long as this outer session is still alive.
 app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
-# Cookie hardening. Lax stops other sites from making a logged-in browser
-# submit this app's POST forms (there are no CSRF tokens). Secure keeps the
+# Cookie hardening. SameSite=Lax is an additional layer alongside the CSRF
+# token checked on every state-changing browser request. Secure keeps the
 # cookie off plain HTTP; set SESSION_COOKIE_SECURE=0 only for local http dev.
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"
+
+
+@app.before_request
+def enforce_csrf_protection():
+    """Require a session-bound token on every state-changing browser request.
+
+    The monthly report job has separate long-secret authentication and does
+    not use a browser session, so it is the sole exception.
+    """
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+
+    if (
+        request.endpoint is None
+        or request.method in ("GET", "HEAD", "OPTIONS")
+        or request.endpoint == "monthly_reports_cron"
+    ):
+        return None
+
+    supplied = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token", "")
+    if not secrets.compare_digest(
+        str(supplied).encode("utf-8"), str(token).encode("utf-8")
+    ):
+        return render_template(
+            "error.html",
+            code=400,
+            title="Request expired",
+            message="This form is out of date or missing its security token. Reload the page and try again.",
+        ), 400
+    return None
 
 
 @app.after_request
@@ -307,6 +339,7 @@ def inject_template_globals():
         "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
         "nav_name": name,
         "profile_avatar": profile_avatar,
+        "csrf_token": session.get("csrf_token", ""),
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
     }
@@ -923,6 +956,7 @@ def login():
             return render_template("login.html")
 
         session.permanent = True  # survive browser restarts, not just the tab
+        session["csrf_token"] = secrets.token_urlsafe(32)
         session["user_id"] = result.user.id
         session["email"] = result.user.email
         session["access_token"] = result.session.access_token
@@ -977,6 +1011,7 @@ def passkey_login():
 
     session.clear()
     session.permanent = True
+    session["csrf_token"] = secrets.token_urlsafe(32)
     session["user_id"] = user.id
     session["email"] = user.email
     session["access_token"] = access_token
@@ -1684,7 +1719,7 @@ def info():
     return render_template("info.html")
 
 
-@app.route("/logout")
+@app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
     return redirect(url_for("login"))
@@ -2398,7 +2433,7 @@ def get_active_sources(client):
 
 
 def get_trip_payables(client, user_id):
-    """Accepted trip shares that are still owed by this account."""
+    """Pending or accepted trip shares that are still owed by this account."""
     try:
         result = client.rpc("current_trip_payables").execute().data
         if isinstance(result, list):
@@ -2409,10 +2444,10 @@ def get_trip_payables(client, user_id):
         raise FinancialDataUnavailable() from None
 
 
-@app.route("/mode", methods=["GET", "POST"])
+@app.route("/mode", methods=["POST"])
 @login_required
 def set_mode():
-    mode = request.values.get("mode")
+    mode = request.form.get("mode")
     if mode in MODES:
         session["mode"] = mode
         save_mode(get_user_client(), session["user_id"], mode)
@@ -3652,7 +3687,7 @@ def compute_net_worth(all_txns, savings, credit_cards, manual_items=None, trip_p
 
     def counts_as_lending_asset(transaction):
         if transaction.get("trip_expense_share_id") is not None:
-            return transaction.get("trip_share_status") in ("accepted", "settled")
+            return transaction.get("trip_share_status") in ("pending", "accepted", "settled")
         return True
 
     lent_out = sum(
@@ -4576,4 +4611,3 @@ def health():
 
 if __name__ == "__main__":
     app.run(debug=True)
-

@@ -22,16 +22,17 @@ class TripAccountingTests(unittest.TestCase):
         self.assertEqual(owed[1], 400000)
         self.assertEqual(net, {1: 0, 2: 0, 3: 0})
 
-    def test_pending_friend_share_is_requested_but_not_outstanding(self):
+    def test_pending_friend_share_is_outstanding_before_acceptance(self):
         expenses = [{"id": 10, "amount": 4000, "payer_member_id": 1}]
         shares = [
             {"trip_expense_id": 10, "trip_member_id": 1, "amount": 2000, "status": "accepted"},
             {"trip_expense_id": 10, "trip_member_id": 2, "amount": 2000, "status": "pending"},
         ]
-        _, _, net = calculate_trip_balances(self.members, expenses, shares, [])
+        _, owed, net = calculate_trip_balances(self.members, expenses, shares, [])
         self.assertEqual(net[1], 200000)
-        self.assertEqual(net[2], 0)
-        self.assertEqual(trip_payables_for_user([2], expenses, shares, []), 0)
+        self.assertEqual(owed[2], 200000)
+        self.assertEqual(net[2], -200000)
+        self.assertEqual(trip_payables_for_user([2], expenses, shares, []), 2000)
 
     def test_accepted_share_becomes_payable_without_changing_balance(self):
         expenses = [{"id": 10, "amount": 4000, "payer_member_id": 1}]
@@ -104,3 +105,4 @@ class TripAccountingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

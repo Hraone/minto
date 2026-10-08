@@ -64,6 +64,8 @@
     The address may be mistyped, or the page may have moved.
     {% elif code == 405 %}
     That address can't be opened this way. Head back and try again from the app.
+    {% elif code == 400 and message %}
+    {{ message }}
     {% elif code == 503 %}
     {{ message or "Some financial data is temporarily unavailable, so Minto hid the affected totals." }}
     {% else %}
