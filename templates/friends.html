@@ -166,7 +166,7 @@
     <div class="friend-section"><h4 class="friend-section-title"><span>Requests sent</span><span class="friend-count">{{ outgoing_requests|length }}</span></h4>
     <div class="friend-list">
       {% for item in outgoing_requests %}
-      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ item.display_name }}</strong><small>@{{ item.username }}</small></div><span class="friend-status">Request sent</span></div>
+      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (item.profile_avatar if item.profile_avatar in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ item.display_name }}</strong><small>@{{ item.username }}</small></div><span class="friend-status">Request sent</span></div>
       {% endfor %}
     </div>
     </div>
@@ -176,7 +176,7 @@
     <div class="friend-section"><h4 class="friend-section-title"><span>Your friends</span><span class="friend-count">{{ friends|length }}</span></h4>
     <div class="friend-list">
       {% for person in friends %}
-      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
+      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_avatar if person.profile_avatar in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
         {% if person.email or person.phone %}<span class="friend-contact">{% if person.email %}<a href="mailto:{{ person.email|urlencode }}">✉ Email · {{ person.email }}</a>{% endif %}{% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">☎ Call · {{ person.phone }}</a>{% endif %}</span>{% endif %}
       </div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
       {% endfor %}
