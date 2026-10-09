@@ -59,8 +59,8 @@ def add_no_cache_headers(response):
 
 
 MODES = ("personal", "trip")
-# Profile avatars are illustrated Minto SVG avatars. Keep the legacy database
-# column name for compatibility and translate existing emoji values on login.
+# Profile avatars are WebP portraits stored as static/avatars/avatar-NN.webp.
+# Keep the legacy database column name for compatibility and translate existing emoji values on login.
 PROFILE_AVATARS = [f"avatar-{i:02d}" for i in range(1, 37)]
 LEGACY_PROFILE_EMOJI_MAP = {
     "😀": "avatar-01", "😃": "avatar-02", "😄": "avatar-03", "😁": "avatar-04",
@@ -287,7 +287,7 @@ def inject_template_globals():
             session["profile_avatar"] = profile_avatar
 
     return {
-        "asset_version": "4",
+        "asset_version": "5",
         "minto_version": MINTO_VERSION,
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
