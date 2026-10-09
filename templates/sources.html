@@ -7,7 +7,7 @@
 <style>
 
   .sources-wrapper {
-    max-width: 680px;
+    max-width: 1180px;
     margin: 0 auto;
     padding: 20px 0 50px;
   }
@@ -400,6 +400,16 @@
     .source-card { padding: 24px 20px; border-radius: 20px; }
     .source-item { padding: 13px 14px; }
   }
+
+    @media (min-width: 881px) {
+      .source-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .source-item {
+        height: 100%;
+      }
+    }
 
 </style>
 
