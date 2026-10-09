@@ -666,6 +666,8 @@
   }
 
   .spend-summary-layout {
+    grid-column:1 / -1;
+    width:100%;
     display:grid;
     grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);
     gap:16px;
@@ -780,9 +782,13 @@
   }
 
   .cc-list[hidden] { display:none !important; }
-  .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
-  .cc-toggle-chevron { color:var(--muted); }
+  .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--text) !important; font:inherit; text-align:left; cursor:pointer; box-shadow:none !important; outline-offset:4px; transition:color .18s ease; }
+  .cc-toggle:hover,.cc-toggle:focus-visible { background:transparent !important; color:var(--primary) !important; box-shadow:none !important; transform:none !important; }
+  .cc-toggle-chevron { color:var(--muted); font-size:12px; }
   #cc-details[hidden] { display:none !important; }
+  #cc-details { animation:cc-details-in .22s ease both; }
+  @keyframes cc-details-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
+  @media(prefers-reduced-motion:reduce) { #cc-details { animation:none; } }
   .cc-list {
     margin-top: 14px;
     display: flex;
@@ -1269,7 +1275,7 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="commitments-section cc-section" id="cc-section">
     <div class="section-heading-row">
       <button type="button" class="cc-toggle" id="cc-toggle" aria-expanded="false" aria-controls="cc-details">
-        <span><h3 style="display:inline;margin:0;">Credit cards</h3><span class="cc-toggle-chevron" aria-hidden="true">⌄</span></span>
+        <span><h3 style="display:inline;margin:0;">Credit cards</h3></span>
       </button>
       <span class="tnum">Expected bills {{ expected_cc_total|inr }}</span>
     </div>
