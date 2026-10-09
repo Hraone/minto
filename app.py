@@ -1038,20 +1038,42 @@ def load_friend_center(client, query=""):
     return empty
 
 
-@app.route("/friends")
+@app.route("/friends", methods=["GET", "POST"])
 @login_required
 def friends():
     client = get_user_client()
     user_id = session["user_id"]
+    if request.method == "POST":
+        phone = (request.form.get("phone") or "").strip()[:32]
+        share_phone = request.form.get("share_phone") == "on"
+        share_email = request.form.get("share_email") == "on"
+        if phone and not re.fullmatch(r"[+0-9() .-]{7,32}", phone):
+            flash("Enter a valid phone number or leave it blank.")
+            return redirect(url_for("friends"))
+        try:
+            client.table("profiles").upsert({
+                "id": user_id,
+                "phone": phone or None,
+                "share_phone_with_friends": share_phone,
+                "share_email_with_friends": share_email,
+            }).execute()
+            flash("Contact sharing preferences saved.")
+        except Exception:
+            app.logger.exception("Could not save friend contact preferences")
+            flash("Couldn't save contact preferences. Run the contact-sharing SQL migration first.")
+        return redirect(url_for("friends"))
     try:
-        rows = client.table("profiles").select("username").eq("id", user_id).limit(1).execute().data
-        username = rows[0].get("username") if rows else ""
+        rows = client.table("profiles").select("username,phone,share_phone_with_friends,share_email_with_friends").eq("id", user_id).limit(1).execute().data
+        profile_data = rows[0] if rows else {}
     except Exception:
-        username = ""
+        profile_data = {}
     query = (request.args.get("friend_q") or "").strip()
     return render_template(
         "friends.html",
-        username=username or "",
+        username=profile_data.get("username") or "",
+        phone=profile_data.get("phone") or "",
+        share_phone=bool(profile_data.get("share_phone_with_friends")),
+        share_email=bool(profile_data.get("share_email_with_friends")),
         profile_avatars=PROFILE_AVATARS,
         friend_query=query,
         **load_friend_center(client, query),
