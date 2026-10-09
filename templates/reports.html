@@ -168,6 +168,25 @@
     opacity: .65;
     cursor: wait;
   }
+  @media (min-width: 881px) {
+    .reports-page {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(360px, .8fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .reports-card {
+      margin-bottom: 0;
+    }
+    .reports-card:first-child {
+      grid-column: 1;
+    }
+    .reports-card:last-child {
+      grid-column: 2;
+      grid-row: 1;
+    }
+  }
+
 </style>
 
 <div class="reports-page">
