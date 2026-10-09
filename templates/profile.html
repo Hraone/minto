@@ -18,23 +18,6 @@
     background: var(--surface);
   }
 
-  .friend-section-title { margin:18px 0 8px;font-size:13px;color:var(--muted); }
-  .friend-list { display:flex;flex-direction:column;gap:7px; }
-  .friend-row { display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle); }
-  .friend-avatar { width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--surface);overflow:hidden; }
-  .friend-avatar svg,.friend-avatar img { width:100%;height:100%;display:block;object-fit:cover; }
-  .friend-copy { flex:1;min-width:0; }
-  .friend-copy strong,.friend-copy small { display:block;overflow-wrap:anywhere; }
-  .friend-copy strong { font-size:13px;color:var(--text); }
-  .friend-copy small,.friend-status { margin-top:2px;font-size:11px;color:var(--muted-2); }
-  .friend-status { flex:none; }
-  .friend-actions { display:flex;gap:6px; }
-  .friend-actions form,.friend-action-form { width:auto;margin:0; }
-  .friend-action { width:auto;margin:0;padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--positive);color:#fff;font-size:11px;font-weight:700;white-space:nowrap; }
-  .friend-action.secondary { background:var(--surface);color:var(--text); }
-  .friend-empty { padding:10px 12px;border-radius:10px;background:var(--surface-subtle);color:var(--muted);font-size:13px; }
-  @media (max-width:520px) { .friend-row{flex-wrap:wrap}.friend-actions{width:100%;padding-left:44px}.friend-actions form{flex:1}.friend-actions button{width:100%}.friend-action-form{margin-left:auto} }
-
   .profile-head {
     display: flex;
     align-items: center;
