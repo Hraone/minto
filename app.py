@@ -1021,6 +1021,15 @@ def load_friend_center(client, query=""):
     empty = {"friends": [], "incoming_requests": [], "outgoing_requests": [], "friend_search": []}
     try:
         empty["friends"] = client.rpc("list_minto_friends").execute().data or []
+        try:
+            contacts = client.rpc("list_minto_friend_contacts").execute().data or []
+            contact_by_username = {item.get("username"): item for item in contacts}
+            for person in empty["friends"]:
+                contact = contact_by_username.get(person.get("username"), {})
+                person["phone"] = contact.get("phone")
+                person["email"] = contact.get("email")
+        except Exception:
+            app.logger.exception("Could not load opted-in friend contact details")
         empty["incoming_requests"] = client.rpc(
             "list_minto_friend_requests", {"p_direction": "incoming"}
         ).execute().data or []
