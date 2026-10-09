@@ -1326,19 +1326,27 @@ def _parse_report_dates(args):
     return d_from, d_to, None
 
 
-def _fetch_report_history(client, user_id):
+def _fetch_report_history(client, user_id, offset=0, limit=10):
+    """Fetch report history in small pages, newest first."""
     try:
-        return (
+        offset = max(int(offset or 0), 0)
+        limit = min(max(int(limit or 10), 1), 10)
+        rows = (
             client.table("report_history")
             .select("id, date_from, date_to, row_count, file_format, created_at")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
-            .limit(10)
+            .range(offset, offset + limit)
             .execute()
             .data
         )
+        # One extra row lets us tell the UI whether another page exists.
+        return {
+            "items": rows[:limit],
+            "has_more": len(rows) > limit,
+        }
     except Exception:
-        return []  # history table not created yet: the page still works
+        return {"items": [], "has_more": False}
 
 
 
@@ -1470,7 +1478,7 @@ def reports():
         "reports.html",
         default_from=today.replace(day=1).isoformat(),
         default_to=today.isoformat(),
-        history=_fetch_report_history(client, session["user_id"]),
+        history=_fetch_report_history(client, session["user_id"], offset=0, limit=10),
     )
 
 
@@ -1478,7 +1486,11 @@ def reports():
 @login_required
 def reports_history():
     client = get_user_client()
-    return jsonify(_fetch_report_history(client, session["user_id"]))
+    try:
+        offset = max(int(request.args.get("offset", 0)), 0)
+    except (TypeError, ValueError):
+        offset = 0
+    return jsonify(_fetch_report_history(client, session["user_id"], offset=offset, limit=10))
 
 
 def _fetch_transactions(client, user_id, d_from, d_to, columns):
