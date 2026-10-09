@@ -630,11 +630,20 @@
   }
 
   .due-soon-list {
-    display: flex;
-    flex-direction: column;
-    gap: 7px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
     margin-top: 10px;
   }
+  .due-soon-empty {
+    grid-column:1 / -1; display:flex; align-items:center; gap:12px;
+    padding:17px; border:1px dashed var(--border); border-radius:12px;
+    color:var(--positive); background:var(--surface);
+  }
+  .due-soon-empty > span { display:grid; place-items:center; width:34px; height:34px; border-radius:50%; background:var(--surface-subtle); font-weight:900; }
+  .due-soon-empty strong,.due-soon-empty small { display:block; }
+  .due-soon-empty small { margin-top:3px; color:var(--muted); font-size:12px; }
+  @media(max-width:760px) { .due-soon-list { grid-template-columns:1fr; } }
 
   .due-soon-row {
     display: flex;
@@ -1173,9 +1182,14 @@ document.addEventListener("DOMContentLoaded", function () {
         <strong class="tnum">{{ item.amount|inr }}</strong>
       </div>
       {% endfor %}
+      {% if not due_soon_commitments %}
+      <div class="due-soon-empty">
+        <span aria-hidden="true">✓</span>
+        <div><strong>You're all clear</strong><small>No payments are due in the next {{ reminder_days_before }} days.</small></div>
+      </div>
+      {% endif %}
     </div>
   </div>
-  {% endif %}
 
   <div class="safe-spend-card">
     <div class="safe-spend-label">Safe to spend</div>
