@@ -1437,7 +1437,7 @@
 
     {% endif %}
 
-    {% if session.get('user_id') and app_mode != 'trip' %}
+    {% if session.get('user_id') %}
     <div class="nav-menu profile-menu" id="navProfile">
       <a
         class="user-avatar"
@@ -1452,40 +1452,15 @@
       ><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></a>
       <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
-        <a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}">Friends</a>
+        {% if app_mode != 'trip' %}<a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>{% endif %}
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>
         <a role="menuitem" href="{{ url_for('logout') }}">Log Out</a>
       </div>
     </div>
     {% endif %}
 
-    {% if session.get('user_id') and app_mode == 'trip' %}
-    <span class="user-avatar static" title="{{ nav_name }}"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
-    {% endif %}
-
-    {% if session.get('user_id') %}
-
-    <a
-      class="nav-link logout-link logout-text"
-      href="{{ url_for('logout') }}"
-    >
-      Log Out
-    </a>
-
-    <a
-      class="theme-toggle logout-icon"
-      href="{{ url_for('logout') }}"
-      aria-label="Log Out"
-      title="Log Out"
-    >
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-        <polyline points="16 17 21 12 16 7"></polyline>
-        <line x1="21" y1="12" x2="9" y2="12"></line>
-      </svg>
-    </a>
-
-    {% else %}
+    {% if not session.get('user_id') %}
 
     <a
       class="nav-link {{ 'active' if request.endpoint == 'info' else '' }}"
@@ -1557,6 +1532,19 @@
 
 
   </div>
+
+  {% if session.get('user_id') and app_mode == 'trip' %}
+  <nav class="tab-bar trip-tab-bar" aria-label="Trip navigation">
+    <a class="tab-link {{ 'active' if request.endpoint in ['trips', 'trip_detail', 'trip_home'] else '' }}" href="{{ url_for('trips') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg>
+      Trips
+    </a>
+    <a class="tab-link {{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="10" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      Friends
+    </a>
+  </nav>
+  {% endif %}
 
   {% if session.get('user_id') and app_mode != 'trip' %}
   <nav class="tab-bar">
@@ -1634,6 +1622,7 @@
 
         <div class="more-group">
           <div class="more-group-label">Minto</div>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}"><span>Friends</span><small>Search &amp; manage friends</small></a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
             <span>About Minto</span><small>App info &amp; help</small>
           </a>
