@@ -93,6 +93,14 @@
     align-items: center;
   }
 
+  .net-worth-action {
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    min-height:38px; padding:0 14px; border:1px solid var(--border);
+    border-radius:11px; background:var(--surface); color:var(--text);
+    text-decoration:none; font-size:12.5px; font-weight:750; white-space:nowrap;
+    transition:background .18s ease,border-color .18s ease;
+  }
+  .net-worth-action:hover { background:var(--surface-subtle); border-color:var(--border-strong); }
   .download-report-btn {
     display: inline-flex;
     align-items: center;
@@ -1091,6 +1099,7 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 
     <div class="dashboard-actions">
+      <a class="net-worth-action" href="{{ url_for('net_worth') }}"><span aria-hidden="true">◈</span> Net worth</a>
       <a class="download-report-btn"
          href="{{ url_for('download_report', **{'from': report_from, 'to': report_to}) }}">
         Download Report
@@ -1130,7 +1139,7 @@ document.addEventListener("DOMContentLoaded", function () {
   </section>
   {% endif %}
 
-  <a class="wealth-reveal-toggle" href="{{ url_for('net_worth') }}"><span aria-hidden="true">◈</span><span>Net worth</span></a>
+  
   <div class="wealth-section is-hidden" id="wealth-section" hidden>
 
     {% if wealth_unlocked %}
