@@ -1442,7 +1442,7 @@
       <a class="nav-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
       <div class="nav-menu" id="navTransfers">
         <a
-          class="nav-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash'] else '' }}"
+          class="nav-link {{ 'active' if request.endpoint in ['bank_transfer', 'pay_cc_bill', 'withdraw_cash'] else '' }}"
           href="{{ url_for('pay_cc_bill') }}"
           role="button"
           aria-haspopup="true"
@@ -1454,6 +1454,7 @@
           <svg class="nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
         </a>
         <div class="nav-dropdown" id="navTransfersMenu" role="menu" hidden>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Balance Transfer</a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
         </div>
@@ -1641,6 +1642,7 @@
 
     <div class="tab-menu" id="transfersMenu">
       <div class="tab-sheet" id="transfersSheet" role="menu" hidden>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Balance Transfer</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
       </div>
