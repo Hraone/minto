@@ -2095,7 +2095,14 @@
 <style>
   .fixed-reminder-overlay { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(10,15,25,.62); backdrop-filter:blur(5px); }
   .fixed-reminder-overlay[hidden], .fixed-reminder-chip[hidden] { display:none !important; }
-  .fixed-reminder-card { width:min(620px,100%); max-height:min(82vh,760px); overflow:auto; border:1px solid var(--border); border-radius:22px; padding:22px; background:var(--surface); color:var(--text); box-shadow:0 24px 90px rgba(0,0,0,.3); }
+  .fixed-reminder-card { width:min(820px,100%); max-height:min(82vh,760px); overflow:auto; border:1px solid var(--border); border-radius:22px; padding:22px; background:var(--surface); color:var(--text); box-shadow:0 24px 90px rgba(0,0,0,.3); }
+  #fixedReminderItems { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:20px; }
+  #fixedReminderItems .fixed-reminder-item { min-width:0; }
+  #fixedReminderItems .fixed-reminder-item-head { gap:8px; }
+  #fixedReminderItems .fixed-reminder-amount { font-size:14px; }
+  #fixedReminderItems .fixed-reminder-item form { align-items:stretch; }
+  #fixedReminderItems .fixed-reminder-item select { flex:1 1 140px; font-size:13px; padding:8px; }
+  #fixedReminderItems .fixed-reminder-item button { padding:9px 12px; font-size:13px; }
   .fixed-reminder-card h2 { margin:0 0 6px; font-size:22px; }
   .fixed-reminder-intro { margin:0 0 16px; color:var(--muted); font-size:13px; line-height:1.5; }
   .fixed-reminder-item { padding:14px 0; border-top:1px solid var(--border); }
@@ -2111,13 +2118,16 @@
   .fixed-reminder-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
   .fixed-reminder-footer button { background:var(--surface-alt); color:var(--text); border:1px solid var(--border); }
   .fixed-reminder-footer a { color:var(--primary); font-size:13px; font-weight:700; text-decoration:none; }
-  .fixed-reminder-chip { position:fixed; z-index:10040; right:16px; bottom:calc(82px + env(safe-area-inset-bottom)); border:0; border-radius:999px; padding:12px 17px; background:var(--primary); color:var(--primary-contrast); box-shadow:0 8px 28px rgba(0,0,0,.2); font-weight:750; cursor:pointer; }
+  .fixed-reminder-chip { position:fixed; z-index:10040; right:22px; bottom:24px; width:52px; height:52px; display:flex; align-items:center; justify-content:center; border:0; border-radius:50%; background:var(--primary); color:var(--primary-contrast); box-shadow:0 8px 28px rgba(0,0,0,.24); font-size:21px; font-weight:750; cursor:pointer; }
+  .fixed-reminder-count { position:absolute; top:-5px; right:-5px; min-width:20px; height:20px; display:flex; align-items:center; justify-content:center; padding:0 4px; border-radius:999px; background:var(--negative); color:#fff; font-size:11px; line-height:1; border:2px solid var(--surface); }
+  .fixed-reminder-chip-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
   @media(max-width:480px) {
     .fixed-reminder-card { padding:17px; border-radius:18px; }
     .fixed-reminder-card h2 { font-size:19px; }
     .fixed-reminder-item form button { width:100%; }
-    /* Keep the pending reminder chip above the fixed bottom navigation. */
-    .fixed-reminder-chip { left:16px; right:16px; width:auto; bottom:calc(82px + env(safe-area-inset-bottom)); }
+    #fixedReminderItems { grid-template-columns:1fr; }
+    /* Compact notification bell stays above the fixed bottom navigation. */
+    .fixed-reminder-chip { left:auto; right:16px; bottom:calc(82px + env(safe-area-inset-bottom)); width:48px; height:48px; }
     body { padding-bottom:calc(90px + env(safe-area-inset-bottom)); }
   }
 </style>
@@ -2132,14 +2142,15 @@
     </div>
   </div>
 </div>
-<button class="fixed-reminder-chip" id="fixedReminderChip" type="button" hidden></button>
+<button class="fixed-reminder-chip" id="fixedReminderChip" type="button" aria-label="Open fixed transaction reminders" title="Fixed transaction reminders" hidden><span aria-hidden="true">🔔</span><span class="fixed-reminder-count" id="fixedReminderCount"></span><span class="fixed-reminder-chip-label">Pending fixed transactions</span></button>
 <script>
 (function () {
   var overlay = document.getElementById('fixedReminderOverlay');
   var list = document.getElementById('fixedReminderItems');
   var chip = document.getElementById('fixedReminderChip');
   var later = document.getElementById('fixedReminderLater');
-  if (!overlay || !list || !chip || !later) return;
+  var chipCount = document.getElementById('fixedReminderCount');
+  if (!overlay || !list || !chip || !later || !chipCount) return;
   var pendingCount = 0;
   function money(value) {
     try { return new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR',maximumFractionDigits:2}).format(value); }
@@ -2205,7 +2216,8 @@
       pendingCount = items.length;
       if (!pendingCount) return;
       items.forEach(function (item) { list.appendChild(buildItem(item)); });
-      chip.textContent = 'Pending fixed transactions (' + pendingCount + ')';
+      chipCount.textContent = String(pendingCount);
+      chip.setAttribute('aria-label', 'Open ' + pendingCount + ' pending fixed transaction reminder' + (pendingCount === 1 ? '' : 's'));
       showModal();
     }).catch(function () {});
   later.addEventListener('click', hideModal);
