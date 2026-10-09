@@ -4353,6 +4353,9 @@ def fixed_reminders():
     client = get_user_client()
     user_id = session["user_id"]
     today = datetime.now(APP_TZ).date()
+    # Show commitments one day before they are due, and keep showing them
+    # while overdue until their payment/receipt is recorded.
+    reminder_through = today + timedelta(days=1)
     expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     incomes = get_fixed_incomes_for_month(client, user_id, today.year, today.month)
     sources = (
@@ -4363,7 +4366,7 @@ def fixed_reminders():
     accounts = [{"id": str(s["id"]), "name": s["name"]} for s in sources]
     items = []
     for item in expenses:
-        if item.get("paid") or item["due_date"] > today:
+        if item.get("paid") or item["due_date"] > reminder_through:
             continue
         items.append({
             "id": int(item["id"]), "name": item["name"], "amount": float(item["amount"]),
@@ -4371,7 +4374,7 @@ def fixed_reminders():
             "source_id": str(item.get("source_id") or ""), "accounts": accounts,
         })
     for item in incomes:
-        if item.get("paid") or item["due_date"] > today:
+        if item.get("paid") or item["due_date"] > reminder_through:
             continue
         items.append({
             "id": int(item["id"]), "name": item["name"], "amount": float(item["amount"]),
