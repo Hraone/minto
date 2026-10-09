@@ -38,27 +38,21 @@
   }
   .friends-page label { display:block; margin-bottom:7px; color:var(--text); font-size:13px; font-weight:650; }
   @media (max-width:600px) { .friends-page { padding: 18px 0 40px; } .friends-card { padding:16px; } .friends-heading { font-size:24px; } }
+
+  .friend-row { align-items:flex-start; padding:14px; gap:12px; }
+  .friend-avatar { width:48px; height:48px; }
+  .friend-copy strong { font-size:14px; }
+  .friend-copy small { line-height:1.45; }
+  .friend-contact { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
+  .friend-contact a { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); }
+  .friend-contact a:hover { border-color:var(--positive); text-decoration:none; }
+  .friend-contact-label { color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.05em; }
+
 </style>
 <div class="friends-page">
   <h1 class="friends-heading">Minto Friends</h1>
   <p class="friends-subtitle">Find people, manage requests, and connect friends to your trips. Contact details are shared only with accepted friends when you enable sharing.</p>
-  <section class="friends-card">
-    <h2 style="margin:0 0 6px;font-size:17px;">Contact sharing</h2>
-    <p class="profile-email" style="margin:0 0 16px;">Only accepted Minto friends can see the contact details you choose to share.</p>
-    <form method="post" action="{{ url_for('friends') }}">
-      <label for="friend-phone">Phone number</label>
-      <input id="friend-phone" name="phone" type="tel" value="{{ phone }}" maxlength="32" autocomplete="tel" placeholder="+91 98765 43210">
-      <label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-weight:600;">
-        <input type="checkbox" name="share_phone" {% if share_phone %}checked{% endif %} style="width:auto;margin:0;">
-        Share my phone number with accepted friends
-      </label>
-      <label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-weight:600;">
-        <input type="checkbox" name="share_email" {% if share_email %}checked{% endif %} style="width:auto;margin:0;">
-        Share my account email with accepted friends
-      </label>
-      <button type="submit" class="profile-save" style="width:auto;margin-top:14px;">Save contact preferences</button>
-    </form>
-  </section>
+
   <div class="friends-card">
       <section class="profile-card" id="friends" style="padding:22px;">
     <h3 style="margin:0 0 6px;">Minto Friends</h3>
@@ -87,11 +81,7 @@
           <span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
           <div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
             {% if person.relationship == 'friend' and (person.email or person.phone) %}
-              <small class="friend-contact">
-                {% if person.email %}<a href="mailto:{{ person.email|urlencode }}">{{ person.email }}</a>{% endif %}
-                {% if person.email and person.phone %}<span aria-hidden="true"> · </span>{% endif %}
-                {% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">{{ person.phone }}</a>{% endif %}
-              </small>
+              <span class="friend-contact">{% if person.email %}<a href="mailto:{{ person.email|urlencode }}">✉ Email</a>{% endif %}{% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">☎ Call · {{ person.phone }}</a>{% endif %}</span>
             {% endif %}
           </div>
           {% if person.relationship == 'friend' %}
@@ -144,7 +134,7 @@
     <div class="friend-list">
       {% for person in friends %}
       <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
-        {% if person.email or person.phone %}<small class="friend-contact">{% if person.email %}<a href="mailto:{{ person.email|urlencode }}">{{ person.email }}</a>{% endif %}{% if person.email and person.phone %}<span aria-hidden="true"> · </span>{% endif %}{% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">{{ person.phone }}</a>{% endif %}</small>{% endif %}
+        {% if person.email or person.phone %}<span class="friend-contact">{% if person.email %}<a href="mailto:{{ person.email|urlencode }}">✉ Email · {{ person.email }}</a>{% endif %}{% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">☎ Call · {{ person.phone }}</a>{% endif %}</span>{% endif %}
       </div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
       {% endfor %}
     </div>
