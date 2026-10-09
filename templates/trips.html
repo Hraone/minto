@@ -25,6 +25,21 @@
   .pill.active { color:var(--positive); }
   .trip-empty { padding:24px 0 4px; text-align:center; color:var(--muted-2); font-size:13px; }
   @media (max-width:600px){ .trip-card{padding:22px 18px}.trips-header h2{font-size:25px}.field-row{grid-template-columns:1fr}.trip-link{align-items:flex-start}.trip-right{min-width:95px} }
+  @media (min-width: 881px) {
+    .trips-wrapper {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+      align-items: start;
+    }
+    .trips-header {
+      grid-column: 1 / -1;
+    }
+    .trip-card {
+      margin-bottom: 0;
+    }
+  }
+
 </style>
 
 <div class="trips-wrapper">
