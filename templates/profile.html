@@ -678,7 +678,7 @@
   <div class="profile-card">
     <div class="profile-head">
       <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile avatar">
-        <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true">
+        <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
       </button>
 
       <div style="min-width:0; flex:1;">
@@ -713,7 +713,7 @@
           <div class="avatar-option">
             <input type="radio" id="profile-avatar-{{ loop.index }}" name="profile_avatar" value="{{ avatar }}" {% if profile_avatar == avatar %}checked{% endif %}>
             <label for="profile-avatar-{{ loop.index }}" aria-label="Choose avatar {{ loop.index }}">
-              <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (avatar) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true">
+              <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
             </label>
           </div>
           {% endfor %}
