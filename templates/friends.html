@@ -1,25 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Minto Friends · Minto<script>
-(() => {
-  const edit = document.getElementById("edit-minto-username");
-  const cancel = document.getElementById("cancel-minto-username");
-  const form = document.getElementById("minto-username-form");
-  const input = document.getElementById("minto-username");
-  if (!edit || !cancel || !form || !input) return;
-  edit.addEventListener("click", () => {
-    form.style.display = "block";
-    edit.closest(".username-display").style.display = "none";
-    input.focus();
-  });
-  cancel.addEventListener("click", () => {
-    form.style.display = "none";
-    edit.closest(".username-display").style.display = "flex";
-    input.value = {{ username|tojson }};
-  });
-})();
-</script>
-{% endblock %}
+{% block title %}Minto Friends · Minto{% endblock %}
 
 {% block content %}
 <style>
@@ -188,4 +169,27 @@
     {% endif %}
 </section>
 </div>
+
+<script>
+(() => {
+  const edit = document.getElementById("edit-minto-username");
+  const cancel = document.getElementById("cancel-minto-username");
+  const form = document.getElementById("minto-username-form");
+  const input = document.getElementById("minto-username");
+  const usernameDisplay = edit ? edit.closest(".username-display") : null;
+  if (!edit || !cancel || !form || !input || !usernameDisplay) return;
+
+  edit.addEventListener("click", () => {
+    usernameDisplay.hidden = true;
+    form.style.display = "block";
+    input.focus();
+  });
+
+  cancel.addEventListener("click", () => {
+    form.style.display = "none";
+    usernameDisplay.hidden = false;
+    input.value = {{ username|tojson }};
+  });
+})();
+</script>
 {% endblock %}
