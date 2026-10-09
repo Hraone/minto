@@ -1449,7 +1449,7 @@
         aria-label="Open profile menu"
         title="{{ nav_name }}"
         onclick="toggleNavProfile(event)"
-      ><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></a>
+      ><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></a>
       <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}">Friends</a>
