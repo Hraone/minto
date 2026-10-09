@@ -1,4 +1,6 @@
 import os
+import csv
+import io
 import math
 import smtplib
 import secrets
@@ -1537,6 +1539,65 @@ def _fetch_transactions(client, user_id, d_from, d_to, columns):
         if len(batch) < 1000:
             return rows
         start += 1000
+
+
+@app.route("/transactions/download.csv")
+@login_required
+def download_transactions_csv():
+    d_from, d_to, error = _parse_report_dates(request.args)
+    if error:
+        flash(error)
+        return redirect(url_for("dashboard"))
+
+    direction = request.args.get("direction", "").strip()
+    category = request.args.get("category", "").strip()
+    if direction not in ("", "in", "out"):
+        direction = ""
+    allowed_categories = {"income", "expense", "investment", "transfer", "lending"}
+    if category not in allowed_categories:
+        category = ""
+
+    client = get_user_client()
+    user_id = session["user_id"]
+    rows = _fetch_transactions(
+        client, user_id, d_from, d_to,
+        "id, transaction_date, direction, category, expense_category, investment_category, amount, currency, description, raw_text, source_id, user_sources(name, source_type)",
+    )
+    if direction:
+        rows = [row for row in rows if row.get("direction") == direction]
+    if category:
+        rows = [row for row in rows if row.get("category") == category]
+
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow([
+        "Transaction ID", "Date", "Direction", "Type", "Category",
+        "Description", "Amount", "Currency", "Account", "Account Type",
+    ])
+    for row in rows:
+        source = row.get("user_sources") or {}
+        writer.writerow([
+            row.get("id", ""),
+            row.get("transaction_date", ""),
+            row.get("direction", ""),
+            row.get("category", ""),
+            row.get("expense_category") or row.get("investment_category") or "",
+            row.get("description") or row.get("raw_text") or "",
+            row.get("amount", ""),
+            row.get("currency") or "INR",
+            source.get("name", ""),
+            source.get("source_type", ""),
+        ])
+
+    filename = f"minto-transactions-{d_from.isoformat()}-to-{d_to.isoformat()}.csv"
+    return Response(
+        "\ufeff" + output.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 @app.route("/reports/download")
@@ -4667,7 +4728,7 @@ def dashboard():
         if source and t["amount"] and t["direction"] == "out" and t["category"] not in non_flow_categories:
             spend_by_source[source["name"]] += float(t["amount"])
 
-    recent = txns[:10]
+    recent = txns[:5]
 
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
     manual_items = get_net_worth_manual_items() if net_worth_is_unlocked() else []
