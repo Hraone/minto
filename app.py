@@ -1341,6 +1341,126 @@ def _fetch_report_history(client, user_id):
         return []  # history table not created yet: the page still works
 
 
+
+@app.route("/planner")
+@login_required
+def planner():
+    """Current-month planning view built from salary, unpaid commitments and recorded spending."""
+    client = get_user_client()
+    user_id = session["user_id"]
+    today = datetime.now(APP_TZ).date()
+    month_start = today.replace(day=1)
+    month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+
+    profile_rows = (
+        client.table("profiles")
+        .select("monthly_salary, salary_day")
+        .eq("id", user_id)
+        .limit(1)
+        .execute()
+        .data
+    )
+    profile_settings = profile_rows[0] if profile_rows else {}
+    salary_cycle = get_salary_cycle(profile_settings, today)
+
+    fixed_items = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    unpaid_fixed = [
+        item for item in fixed_items
+        if not item.get("paid") and item.get("amount")
+    ]
+    unpaid_fixed.sort(key=lambda x: (x.get("due_date") or month_end, x.get("name") or ""))
+
+    savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    cc_loans = get_active_cc_loans(client, user_id)
+    card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
+    expected_bills = [
+        {
+            "kind": "credit_card",
+            "name": f"{card['name']} card bill",
+            "amount": float(card.get("expected_bill") or 0),
+            "due_date": card.get("due_date"),
+        }
+        for card in card_forecasts
+        if card.get("due_date")
+        and card["due_date"].year == today.year
+        and card["due_date"].month == today.month
+        and float(card.get("expected_bill") or 0) > 0
+    ]
+
+    commitments = [
+        {
+            "kind": "investment" if item.get("kind") == "investment" else "fixed",
+            "name": item["name"],
+            "amount": float(item["amount"] or 0),
+            "due_date": item.get("due_date"),
+        }
+        for item in unpaid_fixed
+    ] + expected_bills
+    commitments.sort(key=lambda x: (x.get("due_date") or month_end, x.get("name") or ""))
+
+    commitment_total = round(sum(item["amount"] for item in commitments), 2)
+
+    txns = (
+        client.table("transactions")
+        .select("direction, category, amount, transaction_date, expense_category")
+        .eq("user_id", user_id)
+        .gte("transaction_date", month_start.isoformat())
+        .lte("transaction_date", today.isoformat())
+        .order("transaction_date", desc=True)
+        .execute()
+        .data
+    )
+    excluded_categories = {"transfer", "lending", "trip_expense_payment", "trip_settlement"}
+    spent_so_far = round(sum(
+        float(txn.get("amount") or 0)
+        for txn in txns
+        if txn.get("direction") == "out"
+        and txn.get("category") not in excluded_categories
+        and txn.get("amount")
+    ), 2)
+
+    planned_salary = round(float(profile_settings.get("monthly_salary") or 0), 2)
+    after_commitments = round(planned_salary - commitment_total, 2)
+    remaining_plan = round(after_commitments - spent_so_far, 2)
+
+    days_left = max((month_end - today).days + 1, 1)
+    weeks_left = max(days_left / 7, 1)
+    daily_plan = round(max(remaining_plan, 0) / days_left, 2)
+    weekly_plan = round(max(remaining_plan, 0) / weeks_left, 2)
+
+    due_items = []
+    for item in commitments:
+        due = item.get("due_date")
+        days_until = (due - today).days if due else None
+        due_items.append({
+            **item,
+            "days_until": days_until,
+            "due_label": "Today" if days_until == 0 else (
+                "Tomorrow" if days_until == 1 else (
+                    f"In {days_until} days" if days_until is not None and days_until > 1 else "Due"
+                )
+            ),
+        })
+
+    return render_template(
+        "planner.html",
+        today=today,
+        month_label=today.strftime("%B %Y"),
+        month_start=month_start,
+        month_end=month_end,
+        salary_cycle=salary_cycle,
+        planned_salary=planned_salary,
+        commitment_total=commitment_total,
+        after_commitments=after_commitments,
+        spent_so_far=spent_so_far,
+        remaining_plan=remaining_plan,
+        days_left=days_left,
+        daily_plan=daily_plan,
+        weekly_plan=weekly_plan,
+        commitments=due_items,
+    )
+
+
 @app.route("/reports")
 @login_required
 def reports():
