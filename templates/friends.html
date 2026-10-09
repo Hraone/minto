@@ -5,6 +5,14 @@
 {% block content %}
 <style>
   .friends-page { max-width: 1040px; margin: 0 auto; padding: 28px 16px 72px; }
+  .friends-user-card { display:flex; align-items:center; gap:13px; min-width:0; margin-bottom:22px; padding:14px 16px; border:1px solid var(--border); border-radius:16px; background:var(--surface); }
+  .friends-user-avatar { width:54px; height:54px; flex:none; overflow:hidden; border:1px solid var(--border); border-radius:50%; background:var(--surface-subtle); }
+  .friends-user-avatar img { display:block; width:100%; height:100%; object-fit:cover; }
+  .friends-user-copy { flex:1; min-width:0; }
+  .friends-user-copy strong { display:block; color:var(--text); font-size:16px; line-height:1.35; overflow-wrap:anywhere; }
+  .friends-user-copy small { display:block; margin-top:3px; color:var(--muted); font-size:12px; overflow-wrap:anywhere; }
+  .friends-user-profile-link { flex:none; padding:8px 11px; border:1px solid var(--border); border-radius:10px; color:var(--text); text-decoration:none; font-size:12px; font-weight:700; }
+  .friends-user-profile-link:hover { background:var(--surface-subtle); }
   .friends-heading { margin:0 0 6px; font-size:28px; letter-spacing:-.03em; }
   .friends-subtitle { margin:0 0 22px; max-width:680px; color:var(--muted); font-size:14px; line-height:1.55; }
   .friends-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
@@ -60,6 +68,14 @@
   }
 </style>
 <div class="friends-page">
+  <div class="friends-user-card">
+    <span class="friends-user-avatar"><img src="{{ url_for('static', filename='avatars/' ~ (profile_avatar if profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
+    <div class="friends-user-copy">
+      <strong>{{ nav_name }}</strong>
+      <small>{% if username %}@{{ username }}{% else %}Username not set{% endif %}</small>
+    </div>
+    <a class="friends-user-profile-link" href="{{ url_for('profile') }}">Profile</a>
+  </div>
   <h1 class="friends-heading">Minto Friends</h1>
   <p class="friends-subtitle">Connect with people you know, manage requests, and find your friends quickly. Contact details appear only when an accepted friend chooses to share them.</p>
   <div class="friends-overview">
@@ -73,7 +89,6 @@
     <p class="friends-card-intro">Your username helps friends find you. Email addresses and account IDs are never used as public search identifiers.</p>
     <div class="username-display" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle);">
       <div style="display:flex;align-items:center;gap:12px;min-width:0;">
-        <span class="friend-avatar" style="width:44px;height:44px;"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar if profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
         <div style="min-width:0;">
           <label style="margin-bottom:5px;">Your username</label>
           <strong style="display:block;overflow-wrap:anywhere;">{% if username %}@{{ username }}{% else %}Not set yet{% endif %}</strong>
