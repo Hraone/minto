@@ -1002,6 +1002,15 @@
         background: var(--nav-hover-bg);
       }
 
+      .more-sheet {
+        min-width: 210px;
+        max-width: calc(100vw - 24px);
+      }
+
+      .more-sheet a {
+        white-space: nowrap;
+      }
+
       .row {
         flex-direction: column;
         gap: 0;
@@ -1496,11 +1505,19 @@
 
     <a class="tab-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="18" y1="20" x2="18" y2="10"></line>
-        <line x1="12" y1="20" x2="12" y2="4"></line>
-        <line x1="6" y1="20" x2="6" y2="14"></line>
+        <rect x="3" y="3" width="18" height="18" rx="5"></rect>
+        <path d="M7.5 9.5h9M7.5 14.5h5"></path>
       </svg>
-      Overview
+      Home
+    </a>
+
+    <a class="tab-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="8" x2="12" y2="16"></line>
+        <line x1="8" y1="12" x2="16" y2="12"></line>
+      </svg>
+      Add
     </a>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'planner' else '' }}" href="{{ url_for('planner') }}">
@@ -1513,71 +1530,34 @@
       Planner
     </a>
 
-    <a class="tab-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="16"></line>
-        <line x1="8" y1="12" x2="16" y2="12"></line>
-      </svg>
-      Add
-    </a>
-
-    <div class="tab-menu" id="accountsMenu">
-      <div class="tab-sheet" id="accountsSheet" role="menu" hidden>
+    <div class="tab-menu" id="moreMenu">
+      <div class="tab-sheet more-sheet" id="moreSheet" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed Expenses</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">Budgets</a>
-      </div>
-      <a
-        href="{{ url_for('sources') }}"
-        role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses', 'budgets'] else '' }}"
-        aria-haspopup="true"
-        aria-expanded="false"
-        aria-controls="accountsSheet"
-        onclick="toggleAccountsMenu(event)"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="1" y="4" width="22" height="16" rx="2"></rect>
-          <line x1="1" y1="10" x2="23" y2="10"></line>
-        </svg>
-        Accounts
-      </a>
-    </div>
-
-    <div class="tab-menu" id="transfersMenu">
-      <div class="tab-sheet" id="transfersSheet" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">Reports</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>
       </div>
       <a
-        href="{{ url_for('pay_cc_bill') }}"
+        href="{{ url_for('dashboard') }}"
         role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['pay_cc_bill', 'withdraw_cash', 'bank_transfer'] else '' }}"
+        class="tab-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses', 'budgets', 'pay_cc_bill', 'withdraw_cash', 'bank_transfer', 'reports', 'info'] else '' }}"
         aria-haspopup="true"
         aria-expanded="false"
-        aria-controls="transfersSheet"
-        onclick="toggleTransfersMenu(event)"
+        aria-controls="moreSheet"
+        onclick="toggleMoreMenu(event)"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="17 1 21 5 17 9"></polyline>
-          <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
-          <polyline points="7 23 3 19 7 15"></polyline>
-          <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="5" cy="12" r="1.8"></circle>
+          <circle cx="12" cy="12" r="1.8"></circle>
+          <circle cx="19" cy="12" r="1.8"></circle>
         </svg>
-        Transfers
+        More
       </a>
     </div>
-
-    <a class="tab-link {{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="16" x2="12" y2="12"></line>
-        <line x1="12" y1="8" x2="12.01" y2="8"></line>
-      </svg>
-      About
-    </a>
 
   </nav>
   {% endif %}
@@ -1658,8 +1638,28 @@
         closeNavTransfers();
         closeNavAccounts();
         closeNavProfile();
+        closeMoreMenu();
       }
     });
+
+    function toggleMoreMenu(event) {
+      event.preventDefault();
+      event.stopPropagation();
+      var sheet = document.getElementById("moreSheet");
+      var btn = event.currentTarget;
+      var open = sheet.hasAttribute("hidden");
+      if (open) { sheet.removeAttribute("hidden"); } else { sheet.setAttribute("hidden", ""); }
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    function closeMoreMenu() {
+      var menu = document.getElementById("moreMenu");
+      var sheet = document.getElementById("moreSheet");
+      if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
+      sheet.setAttribute("hidden", "");
+      var b = menu.querySelector(".tab-link");
+      if (b) b.setAttribute("aria-expanded", "false");
+    }
 
     function toggleAccountsMenu(event) {
       event.preventDefault();
@@ -1703,6 +1703,12 @@
       var accountSheet = document.getElementById("accountsSheet");
       if (accounts && accountSheet && !accountSheet.hasAttribute("hidden") && !accounts.contains(e.target)) {
         closeAccountsMenu();
+      }
+
+      var more = document.getElementById("moreMenu");
+      var moreSheet = document.getElementById("moreSheet");
+      if (more && moreSheet && !moreSheet.hasAttribute("hidden") && !more.contains(e.target)) {
+        closeMoreMenu();
       }
     });
 
