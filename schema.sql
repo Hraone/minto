@@ -14,6 +14,11 @@ create table if not exists public.profiles (
     created_at timestamp with time zone default now()
 );
 
+-- Optional contact details, visible to accepted friends only when opted in.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone text;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS share_phone_with_friends boolean NOT NULL DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS share_email_with_friends boolean NOT NULL DEFAULT false;
+
 -- Each user's own list of banks/cards, replacing the old hardcoded enum
 create table if not exists public.user_sources (
     id serial primary key,
