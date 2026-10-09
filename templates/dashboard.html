@@ -118,8 +118,8 @@
   }
 
   .dashboard-alerts-list {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
     overflow: hidden;
     transition: max-height .35s ease, opacity .25s ease, transform .35s ease;
@@ -176,6 +176,24 @@
     opacity: 0;
     transform: translateY(-6px);
     pointer-events: none;
+    visibility: hidden;
+  }
+
+  .dashboard-alerts.is-collapsed .dashboard-alerts-count {
+    animation: notice-count-pulse 1.8s ease-in-out infinite;
+  }
+
+  @keyframes notice-count-pulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--negative) 0%, transparent); }
+    50% { transform: scale(1.1); box-shadow: 0 0 0 5px color-mix(in srgb, var(--negative) 18%, transparent); }
+  }
+
+  @media (max-width: 760px) {
+    .dashboard-alerts-list { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dashboard-alerts-list, .dashboard-alerts-count { transition: none; animation: none !important; }
   }
 
   .dashboard-alerts.is-collapsed {
@@ -890,26 +908,36 @@
 document.addEventListener("DOMContentLoaded", function () {
   var alerts = document.getElementById("dashboard-alerts");
   var toggle = document.getElementById("dashboard-alerts-toggle");
+  var count = document.querySelector(".dashboard-alerts-count");
   if (!alerts || !toggle) return;
 
   function setCollapsed(collapsed) {
     alerts.classList.toggle("is-collapsed", collapsed);
     toggle.textContent = collapsed ? "Show notices" : "Hide notices";
     toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
-    try {
-      sessionStorage.setItem("minto-dashboard-alerts-collapsed", collapsed ? "1" : "0");
-    } catch (e) {}
   }
 
-  var collapsed = false;
-  try {
-    collapsed = sessionStorage.getItem("minto-dashboard-alerts-collapsed") === "1";
-  } catch (e) {}
-  setCollapsed(collapsed);
-
+  // Notices start hidden on every page load; users can expand them on demand.
+  setCollapsed(true);
   toggle.addEventListener("click", function () {
     setCollapsed(!alerts.classList.contains("is-collapsed"));
   });
+
+  // Count up from zero so the notice total has a subtle live-counter effect.
+  if (count && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    var target = Number(count.textContent.trim()) || 0;
+    var startTime = 0;
+    var duration = 700;
+    function animateCount(timestamp) {
+      if (!startTime) startTime = timestamp;
+      var progress = Math.min((timestamp - startTime) / duration, 1);
+      var eased = 1 - Math.pow(1 - progress, 3);
+      count.textContent = String(Math.round(target * eased));
+      if (progress < 1) window.requestAnimationFrame(animateCount);
+    }
+    count.textContent = "0";
+    window.requestAnimationFrame(animateCount);
+  }
 });
 </script>
 
