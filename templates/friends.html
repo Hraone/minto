@@ -4,59 +4,73 @@
 
 {% block content %}
 <style>
-  .friends-page { max-width: 960px; margin: 0 auto; padding: 28px 16px 60px; }
-  .friends-heading { margin: 0 0 6px; font-size: 28px; letter-spacing: -.03em; }
-  .friends-subtitle { margin: 0 0 22px; color: var(--muted); font-size: 14px; }
-  .friends-card { padding: 22px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
-  .friend-section-title { margin:18px 0 8px;font-size:13px;color:var(--muted); }
-  .friend-list { display:flex;flex-direction:column;gap:7px; }
-  .friend-row { display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle); }
-  .friend-avatar { width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--surface);overflow:hidden; }
-  .friend-avatar svg,.friend-avatar img { width:100%;height:100%;display:block;object-fit:cover; }
-  .friend-copy { flex:1;min-width:0; }
-  .friend-copy strong,.friend-copy small { display:block;overflow-wrap:anywhere; }
-  .friend-copy strong { font-size:13px;color:var(--text); }
-  .friend-copy small,.friend-status { margin-top:2px;font-size:11px;color:var(--muted-2); }
-  .friend-status { flex:none; }
-  .friend-contact { display:block; margin-top:5px; overflow-wrap:anywhere; }
-  .friend-contact a { color:var(--muted); text-decoration:none; }
-  .friend-contact a:hover { color:var(--positive); text-decoration:underline; }
-  .friend-actions { display:flex;gap:6px; }
-  .friend-actions form,.friend-action-form { width:auto;margin:0; }
-  .friend-action { width:auto;margin:0;padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--positive);color:#fff;font-size:11px;font-weight:700;white-space:nowrap; }
-  .friend-action.secondary { background:var(--surface);color:var(--text); }
-  .friend-empty { padding:10px 12px;border-radius:10px;background:var(--surface-subtle);color:var(--muted);font-size:13px; }
-  @media (max-width:520px) { .friend-row{flex-wrap:wrap}.friend-actions{width:100%;padding-left:44px}.friend-actions form{flex:1}.friend-actions button{width:100%}.friend-action-form{margin-left:auto} }
-  .friends-page input { min-width: 0; }
-  .friends-page .field-row { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:stretch; width:100%; }
-  .friends-page .field-row input { display:block; width:100%; min-width:0; max-width:100%; box-sizing:border-box; flex:none; }
-  .friends-page .field-row button.profile-save { display:inline-flex; align-items:center; justify-content:center; width:auto !important; min-width:140px; max-width:100%; margin:0; white-space:nowrap; }
-  .friends-page .field-row input[type="text"] { height:52px; }
-  @media (max-width:600px) {
-    .friends-page .field-row { grid-template-columns:minmax(0, 1fr); }
-    .friends-page .field-row button.profile-save { width:100% !important; min-width:0; }
-  }
+  .friends-page { max-width: 1040px; margin: 0 auto; padding: 28px 16px 72px; }
+  .friends-heading { margin:0 0 6px; font-size:28px; letter-spacing:-.03em; }
+  .friends-subtitle { margin:0 0 22px; max-width:680px; color:var(--muted); font-size:14px; line-height:1.55; }
+  .friends-overview { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+  .friends-stat { min-width:0; padding:14px 16px; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+  .friends-stat strong { display:block; font-size:22px; line-height:1.2; color:var(--text); }
+  .friends-stat span { display:block; margin-top:4px; color:var(--muted); font-size:12px; }
+  .friends-card { min-width:0; padding:22px; margin-bottom:16px; border:1px solid var(--border); border-radius:18px; background:var(--surface); }
+  .friends-card h2 { margin:0 0 6px; font-size:17px; }
+  .friends-card-intro { margin:0 0 18px; color:var(--muted); font-size:13px; line-height:1.5; }
   .friends-page label { display:block; margin-bottom:7px; color:var(--text); font-size:13px; font-weight:650; }
-  @media (max-width:600px) { .friends-page { padding: 18px 0 40px; } .friends-card { padding:16px; } .friends-heading { font-size:24px; } }
-
-  .friend-row { align-items:flex-start; padding:14px; gap:12px; }
-  .friend-avatar { width:48px; height:48px; }
-  .friend-copy strong { font-size:14px; }
-  .friend-copy small { line-height:1.45; }
+  .friends-page .field-row { display:grid; grid-template-columns:minmax(0,1fr) 150px; gap:10px; align-items:stretch; width:100%; }
+  .friends-page .field-row input[type="text"] { display:block; width:100%; min-width:0; max-width:none; height:48px; box-sizing:border-box; }
+  .friends-page .field-row button.profile-save { display:inline-flex; align-items:center; justify-content:center; width:100% !important; min-width:0; max-width:none; min-height:48px; margin:0; padding:10px 14px; white-space:nowrap; }
+  .friend-section { margin-top:22px; }
+  .friend-section-title { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 10px; color:var(--text); font-size:14px; font-weight:750; }
+  .friend-count { display:inline-grid; place-items:center; min-width:24px; height:24px; padding:0 7px; box-sizing:border-box; border-radius:99px; background:var(--surface-subtle); color:var(--muted); font-size:11px; }
+  .friend-list { display:flex; flex-direction:column; gap:8px; }
+  .friend-row { display:flex; align-items:center; gap:12px; min-width:0; padding:13px; border:1px solid var(--border); border-radius:14px; background:var(--surface-subtle); }
+  .friend-avatar { width:46px; height:46px; flex:none; display:grid; place-items:center; border-radius:50%; background:var(--surface); overflow:hidden; }
+  .friend-avatar img { width:100%; height:100%; display:block; object-fit:cover; }
+  .friend-copy { flex:1; min-width:0; }
+  .friend-copy strong,.friend-copy small { display:block; overflow-wrap:anywhere; }
+  .friend-copy strong { font-size:14px; color:var(--text); line-height:1.4; }
+  .friend-copy small { margin-top:3px; font-size:12px; color:var(--muted); line-height:1.4; }
+  .friend-status { flex:none; padding:6px 9px; border:1px solid var(--border); border-radius:99px; color:var(--muted); font-size:11px; white-space:nowrap; }
   .friend-contact { display:flex; flex-wrap:wrap; gap:7px; margin-top:8px; }
-  .friend-contact a { display:inline-flex; align-items:center; gap:5px; padding:5px 8px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); }
-  .friend-contact a:hover { border-color:var(--positive); text-decoration:none; }
-  .friend-contact-label { color:var(--muted-2); font-size:10px; text-transform:uppercase; letter-spacing:.05em; }
-
+  .friend-contact a { display:inline-flex; align-items:center; gap:5px; max-width:100%; padding:6px 9px; border:1px solid var(--border); border-radius:9px; background:var(--surface); color:var(--text); font-size:12px; text-decoration:none; overflow-wrap:anywhere; }
+  .friend-contact a:hover { border-color:var(--positive); }
+  .friend-actions { display:flex; flex:none; gap:7px; }
+  .friend-actions form,.friend-action-form { width:auto; margin:0; }
+  .friend-action { width:auto; min-height:36px; margin:0; padding:8px 12px; border:1px solid var(--border); border-radius:10px; background:var(--positive); color:#fff; font-size:12px; font-weight:700; white-space:nowrap; }
+  .friend-action.secondary { background:var(--surface); color:var(--text); }
+  .friend-empty { padding:18px; border:1px dashed var(--border); border-radius:12px; color:var(--muted); font-size:13px; text-align:center; line-height:1.5; }
+  .friends-page .profile-email { color:var(--muted); }
+  @media (max-width:600px) {
+    .friends-page { padding:18px 0 48px; }
+    .friends-heading { font-size:24px; }
+    .friends-card { padding:16px; }
+    .friends-overview { gap:7px; }
+    .friends-stat { padding:12px 10px; }
+    .friends-stat strong { font-size:19px; }
+    .friends-stat span { font-size:11px; }
+    .friends-page .field-row { grid-template-columns:minmax(0,1fr); }
+    .friends-page .field-row button.profile-save { width:100% !important; }
+    .friend-row { align-items:flex-start; flex-wrap:wrap; }
+    .friend-avatar { width:42px; height:42px; }
+    .friend-copy { width:calc(100% - 60px); }
+    .friend-actions { width:100%; padding-left:54px; }
+    .friend-actions form { flex:1; }
+    .friend-actions button { width:100%; }
+    .friend-action-form { margin-left:auto; }
+    .friend-status { margin-left:auto; }
+  }
 </style>
 <div class="friends-page">
   <h1 class="friends-heading">Minto Friends</h1>
-  <p class="friends-subtitle">Find people, manage requests, and connect friends to your trips. Contact details are shared only with accepted friends when you enable sharing.</p>
+  <p class="friends-subtitle">Connect with people you know, manage requests, and find your friends quickly. Contact details appear only when an accepted friend chooses to share them.</p>
+  <div class="friends-overview">
+    <div class="friends-stat"><strong>{{ friends|length }}</strong><span>Friends</span></div>
+    <div class="friends-stat"><strong>{{ incoming_requests|length }}</strong><span>Incoming requests</span></div>
+    <div class="friends-stat"><strong>{{ outgoing_requests|length }}</strong><span>Requests sent</span></div>
+  </div>
 
-  <div class="friends-card">
-      <section class="profile-card" id="friends" style="padding:22px;">
-    <h3 style="margin:0 0 6px;">Minto Friends</h3>
-    <p class="profile-email" style="margin:0 0 14px;">Use your username to connect accounts. Email addresses and account IDs stay private.</p>
+  <section class="friends-card" id="friends">
+    <h2>Find people</h2>
+    <p class="friends-card-intro">Your username helps friends find you. Email addresses and account IDs are never used as public search identifiers.</p>
     <form method="post" action="{{ url_for('update_profile_username') }}" style="margin-bottom:18px;">
       <label for="minto-username">Your username</label>
       <div class="field-row">
@@ -105,7 +119,7 @@
     {% endif %}
 
     {% if incoming_requests %}
-    <h4 class="friend-section-title">Incoming requests</h4>
+    <div class="friend-section"><h4 class="friend-section-title"><span>Incoming requests</span><span class="friend-count">{{ incoming_requests|length }}</span></h4>
     <div class="friend-list">
       {% for item in incoming_requests %}
       <div class="friend-row">
@@ -118,19 +132,21 @@
       </div>
       {% endfor %}
     </div>
+    </div>
     {% endif %}
 
     {% if outgoing_requests %}
-    <h4 class="friend-section-title">Outgoing requests</h4>
+    <div class="friend-section"><h4 class="friend-section-title"><span>Requests sent</span><span class="friend-count">{{ outgoing_requests|length }}</span></h4>
     <div class="friend-list">
       {% for item in outgoing_requests %}
       <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ item.display_name }}</strong><small>@{{ item.username }}</small></div><span class="friend-status">Request sent</span></div>
       {% endfor %}
     </div>
+    </div>
     {% endif %}
 
     {% if friends %}
-    <h4 class="friend-section-title">Friends</h4>
+    <div class="friend-section"><h4 class="friend-section-title"><span>Your friends</span><span class="friend-count">{{ friends|length }}</span></h4>
     <div class="friend-list">
       {% for person in friends %}
       <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
@@ -138,8 +154,8 @@
       </div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
       {% endfor %}
     </div>
+    </div>
     {% endif %}
-  </section>
-  </div>
+</section>
 </div>
 {% endblock %}
