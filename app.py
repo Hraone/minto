@@ -1051,25 +1051,6 @@ def load_friend_center(client, query=""):
 @login_required
 def friends():
     client = get_user_client()
-    if request.method == "POST":
-        phone = (request.form.get("phone") or "").strip()[:32]
-        share_phone = request.form.get("share_phone") == "on"
-        share_email = request.form.get("share_email") == "on"
-        if phone and not re.fullmatch(r"[+0-9() .-]{7,32}", phone):
-            flash("Enter a valid phone number or leave it blank.")
-            return redirect(url_for("friends"))
-        try:
-            client.table("profiles").upsert({
-                "id": user_id,
-                "phone": phone or None,
-                "share_phone_with_friends": share_phone,
-                "share_email_with_friends": share_email,
-            }).execute()
-            flash("Contact sharing preferences saved.")
-        except Exception:
-            app.logger.exception("Could not save friend contact preferences")
-            flash("Couldn't save contact preferences. Run the contact-sharing SQL migration first.")
-        return redirect(url_for("friends"))
     try:
         rows = client.table("profiles").select("username").eq("id", session["user_id"]).limit(1).execute().data
         username = rows[0].get("username") if rows else ""
