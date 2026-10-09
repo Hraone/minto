@@ -1053,6 +1053,16 @@
     .spend-summary-layout { grid-template-columns:1fr; }
     .spend-summary-layout .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:auto; }
   }
+  /* Keep Credit cards full-width and clearly separated from the Net summary tile. */
+  .cc-section {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-width: 0;
+    margin-top: 18px;
+  }
+  .cc-section .section-heading-row { min-width: 0; }
+  .cc-section .section-heading-row > span { text-align: right; overflow-wrap: anywhere; }
+
   @media (min-width:1000px) {
     .dash-wrapper > .commitments-section.cc-section { grid-column:1 / -1; width:100%; }
   }
