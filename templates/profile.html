@@ -680,9 +680,7 @@
   <div class="profile-card">
     <div class="profile-head">
       <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile avatar">
-        <svg class="profile-avatar-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-          <use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use>
-        </svg>
+        <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ profile_avatar }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true">
       </button>
 
       <div style="min-width:0; flex:1;">
@@ -717,9 +715,7 @@
           <div class="avatar-option">
             <input type="radio" id="profile-avatar-{{ loop.index }}" name="profile_avatar" value="{{ avatar }}" {% if profile_avatar == avatar %}checked{% endif %}>
             <label for="profile-avatar-{{ loop.index }}" aria-label="Choose avatar {{ loop.index }}">
-              <svg xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
-                <use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ avatar }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ avatar }}"></use>
-              </svg>
+              <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ avatar }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true">
             </label>
           </div>
           {% endfor %}
@@ -772,7 +768,7 @@
       <div class="friend-list">
         {% for person in friend_search %}
         <div class="friend-row">
-          <span class="friend-avatar"><svg xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span>
+          <span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
           <div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div>
           {% if person.relationship == 'friend' %}
             <span class="friend-status">Friends</span>
@@ -799,7 +795,7 @@
     <div class="friend-list">
       {% for item in incoming_requests %}
       <div class="friend-row">
-        <span class="friend-avatar"><svg xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span>
+        <span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
         <div class="friend-copy"><strong>{{ item.display_name }} wants to add you</strong><small>@{{ item.username }}</small></div>
         <div class="friend-actions">
           <form method="post" action="{{ url_for('respond_friend_request', request_id=item.request_id) }}"><input type="hidden" name="action" value="accept"><button class="friend-action" type="submit">Accept</button></form>
@@ -814,7 +810,7 @@
     <h4 class="friend-section-title">Outgoing requests</h4>
     <div class="friend-list">
       {% for item in outgoing_requests %}
-      <div class="friend-row"><span class="friend-avatar"><svg xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span><div class="friend-copy"><strong>{{ item.display_name }}</strong><small>@{{ item.username }}</small></div><span class="friend-status">Request sent</span></div>
+      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01' }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ item.display_name }}</strong><small>@{{ item.username }}</small></div><span class="friend-status">Request sent</span></div>
       {% endfor %}
     </div>
     {% endif %}
@@ -823,7 +819,7 @@
     <h4 class="friend-section-title">Friends</h4>
     <div class="friend-list">
       {% for person in friends %}
-      <div class="friend-row"><span class="friend-avatar"><svg xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}"></use></svg></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
+      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01' }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
       {% endfor %}
     </div>
     {% endif %}
