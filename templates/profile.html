@@ -105,19 +105,20 @@
   .profile-avatar-button::after {
     content: "✎";
     position: absolute;
-    right: 1px;
-    bottom: 1px;
+    right: 8px;
+    bottom: 8px;
     z-index: 2;
-    width: 18px;
-    height: 18px;
+    width: 27px;
+    height: 27px;
+    box-sizing: border-box;
     display: grid;
     place-items: center;
     border-radius: 50%;
     background: var(--surface);
     color: var(--muted);
-    border: 1px solid var(--border);
+    border: 2px solid var(--border);
     font-family: ui-sans-serif, system-ui, sans-serif;
-    font-size: 10px;
+    font-size: 14px;
     line-height: 1;
     box-shadow: 0 1px 3px rgba(0,0,0,.18);
     pointer-events: none;
