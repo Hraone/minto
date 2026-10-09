@@ -1112,33 +1112,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   </div>
 
-  {% if salary_cycle %}
-  <div class="money-plan-card">
-    <div class="section-heading-row">
-      <h3>Monthly money plan</h3>
-      <a class="dashboard-link" style="margin-top:0;" href="{{ url_for('profile') }}">Edit</a>
-    </div>
-    <div class="money-plan-grid">
-      <div class="money-plan-stat">
-        <small>Monthly salary</small>
-        <strong class="tnum">{{ salary_cycle.monthly_salary|inr }}</strong>
-      </div>
-      <div class="money-plan-stat">
-        <small>Next salary</small>
-        <strong>{{ salary_cycle.next_salary|nice_date }}</strong>
-      </div>
-      <div class="money-plan-stat">
-        <small>Days to salary</small>
-        <strong>{{ salary_cycle.days_to_salary }}</strong>
-      </div>
-    </div>
-    <div class="safe-spend-note">
-      Future salary is not counted as current cash. After the next salary, your current Safe to Spend would be about
-      <strong class="tnum">{{ safe_to_spend_after_salary|inr }}</strong>.
-    </div>
-  </div>
-  {% endif %}
-
   {% if due_soon_commitments %}
   <div class="due-soon-card">
     <div class="section-heading-row" style="margin-bottom:0;">
