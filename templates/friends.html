@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+
+{% block title %}Minto Friends · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .friends-page { max-width: 960px; margin: 0 auto; padding: 28px 16px 60px; }
+  .friends-heading { margin: 0 0 6px; font-size: 28px; letter-spacing: -.03em; }
+  .friends-subtitle { margin: 0 0 22px; color: var(--muted); font-size: 14px; }
+  .friends-card { padding: 22px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface); }
+  .friend-section-title { margin:18px 0 8px;font-size:13px;color:var(--muted); }
+  .friend-list { display:flex;flex-direction:column;gap:7px; }
+  .friend-row { display:flex;align-items:center;gap:10px;padding:9px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle); }
+  .friend-avatar { width:34px;height:34px;flex:none;display:grid;place-items:center;border-radius:50%;background:var(--surface);overflow:hidden; }
+  .friend-avatar svg,.friend-avatar img { width:100%;height:100%;display:block;object-fit:cover; }
+  .friend-copy { flex:1;min-width:0; }
+  .friend-copy strong,.friend-copy small { display:block;overflow-wrap:anywhere; }
+  .friend-copy strong { font-size:13px;color:var(--text); }
+  .friend-copy small,.friend-status { margin-top:2px;font-size:11px;color:var(--muted-2); }
+  .friend-status { flex:none; }
+  .friend-actions { display:flex;gap:6px; }
+  .friend-actions form,.friend-action-form { width:auto;margin:0; }
+  .friend-action { width:auto;margin:0;padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--positive);color:#fff;font-size:11px;font-weight:700;white-space:nowrap; }
+  .friend-action.secondary { background:var(--surface);color:var(--text); }
+  .friend-empty { padding:10px 12px;border-radius:10px;background:var(--surface-subtle);color:var(--muted);font-size:13px; }
+  @media (max-width:520px) { .friend-row{flex-wrap:wrap}.friend-actions{width:100%;padding-left:44px}.friend-actions form{flex:1}.friend-actions button{width:100%}.friend-action-form{margin-left:auto} }
+  .friends-page input { min-width: 0; }
+  .friends-page .field-row { display:flex; gap:10px; align-items:center; }
+  .friends-page .field-row input { flex:1; }
+  .friends-page label { display:block; margin-bottom:7px; color:var(--text); font-size:13px; font-weight:650; }
+  @media (max-width:600px) { .friends-page { padding: 18px 0 40px; } .friends-card { padding:16px; } .friends-heading { font-size:24px; } .friends-page .field-row { align-items:stretch; flex-direction:column; } .friends-page .field-row button { width:100% !important; } }
+</style>
+<div class="friends-page">
+  <h1 class="friends-heading">Minto Friends</h1>
+  <p class="friends-subtitle">Find people, manage requests, and connect friends to your trips. Email addresses and account IDs stay private.</p>
+  <div class="friends-card">
+      <section class="profile-card" id="friends" style="padding:22px;">
+    <h3 style="margin:0 0 6px;">Minto Friends</h3>
+    <p class="profile-email" style="margin:0 0 14px;">Use your username to connect accounts. Email addresses and account IDs stay private.</p>
+    <form method="post" action="{{ url_for('update_profile_username') }}" style="margin-bottom:18px;">
+      <label for="minto-username">Your username</label>
+      <div class="field-row">
+        <input type="text" id="minto-username" name="username" value="{{ username }}" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username" placeholder="e.g. rohan_mehta" required>
+        <button type="submit" class="profile-save" style="margin:0;">Save username</button>
+      </div>
+      <p class="profile-email" style="margin:7px 0 0;">3–24 characters: letters, numbers, and underscores.</p>
+    </form>
+
+    <form method="get" action="{{ url_for('friends') }}" style="margin-bottom:14px;">
+      <label for="friend-search">Find a Minto user</label>
+      <div class="field-row">
+        <input type="text" id="friend-search" name="friend_q" value="{{ friend_query }}" minlength="2" maxlength="24" pattern="[a-zA-Z0-9_]{2,24}" placeholder="Search by username" autocomplete="off">
+        <button type="submit" class="profile-save" style="margin:0;">Search</button>
+      </div>
+    </form>
+    {% if friend_query %}
+      {% if friend_search %}
+      <div class="friend-list">
+        {% for person in friend_search %}
+        <div class="friend-row">
+          <span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
+          <div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div>
+          {% if person.relationship == 'friend' %}
+            <span class="friend-status">Friends</span>
+          {% elif person.relationship == 'outgoing' %}
+            <span class="friend-status">Request sent</span>
+          {% elif person.relationship == 'incoming' %}
+            <span class="friend-status">Request received</span>
+          {% else %}
+            <form method="post" action="{{ url_for('send_friend_request') }}" class="friend-action-form">
+              <input type="hidden" name="username" value="{{ person.username }}">
+              <button type="submit" class="friend-action">Add friend</button>
+            </form>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="friend-empty">No Minto user found.</p>
+      {% endif %}
+    {% endif %}
+
+    {% if incoming_requests %}
+    <h4 class="friend-section-title">Incoming requests</h4>
+    <div class="friend-list">
+      {% for item in incoming_requests %}
+      <div class="friend-row">
+        <span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
+        <div class="friend-copy"><strong>{{ item.display_name }} wants to add you</strong><small>@{{ item.username }}</small></div>
+        <div class="friend-actions">
+          <form method="post" action="{{ url_for('respond_friend_request', request_id=item.request_id) }}"><input type="hidden" name="action" value="accept"><button class="friend-action" type="submit">Accept</button></form>
+          <form method="post" action="{{ url_for('respond_friend_request', request_id=item.request_id) }}"><input type="hidden" name="action" value="reject"><button class="friend-action secondary" type="submit">Reject</button></form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if outgoing_requests %}
+    <h4 class="friend-section-title">Outgoing requests</h4>
+    <div class="friend-list">
+      {% for item in outgoing_requests %}
+      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (item.profile_emoji if item.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ item.display_name }}</strong><small>@{{ item.username }}</small></div><span class="friend-status">Request sent</span></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if friends %}
+    <h4 class="friend-section-title">Friends</h4>
+    <div class="friend-list">
+      {% for person in friends %}
+      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+  </div>
+</div>
+{% endblock %}
