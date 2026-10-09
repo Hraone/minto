@@ -79,7 +79,7 @@ LEGACY_PROFILE_EMOJI_MAP = {
 # Trip mode by default instead of leaking personal finances onto a screen
 # that's being shared around a group.
 TRIP_MODE_ENDPOINTS = {
-    "trips", "trip_detail", "trip_home", "update_trip", "add_trip_friends", "remove_trip_friend",
+    "trips", "trip_detail", "trip_home", "friends", "update_trip", "add_trip_friends", "remove_trip_friend",
     "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "delete_trip",
     "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
     "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
@@ -1038,6 +1038,26 @@ def load_friend_center(client, query=""):
     return empty
 
 
+@app.route("/friends")
+@login_required
+def friends():
+    client = get_user_client()
+    user_id = session["user_id"]
+    try:
+        rows = client.table("profiles").select("username").eq("id", user_id).limit(1).execute().data
+        username = rows[0].get("username") if rows else ""
+    except Exception:
+        username = ""
+    query = (request.args.get("friend_q") or "").strip()
+    return render_template(
+        "friends.html",
+        username=username or "",
+        profile_avatars=PROFILE_AVATARS,
+        friend_query=query,
+        **load_friend_center(client, query),
+    )
+
+
 @app.route("/profile")
 @login_required
 def profile():
@@ -1098,7 +1118,6 @@ def profile():
         )
     except Exception:
         expense_accounts = []
-    friend_center = load_friend_center(client, request.args.get("friend_q", ""))
     session["display_name"] = name  # keeps the top bar in step
     session["profile_avatar"] = profile_avatar
     session["theme"] = theme
@@ -1124,8 +1143,6 @@ def profile():
         username=profile_data.get("username") or "",
         expense_accounts=expense_accounts,
         default_expense_source_id=profile_data.get("default_expense_source_id"),
-        friend_query=request.args.get("friend_q", "").strip(),
-        **friend_center,
     )
 
 
@@ -1135,7 +1152,7 @@ def update_profile_username():
     username = (request.form.get("username") or "").strip().lower()
     if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
         flash("Usernames must be 3–24 characters using letters, numbers, or underscores.")
-        return redirect(url_for("profile", _anchor="friends"))
+        return redirect(url_for("friends"))
     try:
         get_user_client().table("profiles").upsert({
             "id": session["user_id"], "username": username,
@@ -1148,7 +1165,7 @@ def update_profile_username():
         else:
             app.logger.exception("Could not save username")
             flash("Couldn't save your username. Please try again.")
-    return redirect(url_for("profile", _anchor="friends"))
+    return redirect(url_for("friends"))
 
 
 @app.route("/profile/default-expense-account", methods=["POST"])
@@ -1201,7 +1218,7 @@ def send_friend_request():
         else:
             app.logger.exception("Could not send Minto friend request")
             flash("Couldn't send that request. Check the username and try again.")
-    return redirect(url_for("profile", _anchor="friends"))
+    return redirect(url_for("friends"))
 
 
 @app.route("/friends/requests/<int:request_id>", methods=["POST"])
@@ -1218,8 +1235,8 @@ def respond_friend_request(request_id):
             flash("Friend request accepted." if action == "accept" else "Friend request rejected.")
         except Exception:
             app.logger.exception("Could not respond to Minto friend request")
-            flash("Couldn't update that request. Refresh Profile and try again.")
-    return redirect(url_for("profile", _anchor="friends"))
+            flash("Couldn't update that request. Refresh Friends and try again.")
+    return redirect(url_for("friends"))
 
 
 @app.route("/friends/remove", methods=["POST"])
@@ -1233,7 +1250,7 @@ def remove_minto_friend():
     except Exception:
         app.logger.exception("Could not remove Minto friend")
         flash("Couldn't remove that friend. Please try again.")
-    return redirect(url_for("profile", _anchor="friends"))
+    return redirect(url_for("friends"))
 
 
 @app.route("/profile/genz-mode", methods=["POST"])
