@@ -25,6 +25,7 @@
   </script>
 
   <title>{% block title %}Minto{% endblock %}</title>
+  <meta name="csrf-token" content="{{ csrf_token }}">
 
   <!-- Minto theme-aware favicon -->
   <link
@@ -1887,6 +1888,53 @@
         document.documentElement.getAttribute("data-theme") || "light"
       );
     });
+  </script>
+
+
+  <script>
+    // Keep every browser POST aligned with the session-bound CSRF token.
+    // This covers ordinary HTML forms and same-origin fetch() calls.
+    (function () {
+      var tokenMeta = document.querySelector('meta[name="csrf-token"]');
+      if (!tokenMeta) return;
+
+      function addCsrfToForm(form) {
+        if (!form || (form.method || "get").toLowerCase() !== "post") return;
+        var input = form.querySelector('input[name="csrf_token"]');
+        if (!input) {
+          input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "csrf_token";
+          form.appendChild(input);
+        }
+        input.value = tokenMeta.content || "";
+      }
+
+      document.querySelectorAll("form").forEach(addCsrfToForm);
+      document.addEventListener("submit", function (event) {
+        addCsrfToForm(event.target);
+      }, true);
+
+      var originalFetch = window.fetch;
+      window.fetch = function (input, init) {
+        init = init || {};
+        var method = (init.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+        if (method !== "GET" && method !== "HEAD" && method !== "OPTIONS") {
+          try {
+            var url = new URL(input instanceof Request ? input.url : input, window.location.href);
+            if (url.origin === window.location.origin) {
+              var headers = new Headers(input instanceof Request ? input.headers : undefined);
+              new Headers(init.headers || {}).forEach(function (value, key) {
+                headers.set(key, value);
+              });
+              headers.set("X-CSRF-Token", tokenMeta.content || "");
+              init.headers = headers;
+            }
+          } catch (e) {}
+        }
+        return originalFetch.call(this, input, init);
+      };
+    })();
   </script>
 
 </body>
