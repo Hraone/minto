@@ -962,9 +962,9 @@
   <details class="profile-card profile-contact-details">
     <summary><span><strong>Contact sharing</strong><small>Phone and email visibility for accepted friends</small></span><span class="contact-chevron" aria-hidden="true">⌄</span></summary><div class="profile-contact-body"><h3 style="margin:16px 0 6px;">Contact details</h3>
     <p class="profile-email" style="margin:0 0 16px;">Only accepted Minto friends can see the contact details you choose to share.</p>
-    <form method="post" action="{{ url_for('friends') }}">
+    <form method="post" action="{{ url_for('update_profile_contact_sharing') }}">
       <label for="friend-phone">Phone number</label>
-      <input id="friend-phone" name="phone" type="tel" value="{{ phone }}" maxlength="32" autocomplete="tel" placeholder="+91 98765 43210">
+      <input id="friend-phone" name="phone" type="tel" value="{{ contact_phone }}" maxlength="32" autocomplete="tel" placeholder="+91 98765 43210">
       <label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-weight:600;">
         <input type="checkbox" name="share_phone" {% if share_phone %}checked{% endif %} style="width:auto;margin:0;">
         Share my phone number with accepted friends
