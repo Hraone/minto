@@ -144,6 +144,30 @@
     font-size: 13.5px;
     color: var(--muted-2);
   }
+
+  .reports-show-more {
+    display: block;
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .reports-show-more:hover {
+    background: var(--surface-subtle);
+  }
+
+  .reports-show-more:disabled {
+    opacity: .65;
+    cursor: wait;
+  }
 </style>
 
 <div class="reports-page">
@@ -180,6 +204,7 @@
     <h3>Recent downloads</h3>
     <ul class="reports-history" id="report-history"></ul>
     <p class="reports-empty" id="report-history-empty" hidden>No reports yet.</p>
+    <button type="button" class="reports-show-more" id="report-history-more" hidden>Show more</button>
   </div>
 
 </div>
@@ -190,7 +215,9 @@
   var toEl = document.getElementById("to");
   var list = document.getElementById("report-history");
   var empty = document.getElementById("report-history-empty");
+  var more = document.getElementById("report-history-more");
   var form = document.getElementById("report-form");
+  var historyOffset = 0;
 
   function iso(d) {
     var m = String(d.getMonth() + 1).padStart(2, "0");
@@ -222,9 +249,10 @@
     return window.formatMintoDate(s);
   }
 
-  function render(items) {
-    list.textContent = "";
-    empty.hidden = items.length > 0;
+  function renderItems(items, append) {
+    if (!append) {
+      list.textContent = "";
+    }
     items.forEach(function (h) {
       var li = document.createElement("li");
       var info = document.createElement("div");
@@ -246,14 +274,43 @@
       li.appendChild(a);
       list.appendChild(li);
     });
+    empty.hidden = list.children.length > 0;
+  }
+
+  function applyHistory(data, append) {
+    var payload = data || {};
+    var items = Array.isArray(payload.items) ? payload.items : [];
+    if (!append) {
+      historyOffset = 0;
+    }
+    renderItems(items, append);
+    historyOffset += items.length;
+    more.hidden = !payload.has_more;
   }
 
   function refresh() {
-    fetch("{{ url_for('reports_history') }}", { credentials: "same-origin" })
+    fetch("{{ url_for('reports_history') }}?offset=0", { credentials: "same-origin" })
       .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (items) { if (items) render(items); })
+      .then(function (data) { if (data) applyHistory(data, false); })
       .catch(function () {});
   }
+
+  function loadMore() {
+    more.disabled = true;
+    more.textContent = "Loading...";
+    fetch("{{ url_for('reports_history') }}?offset=" + historyOffset, { credentials: "same-origin" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (data) applyHistory(data, true);
+      })
+      .catch(function () {})
+      .finally(function () {
+        more.disabled = false;
+        more.textContent = "Show more";
+      });
+  }
+
+  more.addEventListener("click", loadMore);
 
   // The file goes straight to the device and the page stays put, so the
   // history list is refreshed a moment after the download starts.
@@ -263,7 +320,7 @@
   // base.html defines formatMintoDate after this content block. Render the
   // initial server-provided history on window load so the date helper exists.
   window.addEventListener("load", function () {
-    render({{ history|tojson }});
+    applyHistory({{ history|tojson }}, false);
   }, { once: true });
 })();
 </script>
