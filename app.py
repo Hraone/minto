@@ -1021,6 +1021,11 @@ def load_friend_center(client, query=""):
     empty = {"friends": [], "incoming_requests": [], "outgoing_requests": [], "friend_search": []}
     try:
         empty["friends"] = client.rpc("list_minto_friends").execute().data or []
+        for person in empty["friends"]:
+            avatar = person.get("profile_emoji")
+            if avatar in LEGACY_PROFILE_EMOJI_MAP:
+                avatar = LEGACY_PROFILE_EMOJI_MAP[avatar]
+            person["profile_avatar"] = avatar if avatar in PROFILE_AVATARS else "avatar-01"
         try:
             contacts = client.rpc("list_minto_friend_contacts").execute().data or []
             contact_by_username = {item.get("username"): item for item in contacts}
@@ -1036,6 +1041,16 @@ def load_friend_center(client, query=""):
         empty["outgoing_requests"] = client.rpc(
             "list_minto_friend_requests", {"p_direction": "outgoing"}
         ).execute().data or []
+        for person in empty["incoming_requests"] + empty["outgoing_requests"]:
+            avatar = person.get("profile_emoji")
+            if avatar in LEGACY_PROFILE_EMOJI_MAP:
+                avatar = LEGACY_PROFILE_EMOJI_MAP[avatar]
+            person["profile_avatar"] = avatar if avatar in PROFILE_AVATARS else "avatar-01"
+        for person in empty["friend_search"]:
+            avatar = person.get("profile_emoji")
+            if avatar in LEGACY_PROFILE_EMOJI_MAP:
+                avatar = LEGACY_PROFILE_EMOJI_MAP[avatar]
+            person["profile_avatar"] = avatar if avatar in PROFILE_AVATARS else "avatar-01"
         normalized = (query or "").strip().lower()
         if len(normalized) >= 2:
             empty["friend_search"] = client.rpc(
