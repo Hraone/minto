@@ -643,6 +643,13 @@
     gap: 9px;
     margin-top: 10px;
   }
+  .due-soon-row.due-soon-placeholder {
+    border:1px dashed var(--border);
+    background:transparent;
+    opacity:.62;
+  }
+  .due-soon-row.due-soon-placeholder strong { color:var(--muted); font-weight:650; }
+  .due-soon-row.due-soon-placeholder span { color:var(--muted); }
   .due-soon-empty {
     grid-column:1 / -1; display:flex; align-items:center; gap:12px;
     padding:17px; border:1px dashed var(--border); border-radius:12px;
@@ -1224,6 +1231,14 @@ document.addEventListener("DOMContentLoaded", function () {
         <strong class="tnum">{{ item.amount|inr }}</strong>
       </div>
       {% endfor %}
+      {% if due_soon_commitments %}
+        {% for slot in range(3 - (due_soon_commitments[:3]|length)) %}
+        <div class="due-soon-row due-soon-placeholder" aria-hidden="true">
+          <div><strong>Nothing else due</strong><small>Available slot</small></div>
+          <span>—</span>
+        </div>
+        {% endfor %}
+      {% endif %}
       {% if not due_soon_commitments %}
       <div class="due-soon-empty">
         <span aria-hidden="true">✓</span>
