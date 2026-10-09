@@ -161,26 +161,49 @@ def load_biometric_flag(client, user_id):
 
 
 def load_profile_avatar(client, user_id):
-    """Load an illustrated avatar, migrating a previously saved emoji value."""
+    """Load the saved illustrated avatar and migrate legacy emoji values."""
     try:
-        rows = client.table("profiles").select("profile_emoji").eq("id", user_id).execute().data
+        rows = (
+            client.table("profiles")
+            .select("profile_emoji")
+            .eq("id", user_id)
+            .limit(1)
+            .execute()
+            .data
+        )
         saved = rows[0].get("profile_emoji") if rows else None
-        if saved in PROFILE_AVATARS:
-            return saved
-        avatar = LEGACY_PROFILE_EMOJI_MAP.get(saved, "avatar-01")
-        client.table("profiles").upsert({"id": user_id, "profile_emoji": avatar}).execute()
-        return avatar
     except Exception:
+        # Do not attempt a write when the profile read failed. The UI can use
+        # the default for this request and retry on the next page load.
+        app.logger.exception("Could not load profile avatar")
         return "avatar-01"
+
+    if saved in PROFILE_AVATARS:
+        return saved
+
+    avatar = LEGACY_PROFILE_EMOJI_MAP.get(saved, "avatar-01")
+    # Migrate a legacy emoji or missing/invalid value, but don't let a failed
+    # migration break rendering of otherwise usable pages.
+    try:
+        client.table("profiles").upsert(
+            {"id": user_id, "profile_emoji": avatar}
+        ).execute()
+    except Exception:
+        app.logger.exception("Could not migrate profile avatar")
+    return avatar
 
 
 def save_profile_avatar(client, user_id, avatar):
+    """Persist only a known avatar symbol; callers update the session on success."""
     if avatar not in PROFILE_AVATARS:
         return False
     try:
-        client.table("profiles").upsert({"id": user_id, "profile_emoji": avatar}).execute()
+        client.table("profiles").upsert(
+            {"id": user_id, "profile_emoji": avatar}
+        ).execute()
         return True
     except Exception:
+        app.logger.exception("Could not save profile avatar")
         return False
 
 
@@ -262,7 +285,7 @@ def inject_template_globals():
             session["profile_avatar"] = profile_avatar
 
     return {
-        "asset_version": "2",
+        "asset_version": "3",
         "minto_version": MINTO_VERSION,
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
