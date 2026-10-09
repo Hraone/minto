@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %}Monthly Planner · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .planner-wrap {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 6px 0 56px;
+  }
+
+  .planner-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+
+  .planner-header h2 {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.7px;
+  }
+
+  .planner-header p {
+    margin: 5px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .planner-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 0 13px;
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .planner-hero {
+    margin-bottom: 16px;
+    padding: 24px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface);
+  }
+
+  .planner-kicker {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+  }
+
+  .planner-remaining {
+    margin-top: 5px;
+    font-size: 38px;
+    font-weight: 850;
+    letter-spacing: -1px;
+    color: var(--text);
+  }
+
+  .planner-remaining.over {
+    color: var(--negative);
+  }
+
+  .planner-hero-note {
+    margin-top: 5px;
+    color: var(--muted);
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .planner-bar {
+    height: 9px;
+    margin-top: 18px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--surface-alt);
+  }
+
+  .planner-bar-fill {
+    height: 100%;
+    width: {{ [((spent_so_far / planned_salary) * 100) if planned_salary > 0 else 0, 100]|min }}%;
+    border-radius: 999px;
+    background: var(--positive);
+  }
+
+  .planner-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+  }
+
+  .planner-stat {
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    background: var(--surface);
+  }
+
+  .planner-stat small {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .planner-stat strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 18px;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .planner-stat em {
+    display: block;
+    margin-top: 3px;
+    color: var(--muted-2);
+    font-size: 10.5px;
+    font-style: normal;
+  }
+
+  .planner-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(260px, .65fr);
+    gap: 16px;
+    align-items: start;
+  }
+
+  .planner-card {
+    padding: 20px 22px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+  }
+
+  .planner-card h3 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 750;
+  }
+
+  .planner-card-sub {
+    margin: 4px 0 14px;
+    color: var(--muted);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .planner-list {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+  }
+
+  .planner-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 12px;
+    border: 1px solid var(--surface-subtle-border);
+    border-radius: 12px;
+  }
+
+  .planner-row-main {
+    min-width: 0;
+  }
+
+  .planner-row-main strong {
+    display: block;
+    font-size: 12.5px;
+    overflow-wrap: anywhere;
+  }
+
+  .planner-row-main small {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted-2);
+    font-size: 10.5px;
+  }
+
+  .planner-row-amount {
+    flex: none;
+    font-size: 12.5px;
+    font-weight: 750;
+  }
+
+  .planner-empty {
+    padding: 13px;
+    border-radius: 12px;
+    background: var(--surface-subtle);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .planner-setup {
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 11.5px;
+    line-height: 1.5;
+  }
+
+  .planner-plan-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .planner-plan {
+    padding: 14px;
+    border-radius: 14px;
+    background: var(--surface-subtle);
+    border: 1px solid var(--surface-subtle-border);
+  }
+
+  .planner-plan small {
+    display: block;
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+
+  .planner-plan strong {
+    display: block;
+    margin-top: 5px;
+    font-size: 20px;
+  }
+
+  .planner-note {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11.5px;
+    line-height: 1.55;
+  }
+
+  @media (max-width: 780px) {
+    .planner-stat-grid { grid-template-columns: 1fr 1fr; }
+    .planner-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 430px) {
+    .planner-wrap { padding-left: 6px; padding-right: 6px; }
+    .planner-header h2 { font-size: 24px; }
+    .planner-hero { padding: 20px; }
+    .planner-remaining { font-size: 32px; }
+  }
+</style>
+
+<div class="planner-wrap">
+  <div class="planner-header">
+    <div>
+      <h2>{{ month_label }} plan</h2>
+      <p>Reserve what is committed, then plan what is left for everyday spending.</p>
+    </div>
+    <a class="planner-link" href="{{ url_for('dashboard') }}">Back to Overview</a>
+  </div>
+
+  {% if planned_salary > 0 %}
+  <section class="planner-hero">
+    <div class="planner-kicker">Available to plan after commitments</div>
+    <div class="planner-remaining {% if remaining_plan < 0 %}over{% endif %}">
+      {% if remaining_plan < 0 %}-{{ (remaining_plan * -1)|inr }}{% else %}{{ remaining_plan|inr }}{% endif %}
+    </div>
+    <div class="planner-hero-note">
+      Salary {{ planned_salary|inr }} − commitments {{ commitment_total|inr }} − spending so far {{ spent_so_far|inr }}.
+      {% if remaining_plan < 0 %}You are {{ (remaining_plan * -1)|inr }} over the current monthly plan.{% else %}This is the amount left to allocate for the rest of the month.{% endif %}
+    </div>
+    <div class="planner-bar" aria-label="Monthly spending progress">
+      <div class="planner-bar-fill"></div>
+    </div>
+  </section>
+  {% else %}
+  <section class="planner-hero">
+    <div class="planner-kicker">Monthly plan</div>
+    <div class="planner-remaining">Set your salary first</div>
+    <div class="planner-hero-note">Add your monthly salary and salary day in Profile so Minto can calculate a useful plan.</div>
+    <a class="planner-link" style="margin-top:14px;" href="{{ url_for('profile') }}">Open Profile</a>
+  </section>
+  {% endif %}
+
+  <div class="planner-stat-grid">
+    <div class="planner-stat">
+      <small>Monthly salary</small>
+      <strong>{{ planned_salary|inr }}</strong>
+      <em>{% if salary_cycle %}Salary day {{ salary_cycle.salary_day }}{% else %}Not configured{% endif %}</em>
+    </div>
+    <div class="planner-stat">
+      <small>Upcoming commitments</small>
+      <strong>{{ commitment_total|inr }}</strong>
+      <em>{{ commitments|length }} item{{ '' if commitments|length == 1 else 's' }}</em>
+    </div>
+    <div class="planner-stat">
+      <small>Spent so far</small>
+      <strong>{{ spent_so_far|inr }}</strong>
+      <em>{{ days_left }} day{{ '' if days_left == 1 else 's' }} left in month</em>
+    </div>
+    <div class="planner-stat">
+      <small>After commitments</small>
+      <strong>{{ after_commitments|inr }}</strong>
+      <em>Before remaining spending</em>
+    </div>
+  </div>
+
+  <div class="planner-grid">
+    <section class="planner-card">
+      <h3>Upcoming commitments</h3>
+      <p class="planner-card-sub">Unpaid fixed expenses and expected card bills due in {{ month_label }}.</p>
+
+      {% if commitments %}
+      <div class="planner-list">
+        {% for item in commitments %}
+        <div class="planner-row">
+          <div class="planner-row-main">
+            <strong>{{ item.name }}</strong>
+            <small>
+              {% if item.kind == 'credit_card' %}Expected card bill{% elif item.kind == 'investment' %}Investment{% else %}Fixed expense{% endif %}
+              · {{ item.due_date|nice_date }} · {{ item.due_label }}
+            </small>
+          </div>
+          <div class="planner-row-amount">{{ item.amount|inr }}</div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="planner-empty">No unpaid fixed expenses or expected card bills are due this month.</div>
+      {% endif %}
+    </section>
+
+    <section class="planner-card">
+      <h3>What you can spend</h3>
+      <p class="planner-card-sub">A simple allowance from the remaining plan.</p>
+
+      <div class="planner-plan-grid">
+        <div class="planner-plan">
+          <small>Per day</small>
+          <strong>{{ daily_plan|inr }}</strong>
+        </div>
+        <div class="planner-plan">
+          <small>Per week</small>
+          <strong>{{ weekly_plan|inr }}</strong>
+        </div>
+      </div>
+
+      <div class="planner-note">
+        {% if planned_salary <= 0 %}
+          Configure your salary in Profile first.
+        {% elif remaining_plan < 0 %}
+          Commitments and recorded spending have already exceeded this month's planned salary.
+        {% elif spent_so_far > 0 %}
+          The allowance is based on the remaining plan after spending already recorded this month.
+        {% else %}
+          The full post-commitment amount is still available to plan.
+        {% endif %}
+      </div>
+    </section>
+  </div>
+</div>
+{% endblock %}
