@@ -149,25 +149,38 @@
   }
 
   .dashboard-alerts-toggle {
-    width: auto;
-    min-height: 32px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 46px;
     margin: 0;
-    padding: 0 11px;
+    padding: 9px 13px;
     border: 1px solid var(--border);
-    border-radius: 10px;
-    background: transparent;
-    color: var(--muted);
+    border-radius: 13px;
+    background: var(--surface);
+    color: var(--text);
+    text-align: left;
     font: inherit;
-    font-size: 11.5px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 750;
     cursor: pointer;
     box-shadow: none;
+    transition: background .22s ease, border-color .22s ease, transform .22s ease;
   }
+
+  .dashboard-alerts-eye { color: var(--muted); font-size: 17px; line-height: 1; }
+  .dashboard-alerts-toggle-label { white-space: nowrap; }
+  .dashboard-alerts-toggle-action { margin-left: auto; color: var(--primary); white-space: nowrap; }
+  .dashboard-alerts-chevron { color: var(--muted); transition: transform .3s ease; }
+  .dashboard-alerts.is-open .dashboard-alerts-chevron { transform: rotate(180deg); }
+  .dashboard-alerts-count { transition: transform .25s ease, box-shadow .25s ease; }
+  .dashboard-alerts-count.is-counting { animation: notice-count-pulse .7s ease-in-out; }
 
   .dashboard-alerts-toggle:hover {
     background: var(--surface-subtle);
-    color: var(--text);
-    transform: none;
+    border-color: var(--border-strong);
+    transform: translateY(-1px);
     box-shadow: none;
   }
 
@@ -232,6 +245,8 @@
     pointer-events: none;
     visibility: hidden;
   }
+  .dashboard-alerts.is-collapsed .dashboard-alerts-toggle-action { content: "Show notices"; }
+  .dashboard-alerts.is-collapsed .dashboard-alerts-list { margin: 0; }
 
   .dashboard-alerts.is-collapsed .dashboard-alerts-count {
     animation: notice-count-pulse 1.8s ease-in-out infinite;
@@ -291,6 +306,16 @@
      gets a real hero treatment instead of being one equal-weight tile
      among five. */
 
+  .wealth-reveal-toggle {
+    width:100%; display:flex; align-items:center; gap:10px; padding:13px 16px;
+    margin:0 0 18px; border:1px solid var(--border); border-radius:14px;
+    background:var(--surface); color:var(--text); font:inherit; font-size:13px;
+    font-weight:750; text-align:left; cursor:pointer; transition:background .2s ease,border-color .2s ease;
+  }
+  .wealth-reveal-toggle:hover { background:var(--surface-subtle); border-color:var(--border-strong); }
+  .wealth-reveal-chevron { margin-left:auto; color:var(--muted); transition:transform .25s ease; }
+  .wealth-reveal-toggle[aria-expanded="true"] .wealth-reveal-chevron { transform:rotate(180deg); }
+  .wealth-section[hidden] { display:none !important; }
   .wealth-section {
     margin-bottom: 34px;
     padding-bottom: 30px;
@@ -595,6 +620,8 @@
   }
 
   .due-soon-card {
+    grid-column:1 / -1;
+    width:100%;
     margin: 0 0 18px;
     padding: 16px 18px;
     border: 1px solid var(--border);
@@ -724,6 +751,10 @@
     font-size: 18px;
   }
 
+  .cc-list[hidden] { display:none !important; }
+  .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
+  .cc-toggle-chevron { color:var(--muted); transition:transform .25s ease; }
+  .commitments-section.is-open .cc-toggle-chevron { transform:rotate(180deg); }
   .cc-list {
     margin-top: 14px;
     display: flex;
@@ -861,11 +892,24 @@
     box-shadow: 0 12px 34px var(--shadow-soft);
   }
 
-  .recent-card h3 {
-    margin: 0 0 14px;
-    font-size: 15px;
-    font-weight: 700;
-  }
+  .recent-card-header { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-bottom:14px; }
+  .recent-card h3 { margin:0; font-size:15px; font-weight:700; }
+  .recent-subtitle { color:var(--muted); font-size:11px; font-weight:600; margin-left:7px; }
+  .download-transactions-btn { flex:none; border:1px solid var(--border); border-radius:10px; padding:9px 12px; background:var(--surface); color:var(--text); font:inherit; font-size:11.5px; font-weight:750; cursor:pointer; }
+  .download-transactions-btn:hover { background:var(--surface-subtle); }
+  .csv-filter-overlay { position:fixed; inset:0; z-index:11000; display:grid; place-items:center; padding:20px; background:rgba(8,10,14,.66); backdrop-filter:blur(7px); }
+  .csv-filter-overlay[hidden] { display:none !important; }
+  .csv-filter-card { width:min(540px,100%); padding:22px; border:1px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text); box-shadow:0 24px 90px rgba(0,0,0,.35); }
+  .csv-filter-header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .csv-filter-header h3 { margin:0; font-size:18px; }
+  .csv-filter-header button { border:0; background:transparent; color:var(--muted); font-size:25px; cursor:pointer; }
+  .csv-filter-card p { color:var(--muted); font-size:12.5px; line-height:1.5; }
+  .csv-filter-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .csv-filter-grid label { display:flex; flex-direction:column; gap:6px; color:var(--muted); font-size:12px; font-weight:700; }
+  .csv-filter-grid input,.csv-filter-grid select { width:100%; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface-subtle); color:var(--text); font:inherit; font-size:13px; }
+  .csv-filter-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:18px; }
+  .csv-cancel { border:1px solid var(--border); border-radius:10px; padding:10px 14px; background:transparent; color:var(--text); cursor:pointer; }
+  @media(max-width:600px) { .recent-card-header { align-items:flex-start; flex-direction:column; } .csv-filter-grid { grid-template-columns:1fr; } .csv-filter-actions button { flex:1; } .csv-filter-card { padding:17px; } }
 
   .txn-list {
     list-style: none;
@@ -962,35 +1006,34 @@
 document.addEventListener("DOMContentLoaded", function () {
   var alerts = document.getElementById("dashboard-alerts");
   var toggle = document.getElementById("dashboard-alerts-toggle");
-  var count = document.querySelector(".dashboard-alerts-count");
+  var action = alerts && alerts.querySelector(".dashboard-alerts-toggle-action");
+  var count = alerts && alerts.querySelector(".dashboard-alerts-count");
   if (!alerts || !toggle) return;
 
   function setCollapsed(collapsed) {
     alerts.classList.toggle("is-collapsed", collapsed);
-    toggle.textContent = collapsed ? "Show notices" : "Hide notices";
+    alerts.classList.toggle("is-open", !collapsed);
     toggle.setAttribute("aria-expanded", collapsed ? "false" : "true");
+    if (action) action.textContent = collapsed ? "Show notices" : "Hide notices";
   }
-
-  // Notices start hidden on every page load; users can expand them on demand.
   setCollapsed(true);
+
   toggle.addEventListener("click", function () {
     setCollapsed(!alerts.classList.contains("is-collapsed"));
   });
 
-  // Count up from zero so the notice total has a subtle live-counter effect.
   if (count && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     var target = Number(count.textContent.trim()) || 0;
-    var startTime = 0;
-    var duration = 700;
-    function animateCount(timestamp) {
-      if (!startTime) startTime = timestamp;
-      var progress = Math.min((timestamp - startTime) / duration, 1);
-      var eased = 1 - Math.pow(1 - progress, 3);
-      count.textContent = String(Math.round(target * eased));
-      if (progress < 1) window.requestAnimationFrame(animateCount);
-    }
+    var started = 0;
     count.textContent = "0";
-    window.requestAnimationFrame(animateCount);
+    function tick(now) {
+      if (!started) started = now;
+      var p = Math.min((now - started) / 650, 1);
+      count.textContent = String(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) window.requestAnimationFrame(tick);
+      else count.classList.add("is-counting");
+    }
+    window.requestAnimationFrame(tick);
   }
 });
 </script>
@@ -1019,13 +1062,13 @@ document.addEventListener("DOMContentLoaded", function () {
   {% if alerts %}
   <section class="dashboard-alerts" id="dashboard-alerts" aria-label="Account notices">
     <div class="dashboard-alerts-header">
-      <div class="dashboard-alerts-title">
-        <span>Account notices</span>
-        <span class="dashboard-alerts-count">{{ alerts|length }}</span>
-      </div>
       <button type="button" class="dashboard-alerts-toggle" id="dashboard-alerts-toggle"
-              aria-controls="dashboard-alerts-list" aria-expanded="true">
-        Hide notices
+              aria-controls="dashboard-alerts-list" aria-expanded="false">
+        <span class="dashboard-alerts-eye" aria-hidden="true">◉</span>
+        <span class="dashboard-alerts-toggle-label">Account notices</span>
+        <span class="dashboard-alerts-count">{{ alerts|length }}</span>
+        <span class="dashboard-alerts-toggle-action">Show notices</span>
+        <span class="dashboard-alerts-chevron" aria-hidden="true">⌄</span>
       </button>
     </div>
 
@@ -1043,7 +1086,10 @@ document.addEventListener("DOMContentLoaded", function () {
   </section>
   {% endif %}
 
-  <div class="wealth-section">
+  <button type="button" class="wealth-reveal-toggle" id="wealth-reveal-toggle" aria-expanded="false" aria-controls="wealth-section">
+    <span>◈</span><span>View net worth & assets</span><span class="wealth-reveal-chevron">⌄</span>
+  </button>
+  <div class="wealth-section is-hidden" id="wealth-section" hidden>
 
     {% if wealth_unlocked %}
     <div class="wealth-hero">
@@ -1112,14 +1158,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   </div>
 
-  {% if due_soon_commitments %}
   <div class="due-soon-card">
     <div class="section-heading-row" style="margin-bottom:0;">
       <h3>Due soon</h3>
       <span>Next {{ reminder_days_before }} days</span>
     </div>
     <div class="due-soon-list">
-      {% for item in due_soon_commitments %}
+      {% for item in due_soon_commitments[:3] %}
       <div class="due-soon-row">
         <div>
           <strong>{{ "💳 " if item.kind == "credit_card" else ("🔄 " if item.kind == "investment" else "📅 ") }}{{ item.name }}</strong>
@@ -1164,11 +1209,14 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 
   {% if card_forecasts %}
-  <div class="commitments-section">
+  <div class="commitments-section cc-section" id="cc-section">
     <div class="section-heading-row">
-      <h3>Credit cards</h3>
+      <button type="button" class="cc-toggle" id="cc-toggle" aria-expanded="false" aria-controls="cc-details">
+        <span><h3 style="display:inline;margin:0;">Credit cards</h3><span class="cc-toggle-chevron" aria-hidden="true">⌄</span></span>
+      </button>
       <span class="tnum">Expected bills {{ expected_cc_total|inr }}</span>
     </div>
+    <div id="cc-details" hidden>
     <div class="cc-summary-grid">
       <div class="cc-summary-card">
         <small>Outstanding</small>
@@ -1216,25 +1264,6 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       {% endfor %}
     </div>
-  </div>
-  {% endif %}
-
-  {% if upcoming_commitments %}
-  <div class="commitments-section">
-    <div class="section-heading-row">
-      <h3>Upcoming commitments</h3>
-      <span class="tnum">{{ upcoming_commitments|sum(attribute='amount')|inr }} next 31 days</span>
-    </div>
-    <div class="commitments-list">
-      {% for item in upcoming_commitments %}
-      <div class="commitment-row">
-        <div class="commitment-left">
-          <strong>{{ "💳 " if item.kind == "credit_card" else ("🔄 " if item.kind == "investment" else "📅 ") }}{{ item.name }}</strong>
-          <small>{{ item.due_date|nice_date }}</small>
-        </div>
-        <div class="commitment-amount tnum">{{ item.amount|inr }}</div>
-      </div>
-      {% endfor %}
     </div>
   </div>
   {% endif %}
@@ -1298,10 +1327,13 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 
   <div class="recent-card">
-    <h3>Recent transactions</h3>
+    <div class="recent-card-header">
+      <h3>Recent transactions <span class="recent-subtitle">Last 5</span></h3>
+      <button type="button" class="download-transactions-btn" id="open-csv-filters">Download all · CSV</button>
+    </div>
     {% if recent %}
     <ul class="txn-list">
-      {% for t in recent %}
+      {% for t in recent[:5] %}
       <li class="txn-item">
         <div>
           <div class="txn-desc">{{ t.description or t.expense_category or t.category }}</div>
@@ -1330,6 +1362,52 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
 
 </div>
+
+<div class="csv-filter-overlay" id="csv-filter-overlay" hidden>
+  <form class="csv-filter-card" method="get" action="{{ url_for('download_transactions_csv') }}">
+    <div class="csv-filter-header"><h3>Download transactions</h3><button type="button" id="close-csv-filters" aria-label="Close">×</button></div>
+    <p>Choose a date range and optional filters. Minto will download matching transactions as a CSV file.</p>
+    <div class="csv-filter-grid">
+      <label>From date<input type="date" name="from" value="{{ report_from }}" required></label>
+      <label>To date<input type="date" name="to" value="{{ report_to }}" required></label>
+      <label>Transaction type<select name="direction"><option value="">All types</option><option value="in">Income</option><option value="out">Expenses & investments</option></select></label>
+      <label>Category<select name="category"><option value="">All categories</option><option value="income">Income</option><option value="expense">Expense</option><option value="investment">Investment</option><option value="transfer">Transfer</option><option value="lending">Lending</option></select></label>
+    </div>
+    <div class="csv-filter-actions"><button type="button" class="csv-cancel" id="cancel-csv-filters">Cancel</button><button type="submit" class="download-report-btn">Download CSV</button></div>
+  </form>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  var wealthButton = document.getElementById("wealth-reveal-toggle");
+  var wealthSection = document.getElementById("wealth-section");
+  if (wealthButton && wealthSection) wealthButton.addEventListener("click", function () {
+    var open = wealthSection.hidden;
+    wealthSection.hidden = !open;
+    wealthButton.setAttribute("aria-expanded", String(open));
+  });
+
+  var ccButton = document.getElementById("cc-toggle");
+  var ccDetails = document.getElementById("cc-details");
+  var ccSection = document.getElementById("cc-section");
+  if (ccButton && ccDetails) ccButton.addEventListener("click", function () {
+    var open = ccDetails.hidden;
+    ccDetails.hidden = !open;
+    ccButton.setAttribute("aria-expanded", String(open));
+    if (ccSection) ccSection.classList.toggle("is-open", open);
+  });
+
+  var overlay = document.getElementById("csv-filter-overlay");
+  var openCsv = document.getElementById("open-csv-filters");
+  var closeCsv = document.getElementById("close-csv-filters");
+  var cancelCsv = document.getElementById("cancel-csv-filters");
+  function closeFilters() { if (overlay) overlay.hidden = true; }
+  if (openCsv && overlay) openCsv.addEventListener("click", function () { overlay.hidden = false; });
+  if (closeCsv) closeCsv.addEventListener("click", closeFilters);
+  if (cancelCsv) cancelCsv.addEventListener("click", closeFilters);
+  if (overlay) overlay.addEventListener("click", function (e) { if (e.target === overlay) closeFilters(); });
+});
+</script>
 
 {% if expense_labels or source_labels %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
