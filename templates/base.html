@@ -2111,8 +2111,15 @@
   .fixed-reminder-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
   .fixed-reminder-footer button { background:var(--surface-alt); color:var(--text); border:1px solid var(--border); }
   .fixed-reminder-footer a { color:var(--primary); font-size:13px; font-weight:700; text-decoration:none; }
-  .fixed-reminder-chip { position:fixed; z-index:10040; right:16px; bottom:calc(18px + env(safe-area-inset-bottom)); border:0; border-radius:999px; padding:12px 17px; background:var(--primary); color:var(--primary-contrast); box-shadow:0 8px 28px rgba(0,0,0,.2); font-weight:750; cursor:pointer; }
-  @media(max-width:480px) { .fixed-reminder-card { padding:17px; border-radius:18px; } .fixed-reminder-card h2 { font-size:19px; } .fixed-reminder-item form button { width:100%; } }
+  .fixed-reminder-chip { position:fixed; z-index:10040; right:16px; bottom:calc(82px + env(safe-area-inset-bottom)); border:0; border-radius:999px; padding:12px 17px; background:var(--primary); color:var(--primary-contrast); box-shadow:0 8px 28px rgba(0,0,0,.2); font-weight:750; cursor:pointer; }
+  @media(max-width:480px) {
+    .fixed-reminder-card { padding:17px; border-radius:18px; }
+    .fixed-reminder-card h2 { font-size:19px; }
+    .fixed-reminder-item form button { width:100%; }
+    /* Keep the pending reminder chip above the fixed bottom navigation. */
+    .fixed-reminder-chip { left:16px; right:16px; width:auto; bottom:calc(82px + env(safe-area-inset-bottom)); }
+    body { padding-bottom:calc(90px + env(safe-area-inset-bottom)); }
+  }
 </style>
 <div class="fixed-reminder-overlay" id="fixedReminderOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="fixedReminderTitle">
   <div class="fixed-reminder-card">
