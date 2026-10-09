@@ -7,9 +7,63 @@
 <style>
 
   .dash-wrapper {
-    max-width: 1380px;
+    max-width: 1220px;
     margin: 0 auto;
-    padding: 6px 0 50px;
+    padding: 12px 24px 50px;
+  }
+
+  /* Keep the dashboard composed on wide screens instead of stretching
+     every panel across the full viewport. The headline and charts remain
+     full-width; supporting finance panels sit in a balanced two-column grid. */
+  @media (min-width: 1000px) {
+    .dash-wrapper {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      align-items: start;
+      column-gap: 18px;
+      row-gap: 18px;
+    }
+
+    .dash-wrapper > .dash-header,
+    .dash-wrapper > .dashboard-alerts,
+    .dash-wrapper > .wealth-section,
+    .dash-wrapper > .summary-grid,
+    .dash-wrapper > .period-note,
+    .dash-wrapper > .chart-grid,
+    .dash-wrapper > .recent-card {
+      grid-column: 1 / -1;
+      width: 100%;
+      min-width: 0;
+    }
+
+    .dash-wrapper > .safe-spend-card,
+    .dash-wrapper > .money-plan-card,
+    .dash-wrapper > .budget-dashboard-card,
+    .dash-wrapper > .due-soon-card,
+    .dash-wrapper > .commitments-section {
+      min-width: 0;
+      margin-bottom: 0;
+    }
+
+    .dash-wrapper > .dashboard-alerts {
+      margin-bottom: 4px;
+    }
+
+    .dash-wrapper > .wealth-section {
+      margin-bottom: 0;
+    }
+
+    .dash-wrapper > .summary-grid {
+      margin-top: 0;
+    }
+
+    .dash-wrapper > .chart-grid {
+      margin-top: 0;
+    }
+  }
+
+  @media (max-width: 999px) {
+    .dash-wrapper { padding: 8px 16px 44px; }
   }
 
   .dash-header {
