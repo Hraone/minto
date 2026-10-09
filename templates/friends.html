@@ -32,7 +32,24 @@
 </style>
 <div class="friends-page">
   <h1 class="friends-heading">Minto Friends</h1>
-  <p class="friends-subtitle">Find people, manage requests, and connect friends to your trips. Email addresses and account IDs stay private.</p>
+  <p class="friends-subtitle">Find people, manage requests, and connect friends to your trips. Contact details are shared only with accepted friends when you enable sharing.</p>
+  <section class="friends-card">
+    <h2 style="margin:0 0 6px;font-size:17px;">Contact sharing</h2>
+    <p class="profile-email" style="margin:0 0 16px;">Only accepted Minto friends can see the contact details you choose to share.</p>
+    <form method="post" action="{{ url_for('friends') }}">
+      <label for="friend-phone">Phone number</label>
+      <input id="friend-phone" name="phone" type="tel" value="{{ phone }}" maxlength="32" autocomplete="tel" placeholder="+91 98765 43210">
+      <label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-weight:600;">
+        <input type="checkbox" name="share_phone" {% if share_phone %}checked{% endif %} style="width:auto;margin:0;">
+        Share my phone number with accepted friends
+      </label>
+      <label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-weight:600;">
+        <input type="checkbox" name="share_email" {% if share_email %}checked{% endif %} style="width:auto;margin:0;">
+        Share my account email with accepted friends
+      </label>
+      <button type="submit" class="profile-save" style="width:auto;margin-top:14px;">Save contact preferences</button>
+    </form>
+  </section>
   <div class="friends-card">
       <section class="profile-card" id="friends" style="padding:22px;">
     <h3 style="margin:0 0 6px;">Minto Friends</h3>
