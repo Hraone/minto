@@ -310,9 +310,9 @@
 
     .app-container {
       width: 100%;
-      max-width: 1000px;
+      max-width: 1440px;
       margin: 0 auto;
-      padding: 0 20px 56px;
+      padding: 0 32px 56px;
     }
 
     /* ---------- Top nav ---------- */
@@ -325,7 +325,7 @@
       height: 72px;
       width: 100vw;
       margin: 0 calc(50% - 50vw) 25px;
-      padding: 0 max(20px, calc((100vw - 1000px) / 2 + 20px));
+      padding: 0 max(24px, calc((100vw - 1440px) / 2 + 32px));
 
       display: flex;
       align-items: center;
@@ -1135,7 +1135,7 @@
 
     /* Mid-width screens (small laptops, tablets): tighter spacing, and Log Out
        becomes an icon so nothing is pushed off the right edge. */
-    @media (min-width: 881px) and (max-width: 1060px) {
+    @media (min-width: 881px) and (max-width: 1360px) {
       .nav-link {
         padding: 8px 8px;
         font-size: 13px;
@@ -1152,6 +1152,40 @@
 
       .logout-icon {
         display: flex;
+      }
+    }
+
+    /* ---------- Desktop workspace ---------- */
+    @media (min-width: 1361px) {
+      .page-content > * {
+        min-width: 0;
+      }
+
+      /* Pages that are intentionally data-dense should use the workspace,
+         while forms keep a readable line length through their own wrapper. */
+      .dash-wrapper,
+      .planner-wrap,
+      .about-page,
+      .sources-wrapper,
+      .fx-page,
+      .budget-page,
+      .nw-page,
+      .profile-page,
+      .reports-page,
+      .trips-wrapper,
+      .trip-wrapper {
+        width: 100%;
+      }
+
+      .dash-wrapper {
+        padding-bottom: 72px;
+      }
+    }
+
+    /* On desktop the content should never become an oversized text column. */
+    @media (min-width: 881px) {
+      .flash {
+        max-width: 100%;
       }
     }
 
