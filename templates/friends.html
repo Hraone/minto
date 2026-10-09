@@ -1,6 +1,25 @@
 {% extends "base.html" %}
 
-{% block title %}Minto Friends · Minto{% endblock %}
+{% block title %}Minto Friends · Minto<script>
+(() => {
+  const edit = document.getElementById("edit-minto-username");
+  const cancel = document.getElementById("cancel-minto-username");
+  const form = document.getElementById("minto-username-form");
+  const input = document.getElementById("minto-username");
+  if (!edit || !cancel || !form || !input) return;
+  edit.addEventListener("click", () => {
+    form.style.display = "block";
+    edit.closest(".username-display").style.display = "none";
+    input.focus();
+  });
+  cancel.addEventListener("click", () => {
+    form.style.display = "none";
+    edit.closest(".username-display").style.display = "flex";
+    input.value = {{ username|tojson }};
+  });
+})();
+</script>
+{% endblock %}
 
 {% block content %}
 <style>
@@ -71,11 +90,19 @@
   <section class="friends-card" id="friends">
     <h2>Find people</h2>
     <p class="friends-card-intro">Your username helps friends find you. Email addresses and account IDs are never used as public search identifiers.</p>
-    <form method="post" action="{{ url_for('update_profile_username') }}" style="margin-bottom:18px;">
-      <label for="minto-username">Your username</label>
+    <div class="username-display" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle);">
+      <div style="min-width:0;">
+        <label style="margin-bottom:5px;">Your username</label>
+        <strong style="display:block;overflow-wrap:anywhere;">{% if username %}@{{ username }}{% else %}Not set yet{% endif %}</strong>
+      </div>
+      <button type="button" id="edit-minto-username" class="friend-action secondary" style="flex:none;">Edit</button>
+    </div>
+    <form method="post" id="minto-username-form" action="{{ url_for('update_profile_username') }}" style="display:none;margin-bottom:18px;">
+      <label for="minto-username">Edit username</label>
       <div class="field-row">
         <input type="text" id="minto-username" name="username" value="{{ username }}" minlength="3" maxlength="24" pattern="[a-zA-Z0-9_]{3,24}" autocomplete="username" placeholder="e.g. rohan_mehta" required>
         <button type="submit" class="profile-save" style="margin:0;">Save username</button>
+        <button type="button" id="cancel-minto-username" class="friend-action secondary">Cancel</button>
       </div>
       <p class="profile-email" style="margin:7px 0 0;">3–24 characters: letters, numbers, and underscores.</p>
     </form>
