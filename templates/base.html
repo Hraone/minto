@@ -1449,7 +1449,7 @@
         aria-label="Open profile menu"
         title="{{ nav_name }}"
         onclick="toggleNavProfile(event)"
-      ><svg class="profile-avatar-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use></svg></a>
+      ><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ profile_avatar }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></a>
       <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
         <a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>
@@ -1460,7 +1460,7 @@
     {% endif %}
 
     {% if session.get('user_id') and app_mode == 'trip' %}
-    <span class="user-avatar static" title="{{ nav_name }}"><svg class="profile-avatar-svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 64 64" aria-hidden="true" focusable="false"><use href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}" xlink:href="{{ url_for('static', filename='profile-avatars.svg') }}?v={{ asset_version }}#{{ profile_avatar }}"></use></svg></span>
+    <span class="user-avatar static" title="{{ nav_name }}"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ ({{ profile_avatar }}) ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
     {% endif %}
 
     {% if session.get('user_id') %}
