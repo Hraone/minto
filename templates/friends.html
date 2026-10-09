@@ -18,6 +18,9 @@
   .friend-copy strong { font-size:13px;color:var(--text); }
   .friend-copy small,.friend-status { margin-top:2px;font-size:11px;color:var(--muted-2); }
   .friend-status { flex:none; }
+  .friend-contact { display:block; margin-top:5px; overflow-wrap:anywhere; }
+  .friend-contact a { color:var(--muted); text-decoration:none; }
+  .friend-contact a:hover { color:var(--positive); text-decoration:underline; }
   .friend-actions { display:flex;gap:6px; }
   .friend-actions form,.friend-action-form { width:auto;margin:0; }
   .friend-action { width:auto;margin:0;padding:7px 10px;border:1px solid var(--border);border-radius:9px;background:var(--positive);color:#fff;font-size:11px;font-weight:700;white-space:nowrap; }
@@ -76,7 +79,15 @@
         {% for person in friend_search %}
         <div class="friend-row">
           <span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
-          <div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div>
+          <div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
+            {% if person.relationship == 'friend' and (person.email or person.phone) %}
+              <small class="friend-contact">
+                {% if person.email %}<a href="mailto:{{ person.email|urlencode }}">{{ person.email }}</a>{% endif %}
+                {% if person.email and person.phone %}<span aria-hidden="true"> · </span>{% endif %}
+                {% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">{{ person.phone }}</a>{% endif %}
+              </small>
+            {% endif %}
+          </div>
           {% if person.relationship == 'friend' %}
             <span class="friend-status">Friends</span>
           {% elif person.relationship == 'outgoing' %}
@@ -126,7 +137,9 @@
     <h4 class="friend-section-title">Friends</h4>
     <div class="friend-list">
       {% for person in friends %}
-      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small></div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
+      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_emoji if person.profile_emoji in profile_avatars else 'avatar-01') ~ '.svg') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
+        {% if person.email or person.phone %}<small class="friend-contact">{% if person.email %}<a href="mailto:{{ person.email|urlencode }}">{{ person.email }}</a>{% endif %}{% if person.email and person.phone %}<span aria-hidden="true"> · </span>{% endif %}{% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">{{ person.phone }}</a>{% endif %}</small>{% endif %}
+      </div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
       {% endfor %}
     </div>
     {% endif %}
