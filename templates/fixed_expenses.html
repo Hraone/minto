@@ -318,7 +318,16 @@
   </div>
   {% endfor %}
 
-  <div class="fx-card">
+  <button
+    type="button"
+    class="fx-add-toggle"
+    id="fi-add-toggle"
+    aria-expanded="false"
+    aria-controls="fi-add-card">
+    + Add recurring income
+  </button>
+
+  <div class="fx-card fx-add-card" id="fi-add-card" hidden>
     <h3>Add recurring income</h3>
     <form method="post" action="{{ url_for('add_fixed_income') }}">
       <div class="fx-grid">
@@ -408,21 +417,27 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  const toggle = document.getElementById("fx-add-toggle");
-  const card = document.getElementById("fx-add-card");
+  function wireToggle(toggleId, cardId, inputId, openText, closedText) {
+    const toggle = document.getElementById(toggleId);
+    const card = document.getElementById(cardId);
+    if (!toggle || !card) return;
 
-  if (!toggle || !card) return;
+    toggle.addEventListener("click", function () {
+      const open = card.hidden;
+      card.hidden = !open;
+      toggle.setAttribute("aria-expanded", String(open));
+      toggle.textContent = open ? openText : closedText;
+      if (open && inputId) {
+        const input = document.getElementById(inputId);
+        if (input) input.focus();
+      }
+    });
+  }
 
-  toggle.addEventListener("click", function () {
-    const open = card.hidden;
-    card.hidden = !open;
-    toggle.setAttribute("aria-expanded", String(open));
-    toggle.textContent = open ? "− Close Add Fixed Expense" : "+ Add a fixed expense";
-
-    if (open) {
-      document.getElementById("fx-name").focus();
-    }
-  });
+  wireToggle("fi-add-toggle", "fi-add-card", "fi-name",
+    "− Close Add Recurring Income", "+ Add recurring income");
+  wireToggle("fx-add-toggle", "fx-add-card", "fx-name",
+    "− Close Add Fixed Expense", "+ Add a fixed expense");
 });
 </script>
 {% endblock %}
