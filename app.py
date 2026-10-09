@@ -287,7 +287,7 @@ def inject_template_globals():
             session["profile_avatar"] = profile_avatar
 
     return {
-        "asset_version": "3",
+        "asset_version": "4",
         "minto_version": MINTO_VERSION,
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
