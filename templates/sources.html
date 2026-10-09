@@ -401,6 +401,16 @@
     .source-item { padding: 13px 14px; }
   }
 
+    @media (min-width: 881px) {
+      .source-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .source-item {
+        height: 100%;
+      }
+    }
+
 </style>
 
 <div class="sources-wrapper">
