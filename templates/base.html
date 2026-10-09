@@ -1003,12 +1003,55 @@
       }
 
       .more-sheet {
-        min-width: 210px;
-        max-width: calc(100vw - 24px);
+        min-width: 250px;
+        max-width: min(330px, calc(100vw - 24px));
+        max-height: min(70vh, 560px);
+        overflow-y: auto;
+        padding: 8px;
+      }
+
+      .more-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .more-group-label {
+        padding: 7px 10px 5px;
+        color: var(--muted-2);
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
       }
 
       .more-sheet a {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
         white-space: nowrap;
+      }
+
+      .more-sheet a span {
+        color: var(--text);
+      }
+
+      .more-sheet a small {
+        flex: 0 0 auto;
+        color: var(--muted);
+        font-size: 10.5px;
+        font-weight: 600;
+      }
+
+      .more-sheet a.active span {
+        color: var(--positive);
+      }
+
+      .more-divider {
+        height: 1px;
+        margin: 6px 4px;
+        background: var(--border);
       }
 
       .row {
@@ -1532,14 +1575,54 @@
 
     <div class="tab-menu" id="moreMenu">
       <div class="tab-sheet more-sheet" id="moreSheet" role="menu" hidden>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed Expenses</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">Budgets</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">Card Payment</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">Cash Out</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">Bank Transfer</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">Reports</a>
-        <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>
+        <div class="more-group">
+          <div class="more-group-label">Money setup</div>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
+            <span>Accounts</span><small>Cards, cash &amp; bank</small>
+          </a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">
+            <span>Fixed Expenses</span><small>Recurring commitments</small>
+          </a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">
+            <span>Budgets</span><small>Set spending limits</small>
+          </a>
+        </div>
+
+        <div class="more-divider"></div>
+
+        <div class="more-group">
+          <div class="more-group-label">Move money</div>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'pay_cc_bill' else '' }}" href="{{ url_for('pay_cc_bill') }}">
+            <span>Card Payment</span><small>Pay a credit card</small>
+          </a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'withdraw_cash' else '' }}" href="{{ url_for('withdraw_cash') }}">
+            <span>Cash Out</span><small>Record cash withdrawal</small>
+          </a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'bank_transfer' else '' }}" href="{{ url_for('bank_transfer') }}">
+            <span>Bank Transfer</span><small>Move between accounts</small>
+          </a>
+        </div>
+
+        <div class="more-divider"></div>
+
+        <div class="more-group">
+          <div class="more-group-label">Insights</div>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">
+            <span>Reports</span><small>Download &amp; view reports</small>
+          </a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'net_worth' else '' }}" href="{{ url_for('net_worth') }}">
+            <span>Net Worth</span><small>Protected wealth view</small>
+          </a>
+        </div>
+
+        <div class="more-divider"></div>
+
+        <div class="more-group">
+          <div class="more-group-label">Minto</div>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
+            <span>About Minto</span><small>App info &amp; help</small>
+          </a>
+        </div>
       </div>
       <a
         href="{{ url_for('dashboard') }}"
