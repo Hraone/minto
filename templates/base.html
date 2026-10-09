@@ -2218,7 +2218,9 @@
       items.forEach(function (item) { list.appendChild(buildItem(item)); });
       chipCount.textContent = String(pendingCount);
       chip.setAttribute('aria-label', 'Open ' + pendingCount + ' pending fixed transaction reminder' + (pendingCount === 1 ? '' : 's'));
-      showModal();
+      /* Keep reminders non-intrusive: show only the bell automatically.
+         Open the modal only when the user taps the notification icon. */
+      chip.hidden = false;
     }).catch(function () {});
   later.addEventListener('click', hideModal);
   chip.addEventListener('click', showModal);
