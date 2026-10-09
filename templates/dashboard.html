@@ -169,7 +169,7 @@
     transition: background .22s ease, border-color .22s ease, transform .22s ease;
   }
 
-  .dashboard-alerts-eye { color: var(--muted); font-size: 17px; line-height: 1; }
+  .dashboard-alerts-eye { display:inline-flex; align-items:center; justify-content:center; color:var(--muted); flex:none; }
   .dashboard-alerts-toggle-label { white-space: nowrap; }
   .dashboard-alerts-toggle-action { margin-left: auto; color: var(--primary); white-space: nowrap; }
   .dashboard-alerts-chevron { color: var(--muted); transition: transform .3s ease; }
@@ -762,8 +762,8 @@
 
   .cc-list[hidden] { display:none !important; }
   .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0; border:0; background:transparent; color:inherit; font:inherit; text-align:left; cursor:pointer; }
-  .cc-toggle-chevron { color:var(--muted); transition:transform .25s ease; }
-  .commitments-section.is-open .cc-toggle-chevron { transform:rotate(180deg); }
+  .cc-toggle-chevron { color:var(--muted); }
+  #cc-details[hidden] { display:none !important; }
   .cc-list {
     margin-top: 14px;
     display: flex;
@@ -1073,7 +1073,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="dashboard-alerts-header">
       <button type="button" class="dashboard-alerts-toggle" id="dashboard-alerts-toggle"
               aria-controls="dashboard-alerts-list" aria-expanded="false">
-        <span class="dashboard-alerts-eye" aria-hidden="true">◉</span>
+        <span class="dashboard-alerts-eye" aria-hidden="true"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg></span>
         <span class="dashboard-alerts-toggle-label">Account notices</span>
         <span class="dashboard-alerts-count">{{ alerts|length }}</span>
         <span class="dashboard-alerts-toggle-action">Show notices</span>
@@ -1095,9 +1095,7 @@ document.addEventListener("DOMContentLoaded", function () {
   </section>
   {% endif %}
 
-  <button type="button" class="wealth-reveal-toggle" id="wealth-reveal-toggle" aria-expanded="false" aria-controls="wealth-section">
-    <span>◈</span><span>View net worth & assets</span><span class="wealth-reveal-chevron">⌄</span>
-  </button>
+  <a class="wealth-reveal-toggle" href="{{ url_for('net_worth') }}"><span aria-hidden="true">◈</span><span>Net worth</span></a>
   <div class="wealth-section is-hidden" id="wealth-section" hidden>
 
     {% if wealth_unlocked %}
@@ -1393,14 +1391,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
-  var wealthButton = document.getElementById("wealth-reveal-toggle");
-  var wealthSection = document.getElementById("wealth-section");
-  if (wealthButton && wealthSection) wealthButton.addEventListener("click", function () {
-    var open = wealthSection.hidden;
-    wealthSection.hidden = !open;
-    wealthButton.setAttribute("aria-expanded", String(open));
-  });
-
   var ccButton = document.getElementById("cc-toggle");
   var ccDetails = document.getElementById("cc-details");
   var ccSection = document.getElementById("cc-section");
