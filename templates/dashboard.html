@@ -665,6 +665,25 @@
     font-size: 10.5px;
   }
 
+  .spend-summary-layout {
+    display:grid;
+    grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);
+    gap:16px;
+    align-items:stretch;
+    min-width:0;
+  }
+  .spend-summary-layout .safe-spend-card { margin:0; min-width:0; }
+  .spend-summary-layout .summary-grid {
+    display:grid;
+    grid-template-columns:1fr;
+    grid-template-rows:repeat(3,minmax(0,1fr));
+    gap:10px;
+    margin:0;
+    min-width:0;
+  }
+  .spend-summary-layout .summary-card { min-width:0; padding:15px 17px; }
+  .spend-summary-layout .summary-value { overflow-wrap:anywhere; font-size:clamp(19px,1.5vw,25px); }
+
   .safe-spend-card {
   margin: 0 0 28px;
   padding: 24px;
@@ -1009,6 +1028,16 @@
     box-shadow: none;
   }
 
+  @media (max-width:999px) {
+    .spend-summary-layout { grid-template-columns:1fr; }
+    .spend-summary-layout .summary-grid { grid-template-columns:repeat(3,minmax(0,1fr)); grid-template-rows:auto; }
+  }
+  @media (min-width:1000px) {
+    .dash-wrapper > .commitments-section.cc-section { grid-column:1 / -1; width:100%; }
+  }
+  @media (max-width:600px) {
+    .spend-summary-layout .summary-grid { grid-template-columns:1fr; }
+  }
 </style>
 
 <script>
@@ -1189,6 +1218,7 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
   </div>
 
+  <div class="spend-summary-layout">
   <div class="safe-spend-card">
     <div class="safe-spend-label">Safe to spend</div>
     <div class="safe-spend-value tnum">{{ safe_to_spend|inr }}</div>
@@ -1218,6 +1248,21 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       {% endif %}
     </div>
+  </div>
+  <div class="summary-grid">
+    <div class="summary-card">
+      <div class="summary-label">Money in</div>
+      <div class="summary-value positive tnum">{{ (total_in)|inr }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Money out</div>
+      <div class="summary-value negative tnum">{{ (total_out)|inr }}</div>
+    </div>
+    <div class="summary-card">
+      <div class="summary-label">Net</div>
+      <div class="summary-value tnum {{ 'positive' if net >= 0 else 'negative' }}">{{ (net)|inr }}</div>
+    </div>
+  </div>
   </div>
 
   {% if card_forecasts %}
@@ -1300,20 +1345,6 @@ document.addEventListener("DOMContentLoaded", function () {
   </div>
   {% endif %}
 
-  <div class="summary-grid">
-    <div class="summary-card">
-      <div class="summary-label">Money in</div>
-      <div class="summary-value positive tnum">{{ (total_in)|inr }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-label">Money out</div>
-      <div class="summary-value negative tnum">{{ (total_out)|inr }}</div>
-    </div>
-    <div class="summary-card">
-      <div class="summary-label">Net</div>
-      <div class="summary-value tnum {{ 'positive' if net >= 0 else 'negative' }}">{{ (net)|inr }}</div>
-    </div>
-  </div>
   <p class="period-note">
     Excludes transfers (e.g. a card payment) and money lent (given to or repaid by a friend), since neither is real income or spending.
   </p>
