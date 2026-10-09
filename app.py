@@ -3925,6 +3925,44 @@ def get_fixed_expenses_for_month(client, user_id, year=None, month=None):
         return []
 
 
+def get_fixed_incomes_for_month(client, user_id, year=None, month=None):
+    """Return this month's recurring income items and whether each was received."""
+    today = datetime.now(APP_TZ).date()
+    year = year or today.year
+    month = month or today.month
+    month_start = date(year, month, 1)
+    try:
+        rows = (
+            client.table("fixed_incomes")
+            .select("*, user_sources(name, source_type)")
+            .eq("user_id", user_id)
+            .eq("active", True)
+            .order("due_day")
+            .execute()
+            .data
+        )
+        payments = (
+            client.table("fixed_income_payments")
+            .select("fixed_income_id, transaction_id, received_at")
+            .eq("user_id", user_id)
+            .eq("due_month", month_start.isoformat())
+            .execute()
+            .data
+        )
+    except Exception:
+        app.logger.exception("Fixed income unavailable (has the database update been run?)")
+        return []
+    paid_by_id = {p["fixed_income_id"]: p for p in payments}
+    result = []
+    for row in rows:
+        item = dict(row)
+        item["due_date"] = fixed_expense_due_date(year, month, row["due_day"])
+        item["payment"] = paid_by_id.get(row["id"])
+        item["paid"] = bool(item["payment"])
+        result.append(item)
+    return result
+
+
 def _get_fixed_expenses_for_month(client, user_id, year=None, month=None):
     today = datetime.now(APP_TZ).date()
     year = year or today.year
@@ -4083,6 +4121,7 @@ def fixed_expenses():
 
     today = datetime.now(APP_TZ).date()
     expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    fixed_incomes = get_fixed_incomes_for_month(client, user_id, today.year, today.month)
     sources = (
         client.table("user_sources")
         .select("id, name, source_type")
@@ -4096,6 +4135,7 @@ def fixed_expenses():
     return render_template(
         "fixed_expenses.html",
         expenses=expenses,
+        fixed_incomes=fixed_incomes,
         sources=sources,
         categories=categories,
         expense_categories=expense_categories,
@@ -4199,6 +4239,147 @@ def delete_fixed_expense(fixed_expense_id):
     client.table("fixed_expenses").delete().eq("id", fixed_expense_id).eq("user_id", user_id).execute()
     flash("Fixed expense removed.")
     return redirect(url_for("fixed_expenses"))
+
+
+@app.route("/fixed-income/add", methods=["POST"])
+@login_required
+def add_fixed_income():
+    client = get_user_client()
+    user_id = session["user_id"]
+    name = request.form.get("name", "").strip()[:60]
+    amount = parse_money(request.form.get("amount"))
+    source_id = request.form.get("source_id") or None
+    try:
+        due_day = int(request.form.get("due_day", "").strip())
+    except (TypeError, ValueError):
+        due_day = 0
+
+    valid_destinations = {
+        str(r["id"]) for r in client.table("user_sources").select("id")
+        .eq("active", True).in_("source_type", ["savings", "cash"]).execute().data
+    }
+    if not name or amount is None or not 1 <= due_day <= 31:
+        flash("Enter an income name, a valid amount, and a due day from 1 to 31.")
+    elif not source_id or str(source_id) not in valid_destinations:
+        flash("Choose the bank or cash account where this income arrives.")
+    else:
+        try:
+            client.table("fixed_incomes").insert({
+                "user_id": user_id, "name": name, "amount": amount,
+                "due_day": due_day, "source_id": int(source_id),
+            }).execute()
+            flash(f"Added {name} as recurring monthly income.")
+        except Exception:
+            app.logger.exception("Could not add fixed income")
+            flash("Couldn't add recurring income. Check that the latest database update has been run.")
+    return redirect(url_for("fixed_expenses"))
+
+
+@app.route("/fixed-income/<int:fixed_income_id>/receive", methods=["POST"])
+@login_required
+def receive_fixed_income(fixed_income_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    today = datetime.now(APP_TZ).date()
+    month_start = today.replace(day=1)
+    rows = (
+        client.table("fixed_incomes").select("*")
+        .eq("id", fixed_income_id).eq("user_id", user_id).eq("active", True)
+        .limit(1).execute().data
+    )
+    if not rows:
+        flash("That recurring income could not be found.")
+        return redirect(url_for("fixed_expenses"))
+    income = rows[0]
+    source_id = request.form.get("source_id") or income.get("source_id")
+    valid_destinations = {
+        str(r["id"]) for r in client.table("user_sources").select("id")
+        .eq("active", True).in_("source_type", ["savings", "cash"]).execute().data
+    }
+    if not source_id or str(source_id) not in valid_destinations:
+        flash("Choose the bank or cash account where the income arrived.")
+        return redirect(url_for("fixed_expenses"))
+    existing = (
+        client.table("fixed_income_payments").select("id")
+        .eq("fixed_income_id", fixed_income_id).eq("due_month", month_start.isoformat())
+        .limit(1).execute().data
+    )
+    if existing:
+        flash("This recurring income is already recorded for this month.")
+        return redirect(url_for("fixed_expenses"))
+
+    entry_id = None
+    try:
+        entry_id = insert_entry_and_transaction(client, user_id, f"Fixed income: {income['name']}", {
+            "direction": "in", "category": "income", "expense_category": None,
+            "source_id": int(source_id), "amount": float(income["amount"]),
+            "description": income["name"], "raw_text": f"Fixed income: {income['name']}",
+            "transaction_date": today.isoformat(),
+        })
+        client.table("fixed_income_payments").insert({
+            "fixed_income_id": fixed_income_id, "user_id": user_id,
+            "due_month": month_start.isoformat(), "transaction_id": entry_id,
+        }).execute()
+        flash(f"Recorded {income['name']} as received and added it to your income.")
+    except Exception as e:
+        if entry_id is not None:
+            try:
+                client.table("entries").delete().eq("id", entry_id).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+        if "duplicate" in str(e).lower() or "unique" in str(e).lower():
+            flash("This recurring income is already recorded for this month.")
+        else:
+            app.logger.exception("Could not record recurring income")
+            flash("Couldn't record that income. Please try again.")
+    return redirect(url_for("fixed_expenses"))
+
+
+@app.route("/fixed-income/<int:fixed_income_id>/delete", methods=["POST"])
+@login_required
+def delete_fixed_income(fixed_income_id):
+    client = get_user_client()
+    client.table("fixed_incomes").delete().eq("id", fixed_income_id).eq("user_id", session["user_id"]).execute()
+    flash("Recurring income removed.")
+    return redirect(url_for("fixed_expenses"))
+
+
+@app.route("/api/fixed-reminders", methods=["GET"])
+@login_required
+def fixed_reminders():
+    """Due/overdue monthly commitments for the persistent on-open reminder."""
+    if session.get("mode") == "trip":
+        return jsonify({"items": []})
+    client = get_user_client()
+    user_id = session["user_id"]
+    today = datetime.now(APP_TZ).date()
+    expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    incomes = get_fixed_incomes_for_month(client, user_id, today.year, today.month)
+    sources = (
+        client.table("user_sources").select("id, name, source_type")
+        .eq("user_id", user_id).eq("active", True)
+        .in_("source_type", ["savings", "cash"]).order("name").execute().data
+    )
+    accounts = [{"id": str(s["id"]), "name": s["name"]} for s in sources]
+    items = []
+    for item in expenses:
+        if item.get("paid") or item["due_date"] > today:
+            continue
+        items.append({
+            "id": int(item["id"]), "name": item["name"], "amount": float(item["amount"]),
+            "kind": item.get("kind") or "expense", "due_date": item["due_date"].isoformat(),
+            "source_id": str(item.get("source_id") or ""), "accounts": accounts,
+        })
+    for item in incomes:
+        if item.get("paid") or item["due_date"] > today:
+            continue
+        items.append({
+            "id": int(item["id"]), "name": item["name"], "amount": float(item["amount"]),
+            "kind": "income", "due_date": item["due_date"].isoformat(),
+            "source_id": str(item.get("source_id") or ""), "accounts": accounts,
+        })
+    items.sort(key=lambda item: (item["due_date"], item["kind"], item["name"].lower()))
+    return jsonify({"items": items, "today": today.isoformat()})
 
 
 @app.route("/sources/<int:source_id>/cc-loan", methods=["POST"])
