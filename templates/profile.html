@@ -656,6 +656,21 @@
   .profile-links a + a {
     border-top: 1px solid var(--border);
   }
+
+  .profile-contact-details { padding:0; overflow:hidden; }
+  .profile-contact-details > summary { display:flex; align-items:center; justify-content:space-between; gap:16px; padding:17px 20px; cursor:pointer; list-style:none; }
+  .profile-contact-details > summary::-webkit-details-marker { display:none; }
+  .profile-contact-details > summary strong,.profile-contact-details > summary small { display:block; }
+  .profile-contact-details > summary strong { font-size:14px; color:var(--text); }
+  .profile-contact-details > summary small { margin-top:4px; font-size:12px; color:var(--muted); }
+  .contact-chevron { color:var(--muted); transition:transform .2s ease; }
+  .profile-contact-details[open] .contact-chevron { transform:rotate(180deg); }
+  .profile-contact-body { padding:0 20px 20px; }
+  .profile-contact-body input[type="tel"] { width:100%; box-sizing:border-box; }
+  .profile-contact-body .contact-check { display:flex; align-items:flex-start; gap:9px; margin-top:12px; font-weight:600; }
+  .profile-contact-body .contact-check input { width:auto; margin:3px 0 0; }
+  .profile-contact-body button { width:auto; margin-top:14px; }
+
 </style>
 
 <div class="profile-page">
@@ -943,6 +958,24 @@
       });
     })();
   </script>
+
+  <details class="profile-card profile-contact-details">
+    <summary><span><strong>Contact sharing</strong><small>Phone and email visibility for accepted friends</small></span><span class="contact-chevron" aria-hidden="true">⌄</span></summary><div class="profile-contact-body"><h3 style="margin:16px 0 6px;">Contact details</h3>
+    <p class="profile-email" style="margin:0 0 16px;">Only accepted Minto friends can see the contact details you choose to share.</p>
+    <form method="post" action="{{ url_for('friends') }}">
+      <label for="friend-phone">Phone number</label>
+      <input id="friend-phone" name="phone" type="tel" value="{{ phone }}" maxlength="32" autocomplete="tel" placeholder="+91 98765 43210">
+      <label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-weight:600;">
+        <input type="checkbox" name="share_phone" {% if share_phone %}checked{% endif %} style="width:auto;margin:0;">
+        Share my phone number with accepted friends
+      </label>
+      <label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-weight:600;">
+        <input type="checkbox" name="share_email" {% if share_email %}checked{% endif %} style="width:auto;margin:0;">
+        Share my account email with accepted friends
+      </label>
+      <button type="submit" class="profile-save" style="width:auto;margin-top:14px;">Save contact preferences</button>
+    </form></div>
+  </details>
 
   <div class="profile-card">
     <div class="profile-links">
