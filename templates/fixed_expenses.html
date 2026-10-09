@@ -217,8 +217,8 @@
   {% set paid_total = expenses|selectattr('paid')|sum(attribute='amount') %}
 
   <div class="fx-head">
-    <h2>Fixed expenses</h2>
-    <p>Bills that repeat every month, like rent or subscriptions. Marking one paid adds it to your expenses for {{ month_label }}.</p>
+    <h2>Fixed transactions</h2>
+    <p>Monthly bills, investments, and income. Minto reminds you when a due transaction has not yet been recorded.</p>
   </div>
 
   <div class="fx-summary">
@@ -273,6 +273,80 @@
     </div>
   </div>
   {% endfor %}
+
+  <div class="fx-head" style="margin-top:28px;">
+    <h2>Recurring income</h2>
+    <p>Salary, allowance, rent received, or any other income expected monthly.</p>
+  </div>
+
+  {% if not fixed_incomes %}
+  <p class="fx-empty">No recurring income yet.</p>
+  {% endif %}
+  {% for x in fixed_incomes %}
+  <div class="fx-card">
+    <div class="fx-row">
+      <div>
+        <p class="fx-name">{{ x.name }}</p>
+        <p class="fx-meta">Income · due {{ x.due_date|nice_date }}{% if x.user_sources %} · arrives in {{ x.user_sources.name }}{% endif %}</p>
+        {% if x.paid %}
+        <span class="fx-status paid">Received this month</span>
+        {% elif x.due_date < today %}
+        <span class="fx-status late">Overdue by {{ (today - x.due_date).days }} day{{ '' if (today - x.due_date).days == 1 else 's' }}</span>
+        {% else %}
+        {% set left = (x.due_date - today).days %}
+        <span class="fx-status">{{ 'Due today' if left == 0 else 'Due in ' ~ left ~ ' day' ~ ('' if left == 1 else 's') }}</span>
+        {% endif %}
+      </div>
+      <div class="fx-amount">{{ x.amount|inr }}</div>
+    </div>
+    <div class="fx-actions">
+      {% if not x.paid %}
+      <form method="post" action="{{ url_for('receive_fixed_income', fixed_income_id=x.id) }}">
+        <select name="source_id" aria-label="Deposit into" required>
+          <option value="" disabled {{ '' if x.source_id else 'selected' }}>Deposit into</option>
+          {% for s in sources %}
+          <option value="{{ s.id }}" {{ 'selected' if x.source_id == s.id else '' }}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="fx-btn">Confirm Received</button>
+      </form>
+      {% endif %}
+      <form method="post" action="{{ url_for('delete_fixed_income', fixed_income_id=x.id) }}" onsubmit="return confirm('Remove this recurring income? Past income transactions stay in your records.');">
+        <button type="submit" class="fx-btn quiet">Remove</button>
+      </form>
+    </div>
+  </div>
+  {% endfor %}
+
+  <div class="fx-card">
+    <h3>Add recurring income</h3>
+    <form method="post" action="{{ url_for('add_fixed_income') }}">
+      <div class="fx-grid">
+        <div class="wide">
+          <label for="fi-name">Name</label>
+          <input type="text" id="fi-name" name="name" maxlength="60" placeholder="e.g. Salary" required>
+        </div>
+        <div>
+          <label for="fi-amount">Amount</label>
+          <input type="number" id="fi-amount" name="amount" step="0.01" min="0.01" placeholder="0.00" required>
+        </div>
+        <div>
+          <label for="fi-day">Expected day of month</label>
+          <input type="number" id="fi-day" name="due_day" min="1" max="31" placeholder="1 to 31" required>
+        </div>
+        <div class="wide">
+          <label for="fi-source">Usually received in</label>
+          <select id="fi-source" name="source_id" required>
+            <option value="">Choose account</option>
+            {% for s in sources %}
+            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="fx-btn" style="margin-top:14px;">Add recurring income</button>
+    </form>
+  </div>
 
   <button
     type="button"
