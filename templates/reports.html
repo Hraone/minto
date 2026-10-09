@@ -260,7 +260,11 @@
   function scheduleRefresh() { setTimeout(refresh, 1800); }
   form.addEventListener("submit", scheduleRefresh);
 
-  render({{ history|tojson }});
+  // base.html defines formatMintoDate after this content block. Render the
+  // initial server-provided history on window load so the date helper exists.
+  window.addEventListener("load", function () {
+    render({{ history|tojson }});
+  }, { once: true });
 })();
 </script>
 {% endblock %}
