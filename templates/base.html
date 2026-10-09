@@ -2091,6 +2091,124 @@
 
   </script>
 
+{% if session.get('user_id') and app_mode != 'trip' %}
+<style>
+  .fixed-reminder-overlay { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(10,15,25,.62); backdrop-filter:blur(5px); }
+  .fixed-reminder-overlay[hidden], .fixed-reminder-chip[hidden] { display:none !important; }
+  .fixed-reminder-card { width:min(620px,100%); max-height:min(82vh,760px); overflow:auto; border:1px solid var(--border); border-radius:22px; padding:22px; background:var(--surface); color:var(--text); box-shadow:0 24px 90px rgba(0,0,0,.3); }
+  .fixed-reminder-card h2 { margin:0 0 6px; font-size:22px; }
+  .fixed-reminder-intro { margin:0 0 16px; color:var(--muted); font-size:13px; line-height:1.5; }
+  .fixed-reminder-item { padding:14px 0; border-top:1px solid var(--border); }
+  .fixed-reminder-item:first-child { border-top:0; }
+  .fixed-reminder-item-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .fixed-reminder-name { font-weight:750; overflow-wrap:anywhere; }
+  .fixed-reminder-meta { color:var(--muted); font-size:12px; margin-top:3px; }
+  .fixed-reminder-amount { font-weight:750; white-space:nowrap; }
+  .fixed-reminder-item form { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .fixed-reminder-item select { flex:1 1 180px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); }
+  .fixed-reminder-item button, .fixed-reminder-footer button { border:0; border-radius:999px; padding:10px 15px; background:var(--positive); color:#fff; font-weight:700; cursor:pointer; }
+  .fixed-reminder-item button:disabled { opacity:.45; cursor:not-allowed; }
+  .fixed-reminder-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
+  .fixed-reminder-footer button { background:var(--surface-alt); color:var(--text); border:1px solid var(--border); }
+  .fixed-reminder-footer a { color:var(--primary); font-size:13px; font-weight:700; text-decoration:none; }
+  .fixed-reminder-chip { position:fixed; z-index:10040; right:16px; bottom:calc(18px + env(safe-area-inset-bottom)); border:0; border-radius:999px; padding:12px 17px; background:var(--primary); color:var(--primary-contrast); box-shadow:0 8px 28px rgba(0,0,0,.2); font-weight:750; cursor:pointer; }
+  @media(max-width:480px) { .fixed-reminder-card { padding:17px; border-radius:18px; } .fixed-reminder-card h2 { font-size:19px; } .fixed-reminder-item form button { width:100%; } }
+</style>
+<div class="fixed-reminder-overlay" id="fixedReminderOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="fixedReminderTitle">
+  <div class="fixed-reminder-card">
+    <h2 id="fixedReminderTitle">Have these transactions happened?</h2>
+    <p class="fixed-reminder-intro">These recurring transactions are due or overdue. Confirm only the ones that actually happened; Minto will add them to your records.</p>
+    <div id="fixedReminderItems"></div>
+    <div class="fixed-reminder-footer">
+      <a href="{{ url_for('fixed_expenses') }}">Manage fixed transactions</a>
+      <button type="button" id="fixedReminderLater">Remind me next time</button>
+    </div>
+  </div>
+</div>
+<button class="fixed-reminder-chip" id="fixedReminderChip" type="button" hidden></button>
+<script>
+(function () {
+  var overlay = document.getElementById('fixedReminderOverlay');
+  var list = document.getElementById('fixedReminderItems');
+  var chip = document.getElementById('fixedReminderChip');
+  var later = document.getElementById('fixedReminderLater');
+  if (!overlay || !list || !chip || !later) return;
+  var pendingCount = 0;
+  function money(value) {
+    try { return new Intl.NumberFormat('en-IN', {style:'currency',currency:'INR',maximumFractionDigits:2}).format(value); }
+    catch (e) { return '₹' + value; }
+  }
+  function dateLabel(iso) {
+    var p = String(iso || '').split('-');
+    if (p.length !== 3) return iso || '';
+    return p[2] + '-' + ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][Number(p[1])-1] + '-' + p[0];
+  }
+  function hideModal() { overlay.hidden = true; if (pendingCount) chip.hidden = false; }
+  function showModal() { overlay.hidden = false; chip.hidden = true; }
+  function make(tag, cls, text) {
+    var el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  }
+  function buildItem(item) {
+    var box = make('div', 'fixed-reminder-item');
+    var head = make('div', 'fixed-reminder-item-head');
+    var detail = make('div');
+    detail.appendChild(make('div', 'fixed-reminder-name', item.name));
+    var kindLabel = item.kind === 'income' ? 'Income expected' : (item.kind === 'investment' ? 'Investment due' : 'Expense due');
+    detail.appendChild(make('div', 'fixed-reminder-meta', kindLabel + ' · due ' + dateLabel(item.due_date)));
+    head.appendChild(detail);
+    head.appendChild(make('div', 'fixed-reminder-amount', money(item.amount)));
+    box.appendChild(head);
+    var form = document.createElement('form');
+    form.method = 'post';
+    form.action = item.kind === 'income' ? '/fixed-income/' + item.id + '/receive' : '/fixed-expenses/' + item.id + '/pay';
+    var select = document.createElement('select');
+    select.name = 'source_id';
+    select.required = true;
+    select.setAttribute('aria-label', item.kind === 'income' ? 'Deposit into account' : 'Pay from account');
+    var placeholder = make('option', '', item.kind === 'income' ? 'Deposit into account' : 'Pay from account');
+    placeholder.value = '';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    select.appendChild(placeholder);
+    (item.accounts || []).forEach(function (account) {
+      var option = make('option', '', account.name);
+      option.value = account.id;
+      if (String(item.source_id || '') === String(account.id)) option.selected = true;
+      select.appendChild(option);
+    });
+    var button = make('button', '', item.kind === 'income' ? 'Confirm received' : 'Mark paid');
+    button.type = 'submit';
+    button.disabled = !(item.accounts || []).length;
+    if (!button.disabled) button.formNoValidate = false;
+    form.appendChild(select);
+    form.appendChild(button);
+    if (!item.accounts || !item.accounts.length) {
+      form.appendChild(make('div', 'fixed-reminder-meta', 'Add a bank or cash account before confirming this transaction.'));
+    }
+    box.appendChild(form);
+    return box;
+  }
+  fetch('/api/fixed-reminders', {credentials:'same-origin', headers:{'Accept':'application/json'}})
+    .then(function (response) { if (!response.ok) throw new Error('reminders unavailable'); return response.json(); })
+    .then(function (data) {
+      var items = Array.isArray(data.items) ? data.items : [];
+      pendingCount = items.length;
+      if (!pendingCount) return;
+      items.forEach(function (item) { list.appendChild(buildItem(item)); });
+      chip.textContent = 'Pending fixed transactions (' + pendingCount + ')';
+      showModal();
+    }).catch(function () {});
+  later.addEventListener('click', hideModal);
+  chip.addEventListener('click', showModal);
+  overlay.addEventListener('click', function (event) { if (event.target === overlay) hideModal(); });
+  document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !overlay.hidden) hideModal(); });
+})();
+</script>
+{% endif %}
+
 </body>
 
 </html>
