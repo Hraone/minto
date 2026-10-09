@@ -2118,7 +2118,9 @@
   .fixed-reminder-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
   .fixed-reminder-footer button { background:var(--surface-alt); color:var(--text); border:1px solid var(--border); }
   .fixed-reminder-footer a { color:var(--primary); font-size:13px; font-weight:700; text-decoration:none; }
-  .fixed-reminder-chip { position:fixed; z-index:10040; right:22px; bottom:24px; width:52px; height:52px; display:flex; align-items:center; justify-content:center; border:0; border-radius:50%; background:var(--primary); color:var(--primary-contrast); box-shadow:0 8px 28px rgba(0,0,0,.24); font-size:21px; font-weight:750; cursor:pointer; }
+  .fixed-reminder-chip { position:fixed; z-index:10040; right:22px; bottom:24px; width:52px; height:52px; display:flex; align-items:center; justify-content:center; border:0; border-radius:50%; background:var(--primary); color:var(--primary-contrast); box-shadow:0 8px 28px rgba(0,0,0,.24); font-size:21px; font-weight:750; cursor:pointer; opacity:0; transform:translateX(24px); visibility:hidden; pointer-events:none; transition:opacity .45s ease, transform .55s cubic-bezier(.22,1,.36,1), visibility 0s linear .55s; }
+  .fixed-reminder-chip.is-visible { opacity:1; transform:translateX(0); visibility:visible; pointer-events:auto; transition:opacity .45s ease, transform .55s cubic-bezier(.22,1,.36,1), visibility 0s; }
+  @media(prefers-reduced-motion:reduce) { .fixed-reminder-chip { transition:none; transform:none; } }
   .fixed-reminder-count { position:absolute; top:-5px; right:-5px; min-width:20px; height:20px; display:flex; align-items:center; justify-content:center; padding:0 4px; border-radius:999px; background:var(--negative); color:#fff; font-size:11px; line-height:1; border:2px solid var(--surface); }
   .fixed-reminder-chip-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
   @media(max-width:480px) {
@@ -2221,6 +2223,10 @@
       /* Keep reminders non-intrusive: show only the bell automatically.
          Open the modal only when the user taps the notification icon. */
       chip.hidden = false;
+      /* Let the bell slide in gently once the pending count is known. */
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () { chip.classList.add('is-visible'); });
+      });
     }).catch(function () {});
   later.addEventListener('click', hideModal);
   chip.addEventListener('click', showModal);
