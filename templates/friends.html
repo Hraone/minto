@@ -91,9 +91,12 @@
     <h2>Find people</h2>
     <p class="friends-card-intro">Your username helps friends find you. Email addresses and account IDs are never used as public search identifiers.</p>
     <div class="username-display" style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;padding:13px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface-subtle);">
-      <div style="min-width:0;">
-        <label style="margin-bottom:5px;">Your username</label>
-        <strong style="display:block;overflow-wrap:anywhere;">{% if username %}@{{ username }}{% else %}Not set yet{% endif %}</strong>
+      <div style="display:flex;align-items:center;gap:12px;min-width:0;">
+        <span class="friend-avatar" style="width:44px;height:44px;"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar if profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
+        <div style="min-width:0;">
+          <label style="margin-bottom:5px;">Your username</label>
+          <strong style="display:block;overflow-wrap:anywhere;">{% if username %}@{{ username }}{% else %}Not set yet{% endif %}</strong>
+        </div>
       </div>
       <button type="button" id="edit-minto-username" class="friend-action secondary" style="flex:none;">Edit</button>
     </div>
