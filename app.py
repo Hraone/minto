@@ -4272,6 +4272,42 @@ def fixed_expenses():
     )
 
 
+@app.route("/fixed-expenses/<int:fixed_expense_id>/edit", methods=["POST"])
+@login_required
+def edit_fixed_expense(fixed_expense_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    rows = (
+        client.table("fixed_expenses").select("id, name")
+        .eq("id", fixed_expense_id).eq("user_id", user_id).eq("active", True)
+        .limit(1).execute().data
+    )
+    if not rows:
+        flash("That fixed transaction could not be found.")
+        return redirect(url_for("fixed_expenses"))
+
+    amount = parse_money(request.form.get("amount"))
+    try:
+        due_day = int(request.form.get("due_day", "").strip())
+    except (TypeError, ValueError):
+        due_day = 0
+
+    if amount is None or amount <= 0 or not 1 <= due_day <= 31:
+        flash("Enter a valid amount and a due day between 1 and 31.")
+        return redirect(url_for("fixed_expenses"))
+
+    try:
+        client.table("fixed_expenses").update({
+            "amount": amount,
+            "due_day": due_day,
+        }).eq("id", fixed_expense_id).eq("user_id", user_id).execute()
+        flash("Updated amount and due date. This applies to future payments; past records are unchanged.")
+    except Exception:
+        app.logger.exception("Could not edit fixed transaction")
+        flash("Couldn't update that fixed transaction. Please try again.")
+    return redirect(url_for("fixed_expenses"))
+
+
 @app.route("/fixed-expenses/<int:fixed_expense_id>/pay", methods=["POST"])
 @login_required
 def pay_fixed_expense(fixed_expense_id):
