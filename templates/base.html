@@ -185,11 +185,8 @@
       font-family: var(--minto-font), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
       color: var(--text);
-      background:
-        radial-gradient(circle at 12% 8%, var(--bg-gradient-1) 0, transparent 32%),
-        radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--positive) 4%, transparent) 0, transparent 26%),
-        linear-gradient(180deg, var(--bg-gradient-2) 0%, var(--background) 58%, var(--bg-gradient-3) 100%);
-      background-attachment: fixed;
+      background: var(--background);
+      background-attachment: scroll;
 
       transition: background 0.25s ease, color 0.25s ease;
 
@@ -282,13 +279,7 @@
       right: 0;
       top: 0;
       height: 2px;
-      background: linear-gradient(
-        90deg,
-        transparent 0%,
-        color-mix(in srgb, var(--positive) 18%, transparent) 18%,
-        color-mix(in srgb, var(--positive) 8%, transparent) 50%,
-        transparent 82%
-      );
+      background: var(--border);
       pointer-events: none;
     }
 
