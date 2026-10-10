@@ -1047,6 +1047,21 @@
       display: block;
     }
 
+    /* Keep profile artwork circular, including when the image is a WebP file. */
+    .user-avatar,
+    .user-avatar img,
+    .user-avatar picture,
+    .user-avatar picture img,
+    .user-avatar .profile-avatar-svg {
+      border-radius: 50% !important;
+      overflow: hidden;
+    }
+    .user-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
     /* Personal <-> Trip: a curtain slides up over the page, the next page
        loads behind it, then the curtain slides away. It doubles as the
        loading indicator while the new mode loads. */
