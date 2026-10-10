@@ -1889,6 +1889,16 @@ def info():
     return render_template("info.html")
 
 
+@app.route("/privacy")
+def privacy_policy():
+    return render_template("privacy.html")
+
+
+@app.route("/terms")
+def terms_conditions():
+    return render_template("terms.html")
+
+
 @app.route("/logout")
 def logout():
     session.clear()
