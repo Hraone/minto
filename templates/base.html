@@ -195,54 +195,6 @@
       overflow-x: hidden;
     }
 
-    /* A very light paper grain / ledger treatment. It stays behind the app
-       chrome so the interface still feels clean rather than decorative. */
-    body::before {
-      content: "";
-      position: fixed;
-      inset: 0;
-      z-index: -2;
-      pointer-events: none;
-      opacity: 0.34;
-      background:
-        repeating-linear-gradient(
-          0deg,
-          transparent 0,
-          transparent 31px,
-          color-mix(in srgb, var(--text) 3%, transparent) 32px
-        ),
-        repeating-linear-gradient(
-          90deg,
-          transparent 0,
-          transparent 31px,
-          color-mix(in srgb, var(--text) 2%, transparent) 32px
-        ),
-        radial-gradient(
-          circle at 20% 20%,
-          color-mix(in srgb, var(--text) 3%, transparent) 0 0.7px,
-          transparent 0.8px
-        );
-      background-size: auto, auto, 7px 7px;
-    }
-
-    /* Faint finance watermark: intentionally subtle, so it reads as a
-       financial notebook / ledger motif instead of looking like a banner. */
-    body::after {
-      content: "₹";
-      position: fixed;
-      right: -34px;
-      bottom: 8vh;
-      z-index: -1;
-      pointer-events: none;
-      font-size: min(34vw, 420px);
-      line-height: 0.8;
-      font-weight: 800;
-      color: var(--positive);
-      opacity: 0.025;
-      transform: rotate(-8deg);
-      user-select: none;
-    }
-
     /* Ledger edge on major cards: a tiny financial-report cue without
        changing the existing Minto card language. */
     .summary-card,
