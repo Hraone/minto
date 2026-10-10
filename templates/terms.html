@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Terms & Conditions · Minto{% endblock %}
+{% block content %}
+<style>
+  .legal-page { max-width: 900px; margin: 0 auto; padding: 34px 22px 64px; }
+  .legal-header { padding-bottom: 22px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .legal-eyebrow { margin: 0 0 8px; color: var(--positive); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .legal-header h1 { margin: 0; color: var(--text); font-size: clamp(30px, 5vw, 42px); letter-spacing: -1px; line-height: 1.15; }
+  .legal-updated { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+  .legal-summary { margin: 20px 0 0; color: var(--text-secondary); font-size: 16px; line-height: 1.7; }
+  .legal-section { margin-top: 28px; }
+  .legal-section h2 { margin: 0 0 9px; color: var(--text); font-size: 19px; letter-spacing: -.25px; }
+  .legal-section p, .legal-section li { color: var(--text-secondary); font-size: 14px; line-height: 1.75; }
+  .legal-section p { margin: 8px 0; }
+  .legal-section ul { padding-left: 22px; margin: 8px 0; }
+  .legal-note { margin-top: 28px; padding: 15px 17px; border: 1px solid var(--border); background: var(--surface-subtle); color: var(--muted); font-size: 13px; line-height: 1.65; }
+  @media (max-width: 600px) { .legal-page { padding: 24px 16px 48px; } }
+</style>
+<main class="legal-page">
+  <header class="legal-header">
+    <p class="legal-eyebrow">Minto · Legal</p>
+    <h1>Terms &amp; Conditions</h1>
+    <p class="legal-updated">Last updated: 10 October 2026</p>
+    <p class="legal-summary">These terms explain the basic conditions for using Minto, a tool for recording personal finances, planning expenses, and organizing shared trip costs. By using the service, you agree to these terms.</p>
+  </header>
+
+  <section class="legal-section">
+    <h2>1. Use of the service</h2>
+    <p>You may use Minto for lawful personal budgeting, record keeping, planning, and trip-expense coordination. You are responsible for the information you enter and for ensuring that your use of the service complies with applicable laws.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>2. Account security</h2>
+    <p>Keep your login credentials confidential and use a secure password. You are responsible for activity carried out through your account, except where applicable law provides otherwise. Notify the service operator if you believe your account has been accessed without permission.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>3. Financial information and calculations</h2>
+    <p>Minto is a record-keeping and planning tool, not a bank, payment processor, tax adviser, investment adviser, or source of professional financial advice. Summaries, forecasts, due dates, splits, and balances depend on the data entered and the application's logic. Check important figures against your actual bank, card, investment, and other official records before acting on them.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>4. Trip sharing</h2>
+    <p>You are responsible for checking the participants and information included in shared trips. Do not share another person's private information unless you have permission or another lawful basis to do so. Participants may rely on shared expense and settlement details, so correct errors promptly.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>5. Acceptable use</h2>
+    <p>You must not misuse the service, attempt unauthorized access, interfere with its operation, submit unlawful or malicious content, abuse other users, or use Minto to violate another person's rights. Do not attempt to bypass access controls or security measures.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>6. Availability and changes</h2>
+    <p>Features may be changed, interrupted, suspended, or discontinued as the service is maintained. We will take reasonable care when making changes, but uninterrupted availability and error-free operation cannot be guaranteed. Keep your own copy of records that are important to you.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>7. Your content</h2>
+    <p>You retain responsibility for the data and content you submit. You give the service permission to host, process, and display that content only as reasonably necessary to provide the features you use, including sharing details with trip participants when you choose to do so.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>8. Third-party services</h2>
+    <p>Minto may depend on external hosting, authentication, storage, or other providers. Their services may be governed by separate terms and may become unavailable or change independently of Minto.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>9. Suspension or termination</h2>
+    <p>Access may be restricted or suspended where reasonably necessary to protect the service, investigate abuse, address security risks, comply with law, or respond to a material breach of these terms. Where practical and appropriate, the service operator may provide notice.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>10. Disclaimers and liability</h2>
+    <p>To the extent permitted by applicable law, Minto is provided on an “as available” basis without a guarantee that it will meet every requirement or be uninterrupted or error-free. Nothing in these terms excludes rights or liability that cannot lawfully be excluded. You remain responsible for verifying important records and decisions.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>11. Changes to these terms</h2>
+    <p>These terms may be revised as the service changes. The date above shows when this page was last updated. Continued use after revised terms are posted means the revised terms apply to future use, to the extent permitted by applicable law.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>12. Applicable law</h2>
+    <p>These terms are subject to the laws that apply to the service operator and the user. The service operator should complete this section with the correct governing law and dispute-resolution details before treating these terms as a final legal agreement.</p>
+  </section>
+
+  <div class="legal-note">This is a general starting point, not legal advice. The service operator should review these terms for the actual business structure, jurisdiction, user base, and applicable consumer and data-protection laws before relying on them as a formal agreement.</div>
+</main>
+{% endblock %}
