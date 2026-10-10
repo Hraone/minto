@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy · Minto{% endblock %}
+{% block content %}
+<style>
+  .legal-page { max-width: 900px; margin: 0 auto; padding: 34px 22px 64px; }
+  .legal-header { padding-bottom: 22px; border-bottom: 1px solid var(--border); margin-bottom: 24px; }
+  .legal-eyebrow { margin: 0 0 8px; color: var(--positive); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .legal-header h1 { margin: 0; color: var(--text); font-size: clamp(30px, 5vw, 42px); letter-spacing: -1px; line-height: 1.15; }
+  .legal-updated { margin: 10px 0 0; color: var(--muted); font-size: 13px; }
+  .legal-summary { margin: 20px 0 0; color: var(--text-secondary); font-size: 16px; line-height: 1.7; }
+  .legal-section { margin-top: 28px; }
+  .legal-section h2 { margin: 0 0 9px; color: var(--text); font-size: 19px; letter-spacing: -.25px; }
+  .legal-section p, .legal-section li { color: var(--text-secondary); font-size: 14px; line-height: 1.75; }
+  .legal-section p { margin: 8px 0; }
+  .legal-section ul { padding-left: 22px; margin: 8px 0; }
+  .legal-note { margin-top: 28px; padding: 15px 17px; border: 1px solid var(--border); background: var(--surface-subtle); color: var(--muted); font-size: 13px; line-height: 1.65; }
+  @media (max-width: 600px) { .legal-page { padding: 24px 16px 48px; } }
+</style>
+<main class="legal-page">
+  <header class="legal-header">
+    <p class="legal-eyebrow">Minto · Legal</p>
+    <h1>Privacy Policy</h1>
+    <p class="legal-updated">Last updated: 10 October 2026</p>
+    <p class="legal-summary">This policy explains what information Minto may handle when you use the service, why it is used, and the choices available to you. Minto helps you record personal finances and manage shared trip expenses.</p>
+  </header>
+
+  <section class="legal-section">
+    <h2>1. Information you provide</h2>
+    <p>Depending on the features you use, Minto may process account and profile details, financial entries you choose to record, account names and balances you enter, recurring commitments, budgets, trip details, expense splits, settlements, and your appearance or app preferences.</p>
+    <p>Please enter only information you need for your own records. Avoid storing bank passwords, card security codes, PINs, or other authentication secrets in notes or transaction descriptions.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>2. How information is used</h2>
+    <p>Information is used to provide the features you request, display your records, calculate summaries and balances, manage trip sharing, maintain your login session, protect the service, and diagnose errors or reliability problems.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>3. Hosting and service providers</h2>
+    <p>Minto relies on third-party infrastructure and service providers to run the application, authenticate users, and store application data. Those providers may process information as needed to deliver their services, under their own terms and privacy practices. Their systems and policies may change over time.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>4. Shared trip information</h2>
+    <p>If you use trip features or share an expense with other participants, relevant trip details, expense amounts, settlement information, and the name or profile details you choose to show may be visible to those participants. Check shared details before submitting them. Do not add information to a shared trip that you expect to remain private.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>5. Cookies and session data</h2>
+    <p>Minto uses browser session cookies to keep you signed in and maintain application state. The application may also use browser storage for interface behavior. Blocking these technologies can prevent some features from working properly.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>6. Retention and deletion</h2>
+    <p>Your records may remain stored while your account is active or as needed to operate the service, resolve disputes, maintain security, or meet applicable legal requirements. This page does not currently provide an automated account-deletion workflow. If you need your account or data deleted, use the support or contact method made available by the service operator; do not send passwords or authentication secrets.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>7. Security</h2>
+    <p>Reasonable technical and organizational measures should be used to protect account and financial records. No website, transmission, or storage system can be guaranteed to be completely secure. Use a unique password, keep your device secure, and sign out on devices you do not control.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>8. Your choices</h2>
+    <p>You decide what financial details to enter and which trip details to share. You can avoid entering optional information. Depending on the features available in your account, you may be able to update profile preferences and records within the app.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>9. Children</h2>
+    <p>Minto is intended for people who can lawfully use a personal finance service in their location. It is not designed for children to use independently.</p>
+  </section>
+
+  <section class="legal-section">
+    <h2>10. Changes to this policy</h2>
+    <p>This policy may be updated when the service or its data practices change. The date at the top indicates when this page was last revised. Continued use after an update means the revised policy will apply to future use, subject to applicable law.</p>
+  </section>
+
+  <div class="legal-note">This page is a general description of the service and is not legal advice. Before relying on it as a formal privacy notice, the service operator should verify the actual data flows, provider settings, retention practices, contact details, and applicable legal requirements.</div>
+</main>
+{% endblock %}
