@@ -2038,7 +2038,7 @@
         if (form.hasAttribute("data-no-loader")) return;
         if (form.target && form.target !== "_self") return;
         var isPost = (form.method || "get").toLowerCase() === "post";
-        showLoader(isPost ? "Saving..." : "Loading...");
+        showLoader(form.getAttribute("data-loader-text") || (isPost ? "Saving..." : "Loading..."));
       });
 
       document.addEventListener("click", function (e) {
