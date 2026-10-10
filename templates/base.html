@@ -1325,6 +1325,22 @@
       .minto-spinner { animation-duration: 2s; }
     }
   
+
+    .nav-link,
+    .nav-link.primary,
+    .tab-link,
+    .mode-toggle,
+    .mode-option {
+      border-radius: 8px !important;
+    }
+    .mode-option { border-radius: 6px !important; }
+    .fixed-reminder-item button,
+    .fixed-reminder-footer button,
+    .fixed-reminder-chip {
+      border-radius: 8px !important;
+    }
+    .fixed-reminder-icon { display: block; flex: none; }
+
     /* Minto visual baseline: calm surfaces, restrained controls, no decorative gradients. */
     body {
       background: var(--background) !important;
@@ -2231,7 +2247,7 @@
     </div>
   </div>
 </div>
-<button class="fixed-reminder-chip" id="fixedReminderChip" type="button" aria-label="Open fixed transaction reminders" title="Fixed transaction reminders" hidden><span aria-hidden="true">🔔</span><span class="fixed-reminder-count" id="fixedReminderCount"></span><span class="fixed-reminder-chip-label">Pending fixed transactions</span></button>
+<button class="fixed-reminder-chip" id="fixedReminderChip" type="button" aria-label="Open fixed transaction reminders" title="Fixed transaction reminders" hidden><svg class="fixed-reminder-icon" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="fixed-reminder-count" id="fixedReminderCount"></span><span class="fixed-reminder-chip-label">Pending fixed transactions</span></button>
 <script>
 (function () {
   var overlay = document.getElementById('fixedReminderOverlay');
