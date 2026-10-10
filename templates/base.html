@@ -1384,7 +1384,33 @@
       }
     }
 
-  </style>
+  
+    .site-footer {
+      width: 100%;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+    }
+    .site-footer-inner {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px 22px;
+      flex-wrap: wrap;
+      font-size: 12px;
+    }
+    .site-footer-brand { color: var(--text); font-weight: 800; }
+    .site-footer-copy { flex: 1 1 220px; }
+    .site-footer-links { display: flex; flex-wrap: wrap; gap: 10px 18px; }
+    .site-footer-links a { color: var(--muted); text-decoration: none; }
+    .site-footer-links a:hover { color: var(--text); text-decoration: underline; }
+    @media (max-width: 600px) {
+      .site-footer-inner { padding: 16px; gap: 10px 16px; }
+      .site-footer-copy { flex-basis: 100%; }
+    }
+</style>
 
 </head>
 
@@ -1572,6 +1598,18 @@
 {% block content %}{% endblock %}
 
 </div>
+
+  <footer class="site-footer" aria-label="Site information">
+    <div class="site-footer-inner">
+      <span class="site-footer-brand">Minto</span>
+      <span class="site-footer-copy">Personal finance and trip expense tracking.</span>
+      <nav class="site-footer-links" aria-label="Legal">
+        <a href="{{ url_for('privacy_policy') }}">Privacy Policy</a>
+        <a href="{{ url_for('terms_conditions') }}">Terms &amp; Conditions</a>
+        <a href="{{ url_for('info') }}">About</a>
+      </nav>
+    </div>
+  </footer>
 
   <div class="mode-veil" id="mode-veil" aria-hidden="true">
     <div class="mode-veil-card">
