@@ -855,13 +855,14 @@
           <span class="preference-label">Classic&nbsp; / &nbsp;Casual</span>
         </div>
         <div class="style-control">
-          <span class="style-side {% if not genz_mode %}selected{% endif %}">Classic</span>
+          <span class="style-side {% if not genz_mode %}selected{% endif %}" id="style-classic-label">Classic</span>
           <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
-            <input type="checkbox" id="style-toggle" {% if genz_mode %}checked{% endif %}>
+            <input type="checkbox" id="style-toggle" role="switch" aria-checked="{{ 'true' if genz_mode else 'false' }}" {% if genz_mode %}checked{% endif %}>
             <span class="style-track"><span class="style-knob"></span></span>
           </label>
-          <span class="style-side {% if genz_mode %}selected{% endif %}">Casual</span>
+          <span class="style-side {% if genz_mode %}selected{% endif %}" id="style-casual-label">Casual</span>
         </div>
+        <p id="style-save-status" class="preference-label" role="status" aria-live="polite" style="margin:8px 0 0;" hidden></p>
       </div>
     </div>
   </div>
@@ -965,36 +966,61 @@
   <script>
     (function () {
       const toggle = document.getElementById('style-toggle');
+      const status = document.getElementById('style-save-status');
+      const classicLabel = document.getElementById('style-classic-label');
+      const casualLabel = document.getElementById('style-casual-label');
       if (!toggle) return;
 
-      document.documentElement.setAttribute('data-genz-mode', toggle.checked ? 'on' : 'off');
+      function applyTone(casual) {
+        document.documentElement.setAttribute('data-genz-mode', casual ? 'on' : 'off');
+        document.documentElement.setAttribute('data-minto-tone', casual ? 'casual' : 'classic');
+        toggle.checked = casual;
+        toggle.setAttribute('aria-checked', casual ? 'true' : 'false');
+        if (classicLabel) classicLabel.classList.toggle('selected', !casual);
+        if (casualLabel) casualLabel.classList.toggle('selected', casual);
+        if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
+      }
+
+      function setStatus(message, failed) {
+        if (!status) return;
+        status.textContent = message;
+        status.hidden = !message;
+        status.style.color = failed ? 'var(--danger, #d9534f)' : 'var(--muted)';
+      }
+
+      applyTone(toggle.checked);
 
       toggle.addEventListener('change', async function () {
         const casual = toggle.checked;
+        const previous = !casual;
         const formData = new FormData();
         formData.append('enabled', casual ? '1' : '0');
 
         toggle.disabled = true;
+        setStatus('Saving preference…', false);
+        applyTone(casual);
 
         try {
           const response = await fetch('{{ url_for("update_profile_genz_mode") }}', {
             method: 'POST',
             body: formData,
             credentials: 'same-origin',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
           });
+          const contentType = response.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            throw new Error('The server did not return a JSON response.');
+          }
           const data = await response.json();
-          if (!response.ok || !data.ok) throw new Error('save failed');
-
-          document.documentElement.setAttribute('data-genz-mode', casual ? 'on' : 'off');
-          document.documentElement.setAttribute('data-minto-tone', casual ? 'casual' : 'classic');
-          document.querySelectorAll('.style-side').forEach(function (label) {
-            label.classList.toggle('selected', (label.textContent.trim() === 'Casual') === casual);
-          });
-          if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
-        } catch (e) {
-          toggle.checked = !casual;
-          alert('Could not save the Minto tone. Please try again.');
+          if (!response.ok || !data.ok || Boolean(data.enabled) !== casual) {
+            throw new Error('The preference was not saved.');
+          }
+          applyTone(casual);
+          setStatus(casual ? 'Casual tone saved.' : 'Classic tone saved.', false);
+        } catch (error) {
+          applyTone(previous);
+          setStatus('Could not save this preference. Please check your connection and try again.', true);
+          console.error('Minto tone preference save failed:', error);
         } finally {
           toggle.disabled = false;
         }

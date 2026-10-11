@@ -153,6 +153,7 @@ def save_genz_mode(client, user_id, enabled):
         }).execute()
         return True
     except Exception:
+        app.logger.exception("Could not save Minto tone preference")
         return False
 
 
