@@ -22,6 +22,12 @@
     display: flex;
     align-items: center;
     gap: 16px;
+    min-width: 0;
+  }
+
+  .profile-head > div {
+    min-width: 0;
+    max-width: 100%;
   }
 
   .profile-avatar {
@@ -64,10 +70,14 @@
   }
 
   .profile-email {
+    display: block;
+    max-width: 100%;
+    min-width: 0;
     margin: 3px 0 0;
     font-size: 13.5px;
     color: var(--muted);
     overflow-wrap: anywhere;
+    word-break: break-word;
   }
 
   .profile-since {
