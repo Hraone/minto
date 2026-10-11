@@ -2291,6 +2291,9 @@
   .fixed-reminder-item form { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
   .fixed-reminder-item select { flex:1 1 180px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); }
   .fixed-reminder-item button, .fixed-reminder-footer button { border:0; border-radius:999px; padding:10px 15px; background:var(--positive); color:#fff; font-weight:700; cursor:pointer; }
+  /* Override the broad global button defaults inside the reminder UI. */
+  .fixed-reminder-overlay button { width:auto; margin-top:0; }
+  .fixed-reminder-chip { margin-top:0; }
   .fixed-reminder-item button:disabled { opacity:.45; cursor:not-allowed; }
   .fixed-reminder-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); }
   .fixed-reminder-footer button { background:var(--surface-alt); color:var(--text); border:1px solid var(--border); }
