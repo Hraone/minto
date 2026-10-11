@@ -251,7 +251,7 @@
     err.hidden = true;
     btn.disabled = true;
     try {
-      var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
+      var sb = window.supabase.createClient({{ supabase_url|tojson }}, {{ supabase_anon_key|tojson }}, {
         auth: {
           persistSession: false,
           autoRefreshToken: false,
