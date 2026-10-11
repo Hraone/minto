@@ -139,6 +139,40 @@
     color: var(--text);
   }
 
+  .category-add-editor {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .category-add-editor input {
+    flex: 1 1 150px;
+    width: auto;
+    min-width: 0;
+    margin: 0;
+    padding: 9px 11px;
+    font-size: 14px;
+  }
+
+  .category-add-editor button {
+    width: auto;
+    margin: 0;
+    padding: 9px 12px;
+    font-size: 13px;
+  }
+
+  .category-add-editor .category-add-status {
+    flex: 1 1 100%;
+    min-width: 0;
+    margin: 0;
+    color: var(--negative);
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
   .empty-source a:hover {
     text-decoration: underline;
   }
@@ -633,58 +667,124 @@ function markRepaid(name, amount) {
 }
 
 function addCategory(kind) {
+  if (kind !== "expense" && kind !== "investment") return;
 
-  // A plain prompt() rather than a custom inline input — this is a rare,
-  // quick action, and it keeps the rest of whatever's already filled in on
-  // this form untouched (a fetch() call, not a page navigation).
+  const container = document.getElementById(kind + "-category-chips");
+  if (!container) return;
 
-  const label = kind === "expense" ? "New expense category" : "New investment category";
-  const name = prompt(label + ":");
-  if (!name || !name.trim()) {
+  const addButton = container.querySelector(".add-category-chip");
+  if (!addButton) return;
+
+  const existingEditor = container.querySelector(".category-add-editor");
+  if (existingEditor) {
+    existingEditor.querySelector("input").focus();
     return;
   }
 
-  const body = new URLSearchParams({ kind: kind, name: name.trim() });
+  const editor = document.createElement("div");
+  editor.className = "category-add-editor";
 
-  fetch("{{ url_for('add_category') }}", { method: "POST", body: body })
-    .then(response => response.json())
-    .then(data => {
-      if (!data.ok) {
-        alert(data.error || "Couldn't add that category.");
+  const input = document.createElement("input");
+  input.type = "text";
+  input.maxLength = 60;
+  input.autocomplete = "off";
+  input.placeholder = "Category name";
+  input.setAttribute("aria-label", kind === "expense" ? "New expense category name" : "New investment category name");
+
+  const saveButton = document.createElement("button");
+  saveButton.type = "button";
+  saveButton.textContent = "Save";
+
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.className = "button-secondary";
+  cancelButton.textContent = "Cancel";
+
+  const status = document.createElement("p");
+  status.className = "category-add-status";
+  status.setAttribute("role", "status");
+  status.setAttribute("aria-live", "polite");
+  status.hidden = true;
+
+  editor.append(input, saveButton, cancelButton, status);
+  container.insertBefore(editor, addButton.nextSibling);
+
+  function closeEditor() {
+    editor.remove();
+    addButton.focus();
+  }
+
+  async function saveCategory() {
+    const name = input.value.trim();
+    if (!name) {
+      status.textContent = "Enter a category name.";
+      status.hidden = false;
+      input.focus();
+      return;
+    }
+
+    saveButton.disabled = true;
+    status.hidden = true;
+
+    try {
+      const body = new URLSearchParams({ kind: kind, name: name });
+      const response = await fetch("{{ url_for('add_category') }}", {
+        method: "POST",
+        body: body,
+        headers: { "Accept": "application/json" }
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        status.textContent = data.error || "Couldn't add that category. Please try again.";
+        status.hidden = false;
         return;
       }
 
-      const container = document.getElementById(kind + "-category-chips");
-      const addButton = container.querySelector(".add-category-chip");
-
-      // If it already existed (e.g. added earlier from another device),
-      // don't create a duplicate chip — just select the existing one.
-      const existing = container.querySelector('input[value="' + CSS.escape(data.name) + '"]');
+      const radios = Array.from(container.querySelectorAll('input[type="radio"]'));
+      const existing = radios.find(radio => radio.value === data.name);
       if (existing) {
         existing.checked = true;
+        editor.remove();
+        existing.focus();
         return;
       }
 
-      const label = document.createElement("label");
-      label.className = "chip";
+      const chipLabel = document.createElement("label");
+      chipLabel.className = "chip";
 
-      const input = document.createElement("input");
-      input.type = "radio";
-      input.name = kind + "_category";
-      input.value = data.name;
-      input.checked = true;
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = kind + "_category";
+      radio.value = data.name;
+      radio.checked = true;
 
-      const displayName = data.name.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+      chipLabel.append(radio, document.createTextNode(" " + data.name.replace(/_/g, " ").replace(/\b\w/g, character => character.toUpperCase())));
+      container.insertBefore(chipLabel, editor);
+      editor.remove();
+      radio.focus();
+    } catch (error) {
+      status.textContent = "Couldn't add that category. Please try again.";
+      status.hidden = false;
+    } finally {
+      if (editor.isConnected) saveButton.disabled = false;
+    }
+  }
 
-      label.appendChild(input);
-      label.appendChild(document.createTextNode(" " + displayName));
+  saveButton.addEventListener("click", saveCategory);
+  cancelButton.addEventListener("click", closeEditor);
+  input.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      saveCategory();
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      closeEditor();
+    }
+  });
 
-      container.insertBefore(label, addButton);
-    })
-    .catch(() => {
-      alert("Couldn't add that category. Please try again.");
-    });
-
+  input.focus();
+}
 }
 
 </script>
