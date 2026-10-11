@@ -84,6 +84,10 @@ TRIP_MODE_ENDPOINTS = {
     "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
     "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
     "record_trip_settlement_receipt", "linked_transaction",
+    # Friends is available in Trip mode, so its form handlers must also be
+    # allowed here; otherwise POSTs silently redirect to trip_home before
+    # the username or friend-request changes can be saved.
+    "update_profile_username", "send_friend_request", "respond_friend_request", "remove_minto_friend",
     "logout", "login", "signup", "favicon", "health", "static",
     "service_worker", "web_manifest",
 }
