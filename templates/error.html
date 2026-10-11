@@ -40,7 +40,7 @@
 
   .error-actions a {
     padding: 11px 20px;
-    border-radius: 999px;
+    border-radius: 8px;
     text-decoration: none;
     font-size: 14px;
     font-weight: 600;
@@ -57,7 +57,7 @@
 </style>
 
 <div class="error-page">
-  <div class="error-code">{{ code }}</div>
+  <div class="error-code" role="status" aria-label="Error {{ code }}">{{ code }}</div>
   <h2>{{ "That page isn't here" if code == 404 else title }}</h2>
   <p>
     {% if code == 404 %}
