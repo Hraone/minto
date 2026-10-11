@@ -414,7 +414,8 @@
             type="button"
             class="chip"
             style="cursor:pointer; font:inherit; color:inherit;"
-            onclick="markRepaid('{{ person.name|e }}', {{ person.amount }})"
+            data-person-name="{{ person.name }}"
+            data-person-amount="{{ person.amount }}"
           >
             {{ person.name }} · {{ (person.amount)|inr }}
           </button>
@@ -606,6 +607,13 @@ function toggleSourceType() {
 
 document.addEventListener("DOMContentLoaded", toggleSubCategory);
 document.addEventListener("DOMContentLoaded", toggleSourceType);
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll("[data-person-name][data-person-amount]").forEach(function (button) {
+    button.addEventListener("click", function () {
+      markRepaid(button.dataset.personName, Number(button.dataset.personAmount));
+    });
+  });
+});
 
 function markRepaid(name, amount) {
 
