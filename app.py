@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone, date
 import calendar
 import random
 from email.message import EmailMessage
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, Response
 from supabase import create_client, Client
@@ -40,6 +41,45 @@ app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "1") != "0"
+
+
+
+@app.before_request
+def validate_unsafe_request_origin():
+    """Reject cross-origin state-changing browser requests.
+
+    The app uses SameSite=Lax session cookies, but also validates request
+    origin for unsafe methods so cookie policy is not the only CSRF defense.
+    """
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return None
+
+    fetch_site = request.headers.get("Sec-Fetch-Site", "").strip().lower()
+    if fetch_site == "cross-site":
+        return "Cross-site request blocked.", 403
+
+    origin = request.headers.get("Origin")
+    if not origin:
+        # Some browsers omit Origin on form submissions; accept a same-host
+        # Referer instead. If both headers are absent, only an explicit
+        # same-origin Fetch Metadata header is sufficient.
+        origin = request.headers.get("Referer")
+        if not origin and fetch_site == "same-origin":
+            return None
+        if not origin:
+            return "Request origin could not be verified.", 403
+
+    try:
+        parsed_origin = urlsplit(origin)
+        if parsed_origin.scheme not in {"http", "https"} or not parsed_origin.netloc:
+            raise ValueError("Invalid origin")
+    except (TypeError, ValueError):
+        return "Request origin could not be verified.", 403
+
+    if parsed_origin.netloc.lower() != request.host.lower():
+        return "Cross-origin request blocked.", 403
+
+    return None
 
 
 @app.after_request
