@@ -63,7 +63,18 @@
   }
 
   @media (max-width: 999px) {
-    .dash-wrapper { padding: 8px 16px 44px; }
+    /* The shared app container already provides side gutters. Avoid doubling
+       them on phones, where the dashboard otherwise feels cramped. */
+    .dash-wrapper { width: 100%; max-width: 100%; padding: 8px 0 44px; }
+    .dashboard-actions { flex-wrap: wrap; max-width: 100%; }
+    .dashboard-actions > * { max-width: 100%; }
+  }
+
+  @media (max-width: 480px) {
+    .dash-header { gap: 12px; margin-bottom: 20px; }
+    .dash-header h2 { font-size: 25px; }
+    .net-worth-action,
+    .download-report-btn { white-space: normal; text-align: center; }
   }
 
   .dash-header {
