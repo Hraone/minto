@@ -1969,50 +1969,7 @@
       if (b) b.setAttribute("aria-expanded", "false");
     }
 
-    function toggleAccountsMenu(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var sheet = document.getElementById("accountsSheet");
-      var btn = event.currentTarget;
-      var open = sheet.hasAttribute("hidden");
-      if (open) { sheet.removeAttribute("hidden"); } else { sheet.setAttribute("hidden", ""); }
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-
-    function closeAccountsMenu() {
-      var menu = document.getElementById("accountsMenu");
-      var sheet = document.getElementById("accountsSheet");
-      if (!menu || !sheet || sheet.hasAttribute("hidden")) return;
-      sheet.setAttribute("hidden", "");
-      var b = menu.querySelector(".tab-link");
-      if (b) b.setAttribute("aria-expanded", "false");
-    }
-
-    function toggleTransfersMenu(event) {
-      event.preventDefault();
-      event.stopPropagation();
-      var sheet = document.getElementById("transfersSheet");
-      var btn = event.currentTarget;
-      var open = sheet.hasAttribute("hidden");
-      if (open) { sheet.removeAttribute("hidden"); } else { sheet.setAttribute("hidden", ""); }
-      btn.setAttribute("aria-expanded", open ? "true" : "false");
-    }
-
     document.addEventListener("click", function (e) {
-      var menu = document.getElementById("transfersMenu");
-      var sheet = document.getElementById("transfersSheet");
-      if (menu && sheet && !sheet.hasAttribute("hidden") && !menu.contains(e.target)) {
-        sheet.setAttribute("hidden", "");
-        var b = menu.querySelector(".tab-link");
-        if (b) b.setAttribute("aria-expanded", "false");
-      }
-
-      var accounts = document.getElementById("accountsMenu");
-      var accountSheet = document.getElementById("accountsSheet");
-      if (accounts && accountSheet && !accountSheet.hasAttribute("hidden") && !accounts.contains(e.target)) {
-        closeAccountsMenu();
-      }
-
       var more = document.getElementById("moreMenu");
       var moreSheet = document.getElementById("moreSheet");
       if (more && moreSheet && !moreSheet.hasAttribute("hidden") && !more.contains(e.target)) {
