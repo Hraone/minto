@@ -745,8 +745,30 @@
       transform: scale(0.97);
     }
 
-    .chip input {
-      display: none;
+    /* Keep chip radios/checkboxes focusable and available to native form validation.
+       Visually hide the control without removing it from keyboard navigation. */
+    .chip {
+      position: relative;
+    }
+
+    .chip input[type="radio"],
+    .chip input[type="checkbox"] {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+      border: 0;
+      opacity: 0;
+    }
+
+    .chip:focus-within {
+      outline: 3px solid var(--primary);
+      outline-offset: 3px;
     }
 
     .chip:has(input:checked) {
