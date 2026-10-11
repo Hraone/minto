@@ -193,6 +193,7 @@
       type="email"
       id="email"
       name="email"
+      value="{{ request.form.get('email', '')|e }}"
       placeholder="you@example.com"
       autocomplete="email"
       required
