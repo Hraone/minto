@@ -1872,15 +1872,19 @@
 
   <script>
     function toggleNavAccounts(event) {
-      event.preventDefault();
-      event.stopPropagation();
       var menu = document.getElementById("navAccountsMenu");
       var trigger = event.currentTarget;
+      if (!menu) return;
       var opening = menu.hasAttribute("hidden");
+      // First activation opens the menu; activating the parent link again
+      // follows its href to the Accounts page.
+      if (!opening) return;
+      event.preventDefault();
+      event.stopPropagation();
       closeNavTransfers();
       closeNavProfile();
-      if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
-      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+      menu.removeAttribute("hidden");
+      trigger.setAttribute("aria-expanded", "true");
     }
 
     function closeNavAccounts() {
@@ -1914,13 +1918,17 @@
     }
 
     function toggleNavTransfers(event) {
-      event.preventDefault();
-      event.stopPropagation();
       var menu = document.getElementById("navTransfersMenu");
       var trigger = event.currentTarget;
+      if (!menu) return;
       var opening = menu.hasAttribute("hidden");
-      if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
-      trigger.setAttribute("aria-expanded", opening ? "true" : "false");
+      // First activation opens the menu; activating the parent link again
+      // follows its href to the Card Payment page.
+      if (!opening) return;
+      event.preventDefault();
+      event.stopPropagation();
+      menu.removeAttribute("hidden");
+      trigger.setAttribute("aria-expanded", "true");
     }
 
     function closeNavTransfers() {
