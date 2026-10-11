@@ -120,6 +120,9 @@
     color: var(--text);
   }
 
+  .reports-history li > div { min-width: 0; overflow-wrap: anywhere; }
+  .reports-history li a { white-space: normal; overflow-wrap: anywhere; text-align: right; }
+
   .reports-history li + li {
     border-top: 1px solid var(--border);
   }
@@ -222,7 +225,8 @@
   <div class="reports-card">
     <h3>Recent downloads</h3>
     <ul class="reports-history" id="report-history"></ul>
-    <p class="reports-empty" id="report-history-empty" hidden>No reports yet.</p>
+    <p class="reports-empty" id="report-history-empty" role="status" aria-live="polite" hidden>No reports yet.</p>
+    <p class="reports-empty" id="report-history-error" role="alert" hidden>Report history could not be loaded. Check your connection and try again.</p>
     <button type="button" class="reports-show-more" id="report-history-more" hidden>Show more</button>
   </div>
 
@@ -234,6 +238,7 @@
   var toEl = document.getElementById("to");
   var list = document.getElementById("report-history");
   var empty = document.getElementById("report-history-empty");
+  var historyError = document.getElementById("report-history-error");
   var more = document.getElementById("report-history-more");
   var form = document.getElementById("report-form");
   var historyOffset = 0;
@@ -244,6 +249,23 @@
     return d.getFullYear() + "-" + m + "-" + day;
   }
 
+  function syncDateBounds() {
+    toEl.min = fromEl.value || "";
+    fromEl.max = toEl.value || "";
+  }
+  fromEl.addEventListener("change", syncDateBounds);
+  toEl.addEventListener("change", syncDateBounds);
+  form.addEventListener("submit", function (event) {
+    syncDateBounds();
+    if (fromEl.value && toEl.value && fromEl.value > toEl.value) {
+      event.preventDefault();
+      toEl.setCustomValidity("End date must be on or after the start date.");
+      toEl.reportValidity();
+    } else {
+      toEl.setCustomValidity("");
+    }
+  });
+  toEl.addEventListener("input", function () { toEl.setCustomValidity(""); });
   document.querySelectorAll(".reports-preset").forEach(function (btn) {
     btn.addEventListener("click", function () {
       var now = new Date();
@@ -261,6 +283,8 @@
       }
       fromEl.value = iso(from);
       toEl.value = iso(to);
+      toEl.setCustomValidity("");
+      syncDateBounds();
     });
   });
 
@@ -297,6 +321,7 @@
   }
 
   function applyHistory(data, append) {
+    historyError.hidden = true;
     var payload = data || {};
     var items = Array.isArray(payload.items) ? payload.items : [];
     if (!append) {
@@ -309,9 +334,9 @@
 
   function refresh() {
     fetch("{{ url_for('reports_history') }}?offset=0", { credentials: "same-origin" })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (data) { if (data) applyHistory(data, false); })
-      .catch(function () {});
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(new Error("history unavailable")); })
+      .then(function (data) { applyHistory(data, false); })
+      .catch(function () { historyError.hidden = false; });
   }
 
   function loadMore() {
