@@ -1433,53 +1433,9 @@
     .site-footer-links a { color: var(--muted); text-decoration: none; }
     .site-footer-links a:hover { color: var(--text); text-decoration: underline; }
     @media (max-width: 600px) {
-      /* Keep legal/help links reachable above the fixed mobile tab bar. */
-      .site-footer {
-        position: fixed;
-        left: 0;
-        right: 0;
-        bottom: calc(66px + env(safe-area-inset-bottom, 0px));
-        z-index: 19;
-        width: 100%;
-        border-top: 1px solid var(--border);
-        background: var(--surface-translucent);
-        -webkit-backdrop-filter: blur(14px);
-        backdrop-filter: blur(14px);
-        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.12);
-      }
-
-      .site-footer-inner {
-        padding: 10px 14px;
-        gap: 0;
-        justify-content: center;
-      }
-
-      .site-footer-brand,
-      .site-footer-copy {
-        display: none;
-      }
-
-      .site-footer-links {
-        width: 100%;
-        justify-content: space-between;
-        align-items: center;
-        gap: 8px 14px;
-      }
-
-      .site-footer-links a {
-        min-height: 36px;
-        display: inline-flex;
-        align-items: center;
-        font-size: 12px;
-        white-space: nowrap;
-      }
-
-      /* Leave enough scroll room so the fixed footer never hides the last card. */
-      .app-container {
-        padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px));
-      }
+      .site-footer-inner { padding: 16px; gap: 10px 16px; }
+      .site-footer-copy { flex-basis: 100%; }
     }
-
     /* Shared responsive and accessibility guardrails. These are additive:
        page-specific layouts and business logic remain unchanged. */
     html, body {
