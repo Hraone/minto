@@ -234,11 +234,9 @@
 
   <div class="form-section">
 
-    <label class="form-label">
-      Direction
-    </label>
+    <div class="form-label" id="direction-group-label">Direction</div>
 
-    <div class="chip-group">
+    <div class="chip-group" role="radiogroup" aria-labelledby="direction-group-label">
 
       <label class="chip">
         <input
@@ -269,11 +267,11 @@
 
   <div class="form-section">
 
-    <label class="form-label">
+    <div class="form-label" id="transaction-type-group-label">
       Transaction type <span style="font-weight:400; color:var(--muted-2);">(required)</span>
-    </label>
+    </div>
 
-    <div class="chip-group">
+    <div class="chip-group" role="radiogroup" aria-labelledby="transaction-type-group-label">
 
       {% for c in ["expense", "income", "investment", "lending", "transfer"] %}
 
@@ -304,11 +302,11 @@
       class="expense-block"
     >
 
-      <label class="form-label">
+      <div class="form-label" id="expense-category-group-label">
         Expense category <span style="font-weight:400; color:var(--muted-2);">(required)</span>
-      </label>
+      </div>
 
-      <div class="chip-group" id="expense-category-chips">
+      <div class="chip-group" id="expense-category-chips" role="radiogroup" aria-labelledby="expense-category-group-label">
 
         {% for ec in expense_categories %}
 
@@ -341,11 +339,11 @@
       style="display: none;"
     >
 
-      <label class="form-label">
+      <div class="form-label" id="investment-category-group-label">
         Investment category <span style="font-weight:400; color:var(--muted-2);">(required)</span>
-      </label>
+      </div>
 
-      <div class="chip-group" id="investment-category-chips">
+      <div class="chip-group" id="investment-category-chips" role="radiogroup" aria-labelledby="investment-category-group-label">
 
         {% for ic in investment_categories %}
 
@@ -434,13 +432,13 @@
 
   <div class="form-section">
 
-    <label class="form-label">
+    <div class="form-label" id="account-group-label">
       Account <span style="font-weight:400; color:var(--muted-2);">(required)</span>
-    </label>
+    </div>
 
     {% if savings_sources or cc_sources %}
 
-    <div class="chip-group">
+    <div class="chip-group" role="radiogroup" aria-labelledby="account-group-label">
       <label class="chip">
         <input type="radio" name="source_type_filter" value="savings" checked onclick="toggleSourceType()">
         Cash / Bank
@@ -454,7 +452,7 @@
     <div id="savings-source-block" class="expense-block" style="margin-top: 12px;">
 
       {% if savings_sources %}
-      <div class="chip-group">
+      <div class="chip-group" role="radiogroup" aria-label="Cash and bank accounts">
         {% for s in savings_sources %}
         <label class="chip">
           <input type="radio" name="source_id" value="{{ s.id }}" {% if loop.first %}required{% endif %}>
@@ -474,7 +472,7 @@
     <div id="cc-source-block" class="expense-block" style="margin-top: 12px; display: none;">
 
       {% if cc_sources %}
-      <div class="chip-group">
+      <div class="chip-group" role="radiogroup" aria-label="Credit card accounts">
         {% for s in cc_sources %}
         <label class="chip">
           <input type="radio" name="source_id" value="{{ s.id }}" {% if loop.first %}required{% endif %}>
