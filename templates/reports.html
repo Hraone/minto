@@ -347,7 +347,7 @@
       .then(function (data) {
         if (data) applyHistory(data, true);
       })
-      .catch(function () {})
+      .catch(function () { historyError.hidden = false; })
       .finally(function () {
         more.disabled = false;
         more.textContent = "Show more";
@@ -359,7 +359,10 @@
   // The file goes straight to the device and the page stays put, so the
   // history list is refreshed a moment after the download starts.
   function scheduleRefresh() { setTimeout(refresh, 1800); }
-  form.addEventListener("submit", scheduleRefresh);
+  form.addEventListener("submit", function (event) {
+    if (event.defaultPrevented) return;
+    scheduleRefresh();
+  });
 
   // base.html defines formatMintoDate after this content block. Render the
   // initial server-provided history on window load so the date helper exists.
