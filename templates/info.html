@@ -45,7 +45,7 @@
   .about-wide { padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-subtle); }
   .about-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 24px; margin: 0; padding: 0; list-style: none; }
   .about-list li { position: relative; padding-left: 20px; color: var(--muted); font-size: 14px; line-height: 1.6; }
-  .about-list li::before { content: "✓"; position: absolute; left: 0; color: var(--text); font-weight: 900; }
+  .about-list li::before { content: ""; position: absolute; left: 2px; top: .48em; width: 5px; height: 9px; border: solid var(--text); border-width: 0 2px 2px 0; transform: rotate(45deg); }
 
   .about-modes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 15px; }
   .mode-card { padding: 24px; border: 1px solid var(--border); border-radius: 18px; background: var(--surface-translucent); }
