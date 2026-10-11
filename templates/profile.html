@@ -107,6 +107,21 @@
     display: block;
   }
 
+
+  /* Keep the avatar artwork and its frame circular on every screen size. */
+  .profile-avatar-button {
+    border-radius: 50%;
+    overflow: hidden;
+    isolation: isolate;
+  }
+  .profile-avatar-button .profile-avatar-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+
   .profile-avatar-button:hover {
     transform: scale(1.03);
     box-shadow: 0 6px 18px var(--shadow-soft);
