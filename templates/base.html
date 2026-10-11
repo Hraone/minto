@@ -2373,8 +2373,22 @@
     if (p.length !== 3) return iso || '';
     return p[2] + '-' + ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][Number(p[1])-1] + '-' + p[0];
   }
-  function hideModal() { overlay.hidden = true; if (pendingCount) chip.hidden = false; }
-  function showModal() { overlay.hidden = false; chip.hidden = true; }
+  function getDialogFocusables() {
+    return Array.from(overlay.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+      .filter(function (el) { return !el.hidden && el.getAttribute('aria-hidden') !== 'true' && el.getClientRects().length > 0; });
+  }
+  function hideModal() {
+    overlay.hidden = true;
+    if (pendingCount) chip.hidden = false;
+    if (!chip.hidden) chip.focus();
+  }
+  function showModal() {
+    overlay.hidden = false;
+    chip.hidden = true;
+    var focusables = getDialogFocusables();
+    if (focusables.length) focusables[0].focus();
+    else overlay.querySelector('.fixed-reminder-card').setAttribute('tabindex', '-1'), overlay.querySelector('.fixed-reminder-card').focus();
+  }
   function make(tag, cls, text) {
     var el = document.createElement(tag);
     if (cls) el.className = cls;
@@ -2441,7 +2455,29 @@
   later.addEventListener('click', hideModal);
   chip.addEventListener('click', showModal);
   overlay.addEventListener('click', function (event) { if (event.target === overlay) hideModal(); });
-  document.addEventListener('keydown', function (event) { if (event.key === 'Escape' && !overlay.hidden) hideModal(); });
+  overlay.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      hideModal();
+      return;
+    }
+    if (event.key !== 'Tab') return;
+    var focusables = getDialogFocusables();
+    if (!focusables.length) {
+      event.preventDefault();
+      overlay.querySelector('.fixed-reminder-card').focus();
+      return;
+    }
+    var first = focusables[0];
+    var last = focusables[focusables.length - 1];
+    if (event.shiftKey && (document.activeElement === first || document.activeElement === overlay.querySelector('.fixed-reminder-card'))) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
 })();
 </script>
 {% endif %}
