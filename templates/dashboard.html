@@ -1168,6 +1168,17 @@ document.addEventListener("DOMContentLoaded", function () {
   {% endif %}
 
   
+  <button
+    type="button"
+    class="wealth-reveal-toggle"
+    id="wealth-reveal-toggle"
+    aria-expanded="false"
+    aria-controls="wealth-section"
+  >
+    <span>Net worth &amp; monthly commitments</span>
+    <span class="wealth-reveal-chevron" aria-hidden="true">⌄</span>
+  </button>
+
   <div class="wealth-section is-hidden" id="wealth-section" hidden>
 
     {% if wealth_unlocked %}
@@ -1473,6 +1484,19 @@ document.addEventListener("DOMContentLoaded", function () {
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
+  var wealthButton = document.getElementById("wealth-reveal-toggle");
+  var wealthSection = document.getElementById("wealth-section");
+  if (wealthButton && wealthSection) {
+    wealthButton.addEventListener("click", function () {
+      var expanded = wealthButton.getAttribute("aria-expanded") === "true";
+      wealthButton.setAttribute("aria-expanded", String(!expanded));
+      wealthSection.hidden = expanded;
+      wealthSection.classList.toggle("is-hidden", expanded);
+      wealthButton.querySelector("span:first-child").textContent =
+        expanded ? "Net worth & monthly commitments" : "Hide net worth & monthly commitments";
+    });
+  }
+
   var ccButton = document.getElementById("cc-toggle");
   var ccDetails = document.getElementById("cc-details");
   var ccSection = document.getElementById("cc-section");
