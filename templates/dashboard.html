@@ -1415,7 +1415,12 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="chart-card">
       <h3>Expenses by category</h3>
       {% if expense_labels %}
-      <canvas id="categoryChart" height="220"></canvas>
+      <canvas id="categoryChart" height="220" role="img" aria-label="Pie chart showing expenses by category. A text summary follows.">Expenses by category chart.</canvas>
+      <ul class="chart-text-summary" aria-label="Expense totals by category" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+        {% for label in expense_labels %}
+        <li>{{ label }}: {{ expense_values[loop.index0]|inr }}</li>
+        {% endfor %}
+      </ul>
       {% else %}
       <div class="chart-empty">No expenses recorded in this period.</div>
       {% endif %}
@@ -1424,7 +1429,12 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="chart-card">
       <h3>Spend by account</h3>
       {% if source_labels %}
-      <canvas id="sourceChart" height="220"></canvas>
+      <canvas id="sourceChart" height="220" role="img" aria-label="Bar chart showing spending by account. A text summary follows.">Spend by account chart.</canvas>
+      <ul class="chart-text-summary" aria-label="Spending totals by account" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
+        {% for label in source_labels %}
+        <li>{{ label }}: {{ source_values[loop.index0]|inr }}</li>
+        {% endfor %}
+      </ul>
       {% else %}
       <div class="chart-empty">No outgoing transactions with an account in this period.</div>
       {% endif %}
