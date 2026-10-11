@@ -20,7 +20,10 @@
     background:var(--positive); color:#fff; font:inherit; font-size:13px; font-weight:700; cursor:pointer; }
   .budget-row { padding:13px 0; border-top:1px solid var(--border); }
   .budget-row:first-child { border-top:0; }
-  .budget-row-top { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+  .budget-row-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; min-width:0; }
+  .budget-row-top > div { min-width:0; overflow-wrap:anywhere; }
+  .budget-row-top > strong { flex:0 0 auto; overflow-wrap:anywhere; text-align:right; }
+  .budget-row-bottom { flex-wrap:wrap; }
   .budget-name { font-size:13px; font-weight:700; color:var(--text); }
   .budget-meta { font-size:11px; color:var(--muted); }
   .budget-bar { height:7px; margin-top:9px; border-radius:999px; background:var(--surface-alt); overflow:hidden; }
@@ -73,7 +76,7 @@
           </div>
           <strong class="tnum">{{ b.remaining|inr if b.remaining >= 0 else ('−' ~ ((-b.remaining)|inr)) }}</strong>
         </div>
-        <div class="budget-bar">
+        <div class="budget-bar" role="progressbar" aria-label="{{ b.category|replace('_',' ')|title }} budget used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ [b.percent,100]|min }}" aria-valuetext="{{ b.percent }}% used">
           <div class="budget-fill {{ 'over' if b.percent > 100 else '' }}" style="width: {{ [b.percent,100]|min }}%;"></div>
         </div>
         <div class="budget-row-bottom">
@@ -90,7 +93,7 @@
       </div>
       {% endfor %}
     {% else %}
-      <p class="budget-empty">No budgets set yet. Start with Food, Shopping or Travel.</p>
+      <div class="budget-empty" role="status"><p style="margin:0 0 8px;">No budgets set yet.</p><p style="margin:0;">Start with a category you want to keep an eye on, such as Food, Shopping or Travel.</p></div>
     {% endif %}
   </div>
 </div>
