@@ -224,8 +224,12 @@
       class="minto-date-input"
       value="{{ today }}"
       autocomplete="off"
+      aria-describedby="transaction-date-format-note"
       required
     >
+    <p id="transaction-date-format-note" class="form-help" style="margin:6px 0 0;color:var(--muted);font-size:12px;">
+      This native date picker follows your device's date format. The saved transaction date remains consistent in Minto's records.
+    </p>
 
   </div>
 
