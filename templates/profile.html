@@ -5,9 +5,51 @@
 {% block content %}
 <style>
   .profile-page {
+    width: 100%;
     max-width: 1180px;
+    min-width: 0;
+    box-sizing: border-box;
     margin: 0 auto;
     padding: 28px 16px 60px;
+  }
+
+  .profile-page,
+  .profile-page * {
+    box-sizing: border-box;
+  }
+
+  .profile-page .profile-card,
+  .profile-page .profile-head,
+  .profile-page .profile-head > div {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .profile-page .profile-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .profile-page .profile-stat {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 600px) {
+    .profile-page {
+      padding: 18px 12px 40px;
+    }
+
+    .profile-page .profile-card {
+      padding: 16px;
+    }
+
+    .profile-page .profile-head {
+      gap: 12px;
+    }
+
+    .profile-page .profile-stats {
+      gap: 8px;
+    }
   }
 
   .profile-card {
@@ -112,12 +154,19 @@
   .profile-avatar-button {
     appearance: none;
     -webkit-appearance: none;
+    display: block;
     box-sizing: border-box;
+    flex: 0 0 64px;
+    width: 64px;
+    min-width: 64px;
+    height: 64px;
+    border: 0 !important;
     border-radius: 50% !important;
     overflow: hidden;
     isolation: isolate;
-    background: transparent;
-    padding: 0;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
     clip-path: circle(50% at 50% 50%);
   }
   .profile-avatar-button > .profile-avatar-svg {
