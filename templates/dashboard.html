@@ -1469,8 +1469,8 @@ document.addEventListener("DOMContentLoaded", function () {
 </div>
 
 <div class="csv-filter-overlay" id="csv-filter-overlay" hidden>
-  <form class="csv-filter-card" method="get" action="{{ url_for('download_transactions_csv') }}">
-    <div class="csv-filter-header"><h3>Download transactions</h3><button type="button" id="close-csv-filters" aria-label="Close">×</button></div>
+  <form class="csv-filter-card" role="dialog" aria-modal="true" aria-labelledby="csv-filter-title" tabindex="-1" method="get" action="{{ url_for('download_transactions_csv') }}">
+    <div class="csv-filter-header"><h3 id="csv-filter-title">Download transactions</h3><button type="button" id="close-csv-filters" aria-label="Close">×</button></div>
     <p>Choose a date range and optional filters. Minto will download matching transactions as a CSV file.</p>
     <div class="csv-filter-grid">
       <label>From date<input type="date" name="from" value="{{ report_from }}" required></label>
@@ -1511,11 +1511,46 @@ document.addEventListener("DOMContentLoaded", function () {
   var openCsv = document.getElementById("open-csv-filters");
   var closeCsv = document.getElementById("close-csv-filters");
   var cancelCsv = document.getElementById("cancel-csv-filters");
-  function closeFilters() { if (overlay) overlay.hidden = true; }
-  if (openCsv && overlay) openCsv.addEventListener("click", function () { overlay.hidden = false; });
+  function closeFilters() {
+    if (!overlay || overlay.hidden) return;
+    overlay.hidden = true;
+    if (openCsv) openCsv.focus();
+  }
+  function openFilters() {
+    if (!overlay) return;
+    overlay.hidden = false;
+    var firstField = overlay.querySelector('input, select, button');
+    if (firstField) firstField.focus();
+  }
+  if (openCsv && overlay) openCsv.addEventListener("click", openFilters);
   if (closeCsv) closeCsv.addEventListener("click", closeFilters);
   if (cancelCsv) cancelCsv.addEventListener("click", closeFilters);
-  if (overlay) overlay.addEventListener("click", function (e) { if (e.target === overlay) closeFilters(); });
+  if (overlay) {
+    overlay.addEventListener("click", function (e) { if (e.target === overlay) closeFilters(); });
+    overlay.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeFilters();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      var focusable = Array.from(overlay.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'))
+        .filter(function (el) { return el.offsetParent !== null; });
+      if (!focusable.length) {
+        e.preventDefault();
+        return;
+      }
+      var first = focusable[0];
+      var last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    });
+  }
 });
 </script>
 
