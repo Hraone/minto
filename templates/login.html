@@ -43,7 +43,7 @@
   [data-theme="dark"] .login-icon .icon-light { display: none; }
   [data-theme="dark"] .login-icon .icon-dark { display: block; }
 
-  .login-header h2 {
+  .login-header h1.page-title {
     margin: 0;
     font-size: 30px;
     font-weight: 700;
@@ -176,7 +176,7 @@
       border-radius: 20px;
     }
 
-    .login-header h2 {
+    .login-header h1.page-title {
       font-size: 26px;
     }
   }
@@ -192,7 +192,7 @@
     <img class="icon-light" src="{{ url_for('static', filename='logo-light.svg') }}?v={{ asset_version }}" alt="">
     <img class="icon-dark" src="{{ url_for('static', filename='logo-dark.svg') }}?v={{ asset_version }}" alt="">
   </div>
-  <h2>Welcome back</h2>
+  <h1 class="page-title">Welcome back</h1>
   <p>Sign in to continue managing your finances</p>
 </div>
 

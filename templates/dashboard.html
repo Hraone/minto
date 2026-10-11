@@ -72,7 +72,7 @@
 
   @media (max-width: 480px) {
     .dash-header { gap: 12px; margin-bottom: 20px; }
-    .dash-header h2 { font-size: 25px; }
+    .dash-header h1.page-title { font-size: 25px; }
     .net-worth-action,
     .download-report-btn { white-space: normal; text-align: center; }
   }
@@ -86,7 +86,7 @@
     margin-bottom: 28px;
   }
 
-  .dash-header h2 {
+  .dash-header h1.page-title {
     margin: 0;
     font-size: 28px;
     font-weight: 800;
@@ -1116,7 +1116,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   <div class="dash-header">
     <div>
-      <h2>Overview</h2>
+      <h1 class="page-title">Overview</h1>
       <p>{{ nav_name }} · {{ txn_count }} transaction{{ "s" if txn_count != 1 else "" }} this period</p>
     </div>
 
