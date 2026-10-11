@@ -290,18 +290,12 @@
 
   .period-tabs {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 6px;
     background: var(--surface-alt);
     padding: 4px;
     border-radius: 999px;
-    overflow-x: auto;
-    scrollbar-width: none;
     max-width: 100%;
-  }
-
-  .period-tabs::-webkit-scrollbar {
-    display: none;
   }
 
   .period-tab {
@@ -1134,7 +1128,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </a>
       <div class="period-tabs">
         {% for p, label in [("today","Today"), ("week","Week"), ("month","Month"), ("year","Year"), ("all","All")] %}
-        <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}">{{ label }}</a>
+        <a class="period-tab {% if p == period %}active{% endif %}" href="{{ url_for('dashboard', period=p) }}"{% if p == period %} aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}
       </div>
     </div>
