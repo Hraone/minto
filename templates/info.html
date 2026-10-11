@@ -442,7 +442,7 @@
         var r = await fetch("{{ url_for('passkey_token') }}", { method: "POST", credentials: "same-origin" });
         var t = await r.json();
         if (!r.ok) throw new Error(t.error || "Please log in again.");
-        var sb = window.supabase.createClient("{{ supabase_url }}", "{{ supabase_anon_key }}", {
+        var sb = window.supabase.createClient({{ supabase_url|tojson }}, {{ supabase_anon_key|tojson }}, {
           auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, experimental: { passkey: true } }
         });
         await sb.auth.setSession({ access_token: t.access_token, refresh_token: t.refresh_token });
