@@ -1634,8 +1634,8 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="flow-overview-bar-expense" style="width: {{ (total_out / flow_total * 100) if flow_total > 0 else 0 }}%;"></div>
     </div>
     <div class="flow-overview-legend">
-      <span>Income · {{ ((total_in / flow_total * 100)|round)|int if flow_total > 0 else 0 }}%</span>
-      <span>Outgoing · {{ ((total_out / flow_total * 100)|round)|int if flow_total > 0 else 0 }}%</span>
+      <span>Income · {{ ('%.3f'|format(total_in / flow_total * 100)) if flow_total > 0 else '0.000' }}%</span>
+      <span>Outgoing · {{ ('%.3f'|format(total_out / flow_total * 100)) if flow_total > 0 else '0.000' }}%</span>
     </div>
 
     <div class="flow-breakdown-header">
@@ -1650,9 +1650,9 @@ document.addEventListener("DOMContentLoaded", function () {
       {% for label in flow_labels %}
       <div class="flow-breakdown-item">
         <span class="flow-breakdown-name">{{ label }}</span>
-        <strong class="flow-breakdown-amount" data-flow-percent="{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}%" data-flow-amount="{{ flow_values[loop.index0]|inr }}">{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}%</strong>
+        <strong class="flow-breakdown-amount" data-flow-percent="{{ ('%.3f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) if category_outgoing_total > 0 else '0.000' }}%" data-flow-amount="{{ flow_values[loop.index0]|inr }}">{{ ('%.3f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) if category_outgoing_total > 0 else '0.000' }}%</strong>
         <span class="flow-breakdown-share" data-flow-share="percent">of outgoing</span>
-        <span class="flow-breakdown-share" data-flow-share="amount" hidden>{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}% of outgoing</span>
+        <span class="flow-breakdown-share" data-flow-share="amount" hidden>{{ ('%.3f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) if category_outgoing_total > 0 else '0.000' }}% of outgoing</span>
       </div>
       {% endfor %}
     </div>
