@@ -902,6 +902,163 @@
     }
   }
 
+  /* Combined income and expense overview */
+
+  .flow-overview-card {
+    margin: 0 0 16px;
+    padding: 24px;
+    background: var(--surface-translucent);
+    border: 1px solid var(--shadow-card);
+    border-radius: 18px;
+    box-shadow: 0 12px 34px var(--shadow-soft);
+    min-width: 0;
+  }
+
+  .flow-overview-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+
+  .flow-overview-heading h3 {
+    margin: 0 0 5px;
+    font-size: 16px;
+    font-weight: 750;
+  }
+
+  .flow-overview-subtitle {
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  .flow-overview-totals {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 18px;
+    margin-bottom: 16px;
+  }
+
+  .flow-overview-total {
+    min-width: 0;
+  }
+
+  .flow-overview-total:last-child {
+    text-align: right;
+  }
+
+  .flow-overview-label {
+    display: block;
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 5px;
+  }
+
+  .flow-overview-amount {
+    display: block;
+    font-size: clamp(17px, 2.4vw, 25px);
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .flow-overview-amount.income { color: var(--positive); }
+  .flow-overview-amount.expense { color: var(--negative); }
+
+  .flow-overview-bar {
+    display: flex;
+    width: 100%;
+    height: 14px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--surface-subtle);
+    margin-bottom: 9px;
+  }
+
+  .flow-overview-bar-income {
+    background: var(--positive);
+    min-width: 0;
+  }
+
+  .flow-overview-bar-expense {
+    background: var(--negative);
+    min-width: 0;
+  }
+
+  .flow-overview-legend {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    color: var(--muted);
+    font-size: 11px;
+    margin-bottom: 22px;
+  }
+
+  .flow-breakdown-heading {
+    font-size: 13px;
+    font-weight: 750;
+    margin: 0 0 12px;
+  }
+
+  .flow-breakdown-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .flow-breakdown-item {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface-subtle);
+  }
+
+  .flow-breakdown-name {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    margin-bottom: 5px;
+    overflow-wrap: anywhere;
+  }
+
+  .flow-breakdown-amount {
+    display: block;
+    font-size: 13px;
+    font-weight: 750;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .flow-breakdown-share {
+    display: block;
+    margin-top: 4px;
+    color: var(--muted-2);
+    font-size: 11px;
+  }
+
+  .flow-breakdown-empty {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 12px 0 2px;
+  }
+
+  @media (max-width: 600px) {
+    .flow-overview-card { padding: 18px; }
+    .flow-overview-heading { margin-bottom: 16px; }
+    .flow-breakdown-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .flow-breakdown-item { padding: 10px; }
+  }
+
+  @media (max-width: 360px) {
+    .flow-breakdown-grid { grid-template-columns: minmax(0, 1fr); }
+    .flow-overview-legend { font-size: 10px; }
+  }
+
   /* Chart cards */
 
   .chart-grid {
@@ -1406,6 +1563,53 @@ document.addEventListener("DOMContentLoaded", function () {
   <p class="period-note">
     Excludes transfers (e.g. a card payment) and money lent (given to or repaid by a friend), since neither is real income or spending.
   </p>
+
+  {% set flow_total = (total_in|float) + (total_out|float) %}
+  {% set category_expense_total = expense_values|sum %}
+  <section class="flow-overview-card" aria-labelledby="flow-overview-title">
+    <div class="flow-overview-heading">
+      <div>
+        <h3 id="flow-overview-title">Total income &amp; expense</h3>
+        <p class="flow-overview-subtitle">Money in compared with money out for the selected period.</p>
+      </div>
+    </div>
+
+    <div class="flow-overview-totals">
+      <div class="flow-overview-total">
+        <span class="flow-overview-label">Total income</span>
+        <strong class="flow-overview-amount income">{{ total_in|inr }}</strong>
+      </div>
+      <div class="flow-overview-total">
+        <span class="flow-overview-label">Total outgoing</span>
+        <strong class="flow-overview-amount expense">{{ total_out|inr }}</strong>
+      </div>
+    </div>
+
+    <div class="flow-overview-bar" role="img" aria-label="Income is {{ ((total_in / flow_total * 100)|round)|int if flow_total > 0 else 0 }} percent and outgoing is {{ ((total_out / flow_total * 100)|round)|int if flow_total > 0 else 0 }} percent of combined money flow.">
+      <div class="flow-overview-bar-income" style="width: {{ (total_in / flow_total * 100) if flow_total > 0 else 0 }}%;"></div>
+      <div class="flow-overview-bar-expense" style="width: {{ (total_out / flow_total * 100) if flow_total > 0 else 0 }}%;"></div>
+    </div>
+    <div class="flow-overview-legend">
+      <span>Income · {{ ((total_in / flow_total * 100)|round)|int if flow_total > 0 else 0 }}%</span>
+      <span>Outgoing · {{ ((total_out / flow_total * 100)|round)|int if flow_total > 0 else 0 }}%</span>
+    </div>
+
+    <h4 class="flow-breakdown-heading">Where expenses went</h4>
+    {% if expense_labels %}
+    <div class="flow-breakdown-grid">
+      {% for label in expense_labels %}
+      <div class="flow-breakdown-item">
+        <span class="flow-breakdown-name">{{ label|replace('_', ' ')|title }}</span>
+        <strong class="flow-breakdown-amount">{{ expense_values[loop.index0]|inr }}</strong>
+        <span class="flow-breakdown-share">{{ ((expense_values[loop.index0] / category_expense_total * 100)|round)|int if category_expense_total > 0 else 0 }}% of categorized expenses</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="flow-breakdown-empty">No categorized expenses recorded in this period.</p>
+    {% endif %}
+    <p class="flow-overview-subtitle" style="margin-top:14px;">Transfers and lending are excluded from the income/outgoing totals. The category breakdown shows expense transactions only.</p>
+  </section>
 
   <div class="chart-grid">
     <div class="chart-card">
