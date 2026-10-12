@@ -999,10 +999,53 @@
     margin-bottom: 22px;
   }
 
+  .flow-breakdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
   .flow-breakdown-heading {
     font-size: 13px;
     font-weight: 750;
-    margin: 0 0 12px;
+    margin: 0;
+  }
+
+  .flow-breakdown-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: var(--surface-subtle);
+  }
+
+  .flow-breakdown-toggle button {
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .flow-breakdown-toggle button[aria-pressed="true"] {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px var(--shadow-soft);
+  }
+
+  .flow-breakdown-toggle button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
 
   .flow-breakdown-grid {
@@ -1595,14 +1638,21 @@ document.addEventListener("DOMContentLoaded", function () {
       <span>Outgoing · {{ ((total_out / flow_total * 100)|round)|int if flow_total > 0 else 0 }}%</span>
     </div>
 
-    <h4 class="flow-breakdown-heading">Where outgoing money went</h4>
+    <div class="flow-breakdown-header">
+      <h4 class="flow-breakdown-heading">Where outgoing money went</h4>
+      <div class="flow-breakdown-toggle" role="group" aria-label="Outgoing breakdown display">
+        <button type="button" data-flow-display="percent" aria-pressed="true">%</button>
+        <button type="button" data-flow-display="amount" aria-pressed="false">Amount</button>
+      </div>
+    </div>
     {% if flow_labels %}
     <div class="flow-breakdown-grid">
       {% for label in flow_labels %}
       <div class="flow-breakdown-item">
         <span class="flow-breakdown-name">{{ label }}</span>
-        <strong class="flow-breakdown-amount">{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}%</strong>
-        <span class="flow-breakdown-share">of outgoing</span>
+        <strong class="flow-breakdown-amount" data-flow-percent="{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}%" data-flow-amount="{{ flow_values[loop.index0]|inr }}">{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}%</strong>
+        <span class="flow-breakdown-share" data-flow-share="percent">of outgoing</span>
+        <span class="flow-breakdown-share" data-flow-share="amount" hidden>{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}% of outgoing</span>
       </div>
       {% endfor %}
     </div>
@@ -1706,6 +1756,27 @@ document.addEventListener("DOMContentLoaded", function () {
       wealthButton.querySelector("span:first-child").textContent =
         expanded ? "Net worth & monthly commitments" : "Hide net worth & monthly commitments";
     });
+  }
+
+  var flowDisplayButtons = document.querySelectorAll("[data-flow-display]");
+  if (flowDisplayButtons.length) {
+    function setFlowDisplay(mode) {
+      flowDisplayButtons.forEach(function (button) {
+        button.setAttribute("aria-pressed", String(button.getAttribute("data-flow-display") === mode));
+      });
+      document.querySelectorAll(".flow-breakdown-amount").forEach(function (amount) {
+        amount.textContent = mode === "amount" ? amount.getAttribute("data-flow-amount") : amount.getAttribute("data-flow-percent");
+      });
+      document.querySelectorAll("[data-flow-share]").forEach(function (share) {
+        share.hidden = share.getAttribute("data-flow-share") !== mode;
+      });
+    }
+    flowDisplayButtons.forEach(function (button) {
+      button.addEventListener("click", function () {
+        setFlowDisplay(button.getAttribute("data-flow-display"));
+      });
+    });
+    setFlowDisplay("percent");
   }
 
   var ccButton = document.getElementById("cc-toggle");
