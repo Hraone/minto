@@ -1601,8 +1601,8 @@ document.addEventListener("DOMContentLoaded", function () {
       {% for label in flow_labels %}
       <div class="flow-breakdown-item">
         <span class="flow-breakdown-name">{{ label }}</span>
-        <strong class="flow-breakdown-amount">{{ flow_values[loop.index0]|inr }}</strong>
-        <span class="flow-breakdown-share">{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}% of outgoing</span>
+        <strong class="flow-breakdown-amount">{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}%</strong>
+        <span class="flow-breakdown-share">of outgoing</span>
       </div>
       {% endfor %}
     </div>
