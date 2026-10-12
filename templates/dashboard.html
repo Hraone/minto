@@ -94,6 +94,15 @@
     letter-spacing: -0.7px;
   }
 
+  .dashboard-title-row { display:flex; align-items:center; gap:10px; }
+  .dashboard-privacy-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; border:1px solid var(--border); border-radius:11px; background:var(--surface); color:var(--text); cursor:pointer; transition:background .18s ease,border-color .18s ease; }
+  .dashboard-privacy-toggle:hover { background:var(--surface-subtle); border-color:var(--border-strong); }
+  .dashboard-privacy-toggle:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
+  .dashboard-privacy-toggle .privacy-eye-closed { display:none; }
+  .dashboard-privacy-toggle[aria-pressed="true"] .privacy-eye-open { display:none; }
+  .dashboard-privacy-toggle[aria-pressed="true"] .privacy-eye-closed { display:block; }
+  .dash-wrapper.privacy-hidden .privacy-sensitive { filter:blur(7px); user-select:none; }
+  .dash-wrapper.privacy-hidden .privacy-sensitive::selection { background:transparent; }
   .dash-header p {
     margin: 5px 0 0;
     font-size: 13px;
@@ -1362,11 +1371,60 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const wrapper = document.querySelector(".dash-wrapper");
+  const toggle = document.getElementById("dashboard-privacy-toggle");
+  if (!wrapper || !toggle) return;
+
+  // Dashboard-only privacy mode. Blur monetary values instead of replacing
+  // their text, so charts, calculations, and copied values remain unchanged.
+  const selectors = [
+    ".tnum", ".summary-value", ".wealth-hero-value", ".safe-spend-value",
+    ".commitment-amount", ".flow-overview-amount", ".flow-breakdown-amount",
+    ".wealth-card strong", ".budget-dashboard-card strong", ".txn-amount",
+    ".card-forecast-amount", ".money-plan-card strong"
+  ].join(",");
+  wrapper.querySelectorAll(selectors).forEach(function (el) {
+    if (el.closest("#dashboard-privacy-toggle")) return;
+    el.classList.add("privacy-sensitive");
+  });
+
+  // Some amounts are plain text without a dedicated amount class.
+  const walker = document.createTreeWalker(wrapper, NodeFilter.SHOW_TEXT);
+  const textNodes = [];
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (/₹|\b(?:INR)\s?\d|\d[\d,]*\.\d{2}\b/.test(node.nodeValue || "")) {
+      const parent = node.parentElement;
+      if (parent && !parent.closest("script,style,button,a,.dashboard-title-row,.period-tabs")) {
+        parent.classList.add("privacy-sensitive");
+      }
+    }
+  }
+
+  wrapper.classList.add("privacy-hidden");
+  toggle.addEventListener("click", function () {
+    const revealing = wrapper.classList.contains("privacy-hidden");
+    wrapper.classList.toggle("privacy-hidden", !revealing);
+    toggle.setAttribute("aria-pressed", String(revealing));
+    toggle.setAttribute("aria-label", revealing ? "Hide financial amounts" : "Show financial amounts");
+    toggle.setAttribute("title", revealing ? "Hide financial amounts" : "Show financial amounts");
+  });
+});
+</script>
+
 <div class="dash-wrapper">
 
   <div class="dash-header">
     <div>
-      <h1 class="page-title">Overview</h1>
+      <div class="dashboard-title-row">
+        <h1 class="page-title">Overview</h1>
+        <button type="button" class="dashboard-privacy-toggle" id="dashboard-privacy-toggle" aria-label="Show financial amounts" aria-pressed="false" title="Show financial amounts">
+          <svg class="privacy-eye-open" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg class="privacy-eye-closed" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4-.8"/></svg>
+        </button>
+      </div>
       <p>{{ nav_name }} · {{ txn_count }} transaction{{ "s" if txn_count != 1 else "" }} this period</p>
     </div>
 
