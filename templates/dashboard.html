@@ -73,7 +73,7 @@
 
   @media (max-width: 480px) {
     .dash-header { gap: 12px; margin-bottom: 20px; }
-    .dash-header h1.page-title { font-size: 25px; }
+    .dash-header h1.page-title { font-size: 25px; }\n    .dashboard-title-row { min-height:40px; gap:9px; }\n    .dashboard-privacy-toggle { width:40px; height:40px; border-radius:11px; }\n    .dashboard-privacy-toggle svg { width:22px; height:22px; }
     .net-worth-action,
     .download-report-btn { white-space: normal; text-align: center; }
   }
@@ -94,9 +94,9 @@
     letter-spacing: -0.7px;
   }
 
-  .dashboard-title-row { display:flex; align-items:center; gap:10px; }
-  .dashboard-privacy-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:38px; height:38px; border:1px solid var(--border); border-radius:11px; background:var(--surface); color:var(--text); cursor:pointer; transition:background .18s ease,border-color .18s ease; }
-  .dashboard-privacy-toggle:hover { background:var(--surface-subtle); border-color:var(--border-strong); }
+  .dashboard-title-row { display:flex; align-items:center; gap:12px; min-height:44px; }
+  .dashboard-privacy-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:44px; height:44px; padding:0; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); cursor:pointer; transition:background .18s ease,border-color .18s ease,transform .18s ease; }
+  .dashboard-privacy-toggle svg { display:block; width:24px; height:24px; }\n  .dashboard-privacy-toggle:hover { background:var(--surface-subtle); border-color:var(--border-strong); transform:translateY(-1px); }
   .dashboard-privacy-toggle:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
   .dashboard-privacy-toggle .privacy-eye-closed { display:none; }
   .dashboard-privacy-toggle[aria-pressed="true"] .privacy-eye-open { display:none; }
