@@ -999,13 +999,60 @@
     margin-bottom: 22px;
   }
 
+  .flow-breakdown-disclosure {
+    margin-top: 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 16px;
+  }
+
+  .flow-breakdown-open {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    width: 100%;
+    min-height: 44px;
+    padding: 11px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface-subtle);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .flow-breakdown-open:hover {
+    border-color: var(--muted-2);
+  }
+
+  .flow-breakdown-open:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  .flow-breakdown-open-icon {
+    flex: 0 0 auto;
+    transition: transform 160ms ease;
+  }
+
+  .flow-breakdown-open[aria-expanded="true"] .flow-breakdown-open-icon {
+    transform: rotate(180deg);
+  }
+
+  .flow-breakdown-content {
+    padding-top: 18px;
+  }
+
   .flow-breakdown-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 12px;
+    margin-bottom: 16px;
   }
 
   .flow-breakdown-heading {
@@ -1638,13 +1685,19 @@ document.addEventListener("DOMContentLoaded", function () {
       <span>Outgoing · {{ ('%.3f'|format(total_out / flow_total * 100)) if flow_total > 0 else '0.000' }}%</span>
     </div>
 
-    <div class="flow-breakdown-header">
-      <h4 class="flow-breakdown-heading">Where outgoing money went</h4>
-      <div class="flow-breakdown-toggle" role="group" aria-label="Outgoing breakdown display">
-        <button type="button" data-flow-display="percent" aria-pressed="true">%</button>
-        <button type="button" data-flow-display="amount" aria-pressed="false">Amount</button>
-      </div>
-    </div>
+    <div class="flow-breakdown-disclosure">
+      <button type="button" class="flow-breakdown-open" id="flow-breakdown-open" aria-expanded="false" aria-controls="flow-breakdown-content">
+        <span>Where outgoing money went</span>
+        <svg class="flow-breakdown-open-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="flow-breakdown-content" id="flow-breakdown-content" hidden>
+        <div class="flow-breakdown-header">
+          <h4 class="flow-breakdown-heading">Outgoing breakdown</h4>
+          <div class="flow-breakdown-toggle" role="group" aria-label="Outgoing breakdown display">
+            <button type="button" data-flow-display="percent" aria-pressed="true">%</button>
+            <button type="button" data-flow-display="amount" aria-pressed="false">Amount</button>
+          </div>
+        </div>
     {% if flow_labels %}
     <div class="flow-breakdown-grid">
       {% for label in flow_labels %}
@@ -1659,7 +1712,9 @@ document.addEventListener("DOMContentLoaded", function () {
     {% else %}
     <p class="flow-breakdown-empty">No outgoing transactions recorded in this period.</p>
     {% endif %}
-    <p class="flow-overview-subtitle" style="margin-top:14px;">Includes expenses, investments, and other outgoing transactions. Transfers, lending, and trip settlements are excluded to avoid double-counting.</p>
+        <p class="flow-overview-subtitle" style="margin-top:16px;">Includes expenses, investments, and other outgoing transactions. Transfers, lending, and trip settlements are excluded to avoid double-counting.</p>
+      </div>
+    </div>
   </section>
 
   <div class="chart-grid">
@@ -1755,6 +1810,16 @@ document.addEventListener("DOMContentLoaded", function () {
       wealthSection.classList.toggle("is-hidden", expanded);
       wealthButton.querySelector("span:first-child").textContent =
         expanded ? "Net worth & monthly commitments" : "Hide net worth & monthly commitments";
+    });
+  }
+
+  var flowBreakdownOpen = document.getElementById("flow-breakdown-open");
+  var flowBreakdownContent = document.getElementById("flow-breakdown-content");
+  if (flowBreakdownOpen && flowBreakdownContent) {
+    flowBreakdownOpen.addEventListener("click", function () {
+      var isOpen = flowBreakdownOpen.getAttribute("aria-expanded") === "true";
+      flowBreakdownOpen.setAttribute("aria-expanded", String(!isOpen));
+      flowBreakdownContent.hidden = isOpen;
     });
   }
 
