@@ -4370,6 +4370,9 @@ def pay_fixed_expense(fixed_expense_id):
     user_id = session["user_id"]
     today = datetime.now(APP_TZ).date()
     month_start = today.replace(day=1)
+    return_to = (request.form.get("return_to") or "").strip()
+    if not return_to.startswith("/") or return_to.startswith("//") or "\\ " in return_to:
+        return_to = url_for("dashboard")
 
     rows = (
         client.table("fixed_expenses")
@@ -4383,7 +4386,7 @@ def pay_fixed_expense(fixed_expense_id):
     )
     if not rows:
         flash("That fixed expense could not be found.")
-        return redirect(url_for("fixed_expenses"))
+        return redirect(return_to)
     expense = rows[0]
     source_id = request.form.get("source_id") or expense.get("source_id")
     if not source_id:
