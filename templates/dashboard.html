@@ -29,6 +29,7 @@
     .dash-wrapper > .wealth-section,
     .dash-wrapper > .summary-grid,
     .dash-wrapper > .period-note,
+    .dash-wrapper > .flow-overview-card,
     .dash-wrapper > .chart-grid,
     .dash-wrapper > .recent-card {
       grid-column: 1 / -1;
@@ -1565,7 +1566,7 @@ document.addEventListener("DOMContentLoaded", function () {
   </p>
 
   {% set flow_total = (total_in|float) + (total_out|float) %}
-  {% set category_expense_total = expense_values|sum %}
+  {% set category_outgoing_total = flow_values|sum %}
   <section class="flow-overview-card" aria-labelledby="flow-overview-title">
     <div class="flow-overview-heading">
       <div>
@@ -1594,21 +1595,21 @@ document.addEventListener("DOMContentLoaded", function () {
       <span>Outgoing · {{ ((total_out / flow_total * 100)|round)|int if flow_total > 0 else 0 }}%</span>
     </div>
 
-    <h4 class="flow-breakdown-heading">Where expenses went</h4>
-    {% if expense_labels %}
+    <h4 class="flow-breakdown-heading">Where outgoing money went</h4>
+    {% if flow_labels %}
     <div class="flow-breakdown-grid">
-      {% for label in expense_labels %}
+      {% for label in flow_labels %}
       <div class="flow-breakdown-item">
-        <span class="flow-breakdown-name">{{ label|replace('_', ' ')|title }}</span>
-        <strong class="flow-breakdown-amount">{{ expense_values[loop.index0]|inr }}</strong>
-        <span class="flow-breakdown-share">{{ ((expense_values[loop.index0] / category_expense_total * 100)|round)|int if category_expense_total > 0 else 0 }}% of categorized expenses</span>
+        <span class="flow-breakdown-name">{{ label }}</span>
+        <strong class="flow-breakdown-amount">{{ flow_values[loop.index0]|inr }}</strong>
+        <span class="flow-breakdown-share">{{ ((flow_values[loop.index0] / category_outgoing_total * 100)|round)|int if category_outgoing_total > 0 else 0 }}% of outgoing</span>
       </div>
       {% endfor %}
     </div>
     {% else %}
-    <p class="flow-breakdown-empty">No categorized expenses recorded in this period.</p>
+    <p class="flow-breakdown-empty">No outgoing transactions recorded in this period.</p>
     {% endif %}
-    <p class="flow-overview-subtitle" style="margin-top:14px;">Transfers and lending are excluded from the income/outgoing totals. The category breakdown shows expense transactions only.</p>
+    <p class="flow-overview-subtitle" style="margin-top:14px;">Includes expenses, investments, and other outgoing transactions. Transfers, lending, and trip settlements are excluded to avoid double-counting.</p>
   </section>
 
   <div class="chart-grid">

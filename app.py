@@ -4877,10 +4877,30 @@ def dashboard():
     net = total_in - total_out
 
     expense_by_category = defaultdict(float)
+    outgoing_by_category = defaultdict(float)
     for t in txns:
         if t["category"] == "expense" and t["amount"]:
             key = t.get("expense_category") or "other"
             expense_by_category[key] += float(t["amount"])
+
+        # The combined dashboard breakdown must account for every outgoing
+        # transaction shown in total_out, including investments and any
+        # non-transfer outgoing transaction types.
+        if (
+            t.get("direction") == "out"
+            and t.get("amount")
+            and t.get("category") not in non_flow_categories
+        ):
+            category = (t.get("category") or "other").strip().lower()
+            if category == "expense":
+                detail = (t.get("expense_category") or "Other expense").strip()
+                label = detail.replace("_", " ").title()
+            elif category == "investment":
+                detail = (t.get("investment_category") or "Other investment").strip()
+                label = "Investment · " + detail.replace("_", " ").title()
+            else:
+                label = "Other · " + category.replace("_", " ").title()
+            outgoing_by_category[label] += float(t["amount"])
 
     spend_by_source = defaultdict(float)
     for t in txns:
@@ -5003,6 +5023,8 @@ def dashboard():
         txn_count=len(txns),
         expense_labels=list(expense_by_category.keys()),
         expense_values=list(expense_by_category.values()),
+        flow_labels=list(outgoing_by_category.keys()),
+        flow_values=list(outgoing_by_category.values()),
         source_labels=list(spend_by_source.keys()),
         source_values=list(spend_by_source.values()),
         recent=recent,
