@@ -4371,7 +4371,7 @@ def pay_fixed_expense(fixed_expense_id):
     today = datetime.now(APP_TZ).date()
     month_start = today.replace(day=1)
     return_to = (request.form.get("return_to") or "").strip()
-    if not return_to.startswith("/") or return_to.startswith("//") or "\\ " in return_to:
+    if not return_to.startswith("/") or return_to.startswith("//") or "\\\\" in return_to:
         return_to = url_for("dashboard")
 
     rows = (
