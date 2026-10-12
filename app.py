@@ -4370,6 +4370,9 @@ def pay_fixed_expense(fixed_expense_id):
     user_id = session["user_id"]
     today = datetime.now(APP_TZ).date()
     month_start = today.replace(day=1)
+    return_to = (request.form.get("return_to") or "").strip()
+    if not return_to.startswith("/") or return_to.startswith("//") or "\\\\" in return_to:
+        return_to = url_for("dashboard")
 
     rows = (
         client.table("fixed_expenses")
@@ -4383,17 +4386,17 @@ def pay_fixed_expense(fixed_expense_id):
     )
     if not rows:
         flash("That fixed expense could not be found.")
-        return redirect(url_for("fixed_expenses"))
+        return redirect(return_to)
     expense = rows[0]
     source_id = request.form.get("source_id") or expense.get("source_id")
     if not source_id:
         flash("Choose the account used to pay this expense.")
-        return redirect(url_for("fixed_expenses"))
+        return redirect(return_to)
     pay_ids = {str(r["id"]) for r in client.table("user_sources").select("id")
-               .in_("source_type", ["savings", "cash"]).execute().data}
+               .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data}
     if str(source_id) not in pay_ids:
         flash("Pick one of your bank or cash accounts.")
-        return redirect(url_for("fixed_expenses"))
+        return redirect(return_to)
 
     existing = (
         client.table("fixed_expense_payments")
@@ -4406,7 +4409,7 @@ def pay_fixed_expense(fixed_expense_id):
     )
     if existing:
         flash("This fixed expense is already marked paid for this month.")
-        return redirect(url_for("fixed_expenses"))
+        return redirect(return_to)
 
     entry_id = None
     try:
@@ -4446,7 +4449,7 @@ def pay_fixed_expense(fixed_expense_id):
             flash("This fixed expense is already marked paid for this month.")
         else:
             flash("Couldn't mark that fixed expense as paid. Please try again.")
-    return redirect(url_for("fixed_expenses"))
+    return redirect(return_to)
 
 
 @app.route("/fixed-expenses/<int:fixed_expense_id>/delete", methods=["POST"])

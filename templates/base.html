@@ -2377,6 +2377,11 @@
     var form = document.createElement('form');
     form.method = 'post';
     form.action = item.kind === 'income' ? '/fixed-income/' + item.id + '/receive' : '/fixed-expenses/' + item.id + '/pay';
+    var returnTo = document.createElement('input');
+    returnTo.type = 'hidden';
+    returnTo.name = 'return_to';
+    returnTo.value = window.location.pathname + window.location.search;
+    form.appendChild(returnTo);
     var select = document.createElement('select');
     select.name = 'source_id';
     select.required = true;
