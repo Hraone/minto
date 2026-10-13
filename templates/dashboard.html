@@ -374,7 +374,7 @@
     font-size: 13px;
     font-weight: 650;
     color: var(--primary-contrast);
-    opacity: 0.6;
+    opacity: 1;
   }
 
   .wealth-hero-value {
@@ -389,7 +389,7 @@
     margin-top: 6px;
     font-size: 12.5px;
     color: var(--primary-contrast);
-    opacity: 0.55;
+    opacity: 1;
   }
 
   .wealth-grid {
@@ -1482,6 +1482,34 @@
     .dashboard-alerts-toggle-action { margin-left: 0; }
   }
 
+
+  /* R2 audit: small-screen financial grids must wrap instead of forcing overflow. */
+  .due-soon-row > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+  .due-soon-row > .tnum { flex: 0 0 auto; white-space: nowrap; }
+  .budget-dashboard-row > small { min-width: 0; overflow-wrap: anywhere; }
+  .money-plan-stat { min-width: 0; }
+  .money-plan-stat strong { overflow-wrap: anywhere; }
+
+  @media (max-width: 480px) {
+    .money-plan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .money-plan-stat { padding: 10px; }
+    .money-plan-stat strong { font-size: 14px; }
+    .budget-dashboard-row {
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 6px 10px;
+      align-items: start;
+    }
+    .budget-dashboard-row > small:first-child { grid-column: 1; }
+    .budget-dashboard-row > small:last-child { grid-column: 2; text-align: right; }
+    .budget-dashboard-row .budget-dashboard-bar { grid-column: 1 / -1; grid-row: 2; width: 100%; }
+    .due-soon-list { grid-template-columns: minmax(0, 1fr); }
+    .due-soon-row { min-width: 0; }
+  }
+  @media (max-width: 350px) {
+    .money-plan-grid { grid-template-columns: minmax(0, 1fr); }
+    .money-plan-stat strong { font-size: 15px; }
+  }
+
 </style>
 
 <script>
@@ -1563,13 +1591,14 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 </script>
 
-<div class="dash-wrapper">
+<div class="dash-wrapper privacy-hidden">
 
   <div class="dash-header">
     <div>
       <div class="dashboard-title-row">
         <h1 class="page-title">Overview</h1>
-        <button type="button" class="dashboard-privacy-toggle" title="Visual privacy only: hides values on screen, not from the page or its source" id="dashboard-privacy-toggle" aria-label="Show financial amounts" aria-pressed="false" title="Show financial amounts">
+        <span id="privacy-mode-description" class="visually-hidden">Privacy mode visually blurs financial values on this screen only. It does not secure data in the page source.</span>
+        <button type="button" class="dashboard-privacy-toggle" id="dashboard-privacy-toggle" aria-label="Show financial amounts" aria-pressed="false" aria-describedby="privacy-mode-description" title="Show financial amounts">
           <svg class="privacy-eye-open" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg class="privacy-eye-closed" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4-.8"/></svg>
         </button>
@@ -1701,7 +1730,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   <div class="due-soon-card">
     <div class="section-heading-row" style="margin-bottom:0;">
-      <h3>Due soon</h3>
+      <h2>Due soon</h2>
       <span>Next {{ reminder_days_before }} days</span>
     </div>
     <div class="due-soon-list">
@@ -1838,7 +1867,7 @@ document.addEventListener("DOMContentLoaded", function () {
   {% if category_budgets %}
   <div class="budget-dashboard-card">
     <div class="section-heading-row">
-      <h3>Category budgets</h3>
+      <h2>Category budgets</h2>
       <a class="dashboard-link" style="margin-top:0;" href="{{ url_for('budgets') }}">Manage</a>
     </div>
     <div class="budget-dashboard-list">
@@ -1923,7 +1952,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   <div class="chart-grid">
     <div class="chart-card">
-      <h3>Expenses by category</h3>
+      <h2>Expenses by category</h2>
       {% if expense_labels %}
       <canvas id="categoryChart" height="220" role="img" aria-label="Pie chart showing expenses by category. A text summary follows.">Expenses by category chart.</canvas>
       <ul class="chart-text-summary" aria-label="Expense totals by category" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
@@ -1937,7 +1966,7 @@ document.addEventListener("DOMContentLoaded", function () {
     </div>
 
     <div class="chart-card">
-      <h3>Spend by account</h3>
+      <h2>Spend by account</h2>
       {% if source_labels %}
       <canvas id="sourceChart" height="220" role="img" aria-label="Bar chart showing spending by account. A text summary follows.">Spend by account chart.</canvas>
       <ul class="chart-text-summary" aria-label="Spending totals by account" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
@@ -1953,7 +1982,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   <div class="recent-card">
     <div class="recent-card-header">
-      <h3>Recent transactions <span class="recent-subtitle">Last 5</span></h3>
+      <h2>Recent transactions <span class="recent-subtitle">Last 5</span></h2>
       <button type="button" class="download-transactions-btn" id="open-csv-filters">Download all · CSV</button>
     </div>
     {% if recent %}
@@ -1970,8 +1999,8 @@ document.addEventListener("DOMContentLoaded", function () {
         <div class="txn-amount tnum {{ t.direction }}">
           {{ "+" if t.direction == "in" else "-" }}{{ (t.amount or 0)|inr }}
         </div>
-        <form method="post" action="{{ url_for('delete_transaction', entry_id=t.id) }}" onsubmit="return confirm('Delete this transaction?{{ ' Both linked legs of this transfer will be removed.' if t.transfer_group else '' }}');">
-          <button type="submit" class="txn-delete" aria-label="Delete transaction" title="Delete">
+        <form method="post" action="{{ url_for('delete_transaction', entry_id=t.id) }}" onsubmit="return confirm('Delete {{ (t.description or t.expense_category or t.category)|e }} on {{ t.transaction_date|nice_date }}?{{ ' Both linked legs of this transfer will be removed.' if t.transfer_group else '' }}');">
+          <button type="submit" class="txn-delete" aria-label="Delete transaction: {{ (t.description or t.expense_category or t.category)|e }}, {{ t.transaction_date|nice_date }}" title="Delete transaction">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="3 6 5 6 21 6"></polyline>
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
