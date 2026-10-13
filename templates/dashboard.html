@@ -1076,7 +1076,7 @@
   }
 
   .flow-breakdown-open:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--positive);
     outline-offset: 3px;
   }
 
@@ -1159,7 +1159,7 @@
   }
 
   .flow-breakdown-toggle button:focus-visible {
-    outline: 2px solid var(--accent);
+    outline: 2px solid var(--positive);
     outline-offset: 2px;
   }
 
@@ -1434,6 +1434,54 @@
   @media (max-width:600px) {
     .spend-summary-layout .summary-grid { grid-template-columns:1fr; }
   }
+
+  /* Dashboard audit fixes: isolate inline controls from the shared global button rule. */
+  .dashboard-privacy-toggle,
+  .cc-toggle,
+  .csv-filter-header button {
+    margin: 0 !important;
+    transform: none;
+  }
+  .dashboard-privacy-toggle { width: 44px; max-width: none; padding: 0; box-shadow: none; }
+  .dashboard-privacy-toggle:hover { transform: none; box-shadow: none; }
+  .cc-toggle { width: 100%; padding: 8px 0; box-shadow: none !important; }
+  .csv-filter-header button {
+    flex: 0 0 40px;
+    width: 40px;
+    min-width: 40px;
+    height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    line-height: 1;
+    box-shadow: none;
+  }
+  .csv-filter-header button:hover { transform: none; box-shadow: none; }
+  .flow-breakdown-open:focus-visible,
+  .flow-breakdown-toggle button:focus-visible { outline-color: var(--positive); }
+
+  /* Keep the notice row usable with narrow screens and enlarged text. */
+  .dashboard-alerts-toggle { min-width: 0; }
+  .dashboard-alerts-toggle-label { white-space: normal; min-width: 0; overflow-wrap: anywhere; }
+  .dashboard-alerts-toggle-action { white-space: normal; text-align: right; }
+  .dashboard-alerts-chevron { flex: 0 0 auto; }
+  .dashboard-alerts.is-collapsed .dashboard-alerts-count { animation: none; }
+
+  /* On phones, use one predictable stacked action layout rather than conflicting flex bases. */
+  @media (max-width: 420px) {
+    .dashboard-actions { flex-direction: column; align-items: stretch; }
+    .dashboard-actions > .net-worth-action,
+    .dashboard-actions > .download-report-btn { width: 100%; flex: 0 0 auto; }
+    .dashboard-actions .period-tabs { flex: 0 1 auto; }
+  }
+
+  @media (max-width: 360px) {
+    .dashboard-alerts-toggle { gap: 8px; padding: 9px 10px; }
+    .dashboard-alerts-toggle-action { margin-left: 0; }
+  }
+
 </style>
 
 <script>
@@ -1521,7 +1569,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div>
       <div class="dashboard-title-row">
         <h1 class="page-title">Overview</h1>
-        <button type="button" class="dashboard-privacy-toggle" id="dashboard-privacy-toggle" aria-label="Show financial amounts" aria-pressed="false" title="Show financial amounts">
+        <button type="button" class="dashboard-privacy-toggle" title="Visual privacy only: hides values on screen, not from the page or its source" id="dashboard-privacy-toggle" aria-label="Show financial amounts" aria-pressed="false" title="Show financial amounts">
           <svg class="privacy-eye-open" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg class="privacy-eye-closed" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8"/><path d="M9.9 5.2A11 11 0 0 1 12 5c6.4 0 10 7 10 7a16 16 0 0 1-3.1 3.8M6.2 6.2C3.5 8 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4-.8"/></svg>
         </button>
@@ -1666,6 +1714,11 @@ document.addEventListener("DOMContentLoaded", function () {
         <strong class="tnum">{{ item.amount|inr }}</strong>
       </div>
       {% endfor %}
+      {% if due_soon_commitments|length > 3 %}
+      <div class="due-soon-more" style="padding-top:10px;font-size:12px;color:var(--muted);">
+        +{{ due_soon_commitments|length - 3 }} more upcoming {{ "commitment" if due_soon_commitments|length - 3 == 1 else "commitments" }}. The full list is available in Commitments.
+      </div>
+      {% endif %}
       {% if not due_soon_commitments %}
       <div class="due-soon-empty">
         <span aria-hidden="true">✓</span>
@@ -2064,7 +2117,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (e.key !== "Tab") return;
       var focusable = Array.from(overlay.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'))
-        .filter(function (el) { return el.offsetParent !== null; });
+        .filter(function (el) { return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden'; });
       if (!focusable.length) {
         e.preventDefault();
         return;
@@ -2086,6 +2139,15 @@ document.addEventListener("DOMContentLoaded", function () {
 {% if expense_labels or source_labels %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
 <script>
+  if (typeof Chart === 'undefined') {
+    document.querySelectorAll('.chart-card canvas').forEach(function (canvas) {
+      var fallback = document.createElement('p');
+      fallback.className = 'chart-empty';
+      fallback.textContent = 'Chart unavailable right now. Please try again later.';
+      canvas.insertAdjacentElement('afterend', fallback);
+      canvas.hidden = true;
+    });
+  } else {
   // Chart.js draws onto a <canvas> with plain pixel colors — CSS variables
   // and the dark-mode stylesheet rules can't reach it, so the theme has to
   // be read explicitly here and used to pick a palette that still has
@@ -2145,6 +2207,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
   {% endif %}
+  }
 </script>
 {% endif %}
 
