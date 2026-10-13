@@ -25,6 +25,12 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
 from report_pdf import build_report_pdf
 from trip_accounting import calculate_trip_balances, suggested_settlements, trip_payables_for_user
+from dashboard_finance import (
+    calculate_dashboard_flow,
+    compute_safe_to_spend,
+    filter_commitments_to_current_month,
+    get_dashboard_period_start,
+)
 
 load_dotenv()
 
@@ -777,12 +783,6 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
 
     commitments.sort(key=lambda x: (x["due_date"], x["name"]))
     return commitments
-
-
-def compute_safe_to_spend(savings, commitments):
-    liquid = sum(float(s.get("balance") or 0) for s in savings)
-    committed = sum(float(x.get("amount") or 0) for x in commitments)
-    return max(round(liquid - committed, 2), 0.0)
 
 
 def refresh_if_needed(client):
@@ -4824,17 +4824,7 @@ def nice_date(value):
 
 
 def get_period_start(period):
-    now = datetime.now(APP_TZ)
-    if period == "today":
-        return now.replace(hour=0, minute=0, second=0, microsecond=0)
-    elif period == "week":
-        return now - timedelta(days=7)
-    elif period == "year":
-        return now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    elif period == "all":
-        return None
-    else:  # month is the default
-        return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    return get_dashboard_period_start(period, datetime.now(APP_TZ))
 
 
 @app.route("/dashboard")
@@ -4856,57 +4846,13 @@ def dashboard():
         query = query.gte("transaction_date", start.date().isoformat())
     txns = query.order("transaction_date", desc=True).order("created_at", desc=True).execute().data
 
-    # Transfers (e.g. a credit-card bill payment moving money from savings to
-    # the card) and lending (money handed to a friend, or repaid by one)
-    # aren't real income or spending — they just move money between your own
-    # sources, or convert cash into a receivable you'll get back — so both
-    # are excluded from these period totals to avoid inflating "money in/out"
-    # with money that never actually left your net worth.
-    # Trip payments and settlements change account balances, but the linked
-    # share transaction is the consumption entry. Excluding these categories
-    # keeps Dashboard and reports from counting the full bill twice.
-    non_flow_categories = ("transfer", "lending", "trip_expense_payment", "trip_settlement")
-    total_in = sum(
-        float(t["amount"]) for t in txns
-        if t["direction"] == "in" and t["amount"] and t["category"] not in non_flow_categories
-    )
-    total_out = sum(
-        float(t["amount"]) for t in txns
-        if t["direction"] == "out" and t["amount"] and t["category"] not in non_flow_categories
-    )
-    net = total_in - total_out
-
-    expense_by_category = defaultdict(float)
-    outgoing_by_category = defaultdict(float)
-    for t in txns:
-        if t["category"] == "expense" and t["amount"]:
-            key = t.get("expense_category") or "other"
-            expense_by_category[key] += float(t["amount"])
-
-        # The combined dashboard breakdown must account for every outgoing
-        # transaction shown in total_out, including investments and any
-        # non-transfer outgoing transaction types.
-        if (
-            t.get("direction") == "out"
-            and t.get("amount")
-            and t.get("category") not in non_flow_categories
-        ):
-            category = (t.get("category") or "other").strip().lower()
-            if category == "expense":
-                detail = (t.get("expense_category") or "Other expense").strip()
-                label = detail.replace("_", " ").title()
-            elif category == "investment":
-                detail = (t.get("investment_category") or "Other investment").strip()
-                label = "Investment · " + detail.replace("_", " ").title()
-            else:
-                label = "Other · " + category.replace("_", " ").title()
-            outgoing_by_category[label] += float(t["amount"])
-
-    spend_by_source = defaultdict(float)
-    for t in txns:
-        source = t.get("user_sources")
-        if source and t["amount"] and t["direction"] == "out" and t["category"] not in non_flow_categories:
-            spend_by_source[source["name"]] += float(t["amount"])
+    flow_summary = calculate_dashboard_flow(txns)
+    total_in = flow_summary["total_in"]
+    total_out = flow_summary["total_out"]
+    net = flow_summary["net"]
+    expense_by_category = flow_summary["expense_by_category"]
+    outgoing_by_category = flow_summary["outgoing_by_category"]
+    spend_by_source = flow_summary["spend_by_source"]
 
     recent = txns[:5]
 
@@ -4940,19 +4886,8 @@ def dashboard():
         reminder_days_before,
     )
 
-    # Safe to Spend reserves only commitments still due during the current
-    # calendar month. Future-month expenses should not reduce this month's
-    # spendable balance.
-    month_end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
-    safe_spend_commitments = [
-        x for x in upcoming_commitments
-        if (
-            x.get("due_date")
-            and x["due_date"].year == today.year
-            and x["due_date"].month == today.month
-            and x["due_date"] <= month_end
-        )
-    ]
+    # Safe to Spend reserves only commitments due in the current calendar month.
+    safe_spend_commitments = filter_commitments_to_current_month(upcoming_commitments, today)
 
     try:
         fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
