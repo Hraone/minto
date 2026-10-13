@@ -73,18 +73,21 @@
 
   @media (max-width: 480px) {
     .dash-header { gap: 12px; margin-bottom: 20px; }
-    .dash-header h1.page-title { font-size: 25px; }\n    .dashboard-title-row { min-height:40px; gap:9px; }\n    .dashboard-privacy-toggle { width:40px; height:40px; border-radius:11px; }\n    .dashboard-privacy-toggle svg { width:22px; height:22px; }
+    .dash-header h1.page-title { font-size: 25px; }
+    .dashboard-title-row { min-height:40px; gap:9px; }
+    .dashboard-privacy-toggle { width:40px; height:40px; border-radius:11px; }
+    .dashboard-privacy-toggle svg { width:22px; height:22px; }
     .net-worth-action,
     .download-report-btn { white-space: normal; text-align: center; }
   }
 
   .dash-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     flex-wrap: wrap;
-    gap: 16px;
-    margin-bottom: 28px;
+    gap: 16px 20px;
+    margin-bottom: 24px;
   }
 
   .dash-header h1.page-title {
@@ -96,22 +99,34 @@
 
   .dashboard-title-row { display:flex; align-items:center; gap:12px; min-height:44px; }
   .dashboard-privacy-toggle { display:inline-flex; align-items:center; justify-content:center; flex:none; width:44px; height:44px; padding:0; border:1px solid var(--border); border-radius:12px; background:var(--surface); color:var(--text); cursor:pointer; transition:background .18s ease,border-color .18s ease,transform .18s ease; }
-  .dashboard-privacy-toggle svg { display:block; width:24px; height:24px; }\n  .dashboard-privacy-toggle:hover { background:var(--surface-subtle); border-color:var(--border-strong); transform:translateY(-1px); }
+  .dashboard-privacy-toggle svg { display:block; width:24px; height:24px; }
+  .dashboard-privacy-toggle:hover { background:var(--surface-subtle); border-color:var(--border-strong); transform:translateY(-1px); }
   .dashboard-privacy-toggle:focus-visible { outline:2px solid var(--primary); outline-offset:3px; }
-  .dashboard-privacy-toggle .privacy-eye-closed { display:none; }
-  .dashboard-privacy-toggle[aria-pressed="true"] .privacy-eye-open { display:none; }
-  .dashboard-privacy-toggle[aria-pressed="true"] .privacy-eye-closed { display:block; }
-  .dash-wrapper.privacy-hidden .privacy-sensitive { filter:blur(7px); user-select:none; }
+  .dashboard-privacy-toggle .privacy-eye-open { display:none; }
+  .dashboard-privacy-toggle .privacy-eye-closed { display:block; }
+  .dashboard-privacy-toggle[aria-pressed="true"] .privacy-eye-open { display:block; }
+  .dashboard-privacy-toggle[aria-pressed="true"] .privacy-eye-closed { display:none; }
+  .dash-wrapper.privacy-hidden .privacy-sensitive { filter:blur(7px); user-select:none; -webkit-user-select:none; }
+  .privacy-sensitive { transition:filter .15s ease; }
   .dash-wrapper.privacy-hidden .privacy-sensitive::selection { background:transparent; }
   .dash-header p {
     margin: 5px 0 0;
     font-size: 13px;
   }
 
-  .dashboard-actions {
-    display: flex;
-    gap: 8px;
-    align-items: center;
+  .dashboard-actions { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:flex-end; min-width:0; max-width:100%; }
+  .dashboard-actions .period-tabs { flex:0 1 auto; }
+  @media (max-width:760px) {
+    .dash-header { align-items:flex-start; gap:14px; margin-bottom:22px; }
+    .dash-header > div:first-child { min-width:0; }
+    .dashboard-actions { width:100%; justify-content:flex-start; gap:8px; }
+    .dashboard-actions .period-tabs { width:100%; justify-content:space-between; }
+    .dashboard-actions .period-tab { flex:1 1 auto; text-align:center; padding:8px 9px; }
+  }
+  @media (max-width:420px) {
+    .dashboard-actions > .net-worth-action, .dashboard-actions > .download-report-btn { flex:1 1 calc(50% - 4px); }
+    .dashboard-actions .period-tabs { gap:2px; padding:3px; }
+    .dashboard-actions .period-tab { padding:8px 4px; font-size:11px; }
   }
 
   .net-worth-action {
@@ -699,8 +714,8 @@
     grid-column:1 / -1;
     width:100%;
     display:grid;
-    grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);
-    gap:16px;
+    grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+    gap:18px;
     align-items:stretch;
     min-width:0;
   }
@@ -709,15 +724,18 @@
     display:grid;
     grid-template-columns:1fr;
     grid-template-rows:repeat(3,minmax(0,1fr));
-    gap:10px;
+    gap:12px;
     margin:0;
     min-width:0;
+    align-content:stretch;
   }
-  .spend-summary-layout .summary-card { min-width:0; padding:15px 17px; }
-  .spend-summary-layout .summary-value { overflow-wrap:anywhere; font-size:clamp(19px,1.5vw,25px); }
+  .spend-summary-layout .summary-card { display:flex; flex-direction:column; justify-content:center; gap:7px; min-width:0; min-height:92px; padding:17px 19px; }
+  .spend-summary-layout .summary-label { line-height:1.35; }
+  .spend-summary-layout .summary-value { overflow-wrap:anywhere; line-height:1.25; font-size:clamp(19px,1.5vw,25px); }
 
   .safe-spend-card {
-  margin: 0 0 28px;
+  margin: 0;
+  min-width: 0;
   padding: 24px;
   border: 1px solid var(--border);
   border-radius: 18px;
@@ -1060,7 +1078,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     margin-bottom: 18px;
   }
 
@@ -1074,7 +1092,7 @@
   .flow-breakdown-toggle {
     display: inline-flex;
     align-items: center;
-    align-self: flex-start;
+    align-self: center;
     justify-content: center;
     gap: 4px;
     box-sizing: border-box;
@@ -1182,7 +1200,10 @@
   @media (max-width: 600px) {
     .flow-overview-card { padding: 16px; }
     .flow-overview-heading { margin-bottom: 16px; }
-    .flow-breakdown-header { align-items: center; gap: 12px; }
+    .flow-breakdown-header { align-items:center; gap:10px; }
+    .flow-breakdown-heading { font-size:13px; }
+    .flow-breakdown-toggle { padding:3px; gap:2px; }
+    .flow-breakdown-toggle button { min-width:54px; padding:7px 8px; font-size:11px; }
     .flow-breakdown-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     .flow-breakdown-item { min-height: 92px; padding: 12px; }
     .flow-breakdown-toggle button { min-width: 62px; min-height: 36px; padding: 7px 10px; }
@@ -1417,7 +1438,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ".tnum", ".summary-value", ".wealth-hero-value", ".safe-spend-value",
     ".commitment-amount", ".flow-overview-amount", ".flow-breakdown-amount",
     ".wealth-card strong", ".budget-dashboard-card strong", ".txn-amount",
-    ".card-forecast-amount", ".money-plan-card strong"
+    ".card-forecast-amount", ".money-plan-card strong", ".chart-text-summary"
   ].join(",");
   wrapper.querySelectorAll(selectors).forEach(function (el) {
     if (el.closest("#dashboard-privacy-toggle")) return;
