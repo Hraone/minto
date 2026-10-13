@@ -2117,7 +2117,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       if (e.key !== "Tab") return;
       var focusable = Array.from(overlay.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'))
-        .filter(function (el) { return el.offsetParent !== null; });
+        .filter(function (el) { return el.getClientRects().length > 0 && getComputedStyle(el).visibility !== 'hidden'; });
       if (!focusable.length) {
         e.preventDefault();
         return;
@@ -2139,6 +2139,15 @@ document.addEventListener("DOMContentLoaded", function () {
 {% if expense_labels or source_labels %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" integrity="sha384-NrKB+u6Ts6AtkIhwPixiKTzgSKNblyhlk0Sohlgar9UHUBzai/sgnNNWWd291xqt" crossorigin="anonymous"></script>
 <script>
+  if (typeof Chart === 'undefined') {
+    document.querySelectorAll('.chart-card canvas').forEach(function (canvas) {
+      var fallback = document.createElement('p');
+      fallback.className = 'chart-empty';
+      fallback.textContent = 'Chart unavailable right now. Please try again later.';
+      canvas.insertAdjacentElement('afterend', fallback);
+      canvas.hidden = true;
+    });
+  } else {
   // Chart.js draws onto a <canvas> with plain pixel colors — CSS variables
   // and the dark-mode stylesheet rules can't reach it, so the theme has to
   // be read explicitly here and used to pick a palette that still has
@@ -2198,6 +2207,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
   {% endif %}
+  }
 </script>
 {% endif %}
 
