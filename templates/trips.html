@@ -105,7 +105,7 @@
       <li>
         <a class="trip-link" href="{{ url_for('trip_detail', trip_id=t.id) }}">
           <div style="min-width:0;">
-            <div style="margin-bottom:6px;"><span class="pill {{ t.status }}">{{ t.status_label }}</span>{% if not t.is_owner %} <span class="pill trip-owner-pill">{% if t.owner_username %}Shared by @{{ t.owner_username }}{% else %}Shared trip{% endif %}</span>{% endif %}</div>
+            <div style="margin-bottom:6px;"><span class="pill {{ t.status }}">{{ t.status_label }}</span>{% if not t.is_owner %} <span class="pill trip-owner-pill">{% if t.owner_username %}Shared by @{{ t.owner_username }}{% elif t.owner_display_name %}Shared by {{ t.owner_display_name }}{% else %}Shared trip{% endif %}</span>{% endif %}</div>
             <div class="trip-name">{{ t.name }}</div>
             <div class="trip-meta">
               {% if t.destination %}{{ t.destination }}{% endif %}

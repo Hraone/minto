@@ -3363,14 +3363,16 @@ def trips():
     )
     log_trips_stage("trips_query", stage_started)
 
-    # Resolve trip owners in one batched profile lookup, not one request per card.
+    # Resolve trip owners in batches. Some older accounts may not have a
+    # username yet, so also load their profile display name as a truthful fallback.
     owner_ids = list({str(t.get("user_id")) for t in trip_rows if t.get("user_id")})
     owner_usernames = {}
+    owner_display_names = {}
     if owner_ids:
         try:
             owner_profiles = (
                 client.table("profiles")
-                .select("id, username")
+                .select("id, username, display_name")
                 .in_("id", owner_ids)
                 .execute()
                 .data
@@ -3381,10 +3383,25 @@ def trips():
                 for profile in owner_profiles
                 if profile.get("id") and profile.get("username")
             }
+            owner_display_names = {
+                str(profile["id"]): profile.get("display_name")
+                for profile in owner_profiles
+                if profile.get("id") and profile.get("display_name")
+            }
+            missing_profiles = set(owner_ids) - {
+                str(profile["id"]) for profile in owner_profiles if profile.get("id")
+            }
+            if missing_profiles:
+                app.logger.warning(
+                    "Trip owner profiles unavailable for %d owner(s); usernames may be hidden by profile visibility or missing",
+                    len(missing_profiles),
+                )
         except Exception:
-            app.logger.exception("Could not load trip owner usernames")
+            app.logger.exception("Could not load trip owner profiles")
     for trip in trip_rows:
-        trip["owner_username"] = owner_usernames.get(str(trip.get("user_id")))
+        owner_id = str(trip.get("user_id"))
+        trip["owner_username"] = owner_usernames.get(owner_id)
+        trip["owner_display_name"] = owner_display_names.get(owner_id)
 
     stage_started = time.perf_counter()
     expense_rows = (
