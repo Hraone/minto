@@ -1662,6 +1662,7 @@
       ><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></a>
       <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
+        <a role="menuitem" class="{{ 'active' if request.endpoint == 'feedback' else '' }}" href="{{ url_for('feedback') }}">Feedback &amp; Support</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}">Friends</a>
         {% if app_mode != 'trip' %}<a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>{% endif %}
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>

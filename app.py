@@ -31,6 +31,7 @@ from dashboard_finance import (
     filter_commitments_to_current_month,
     get_dashboard_period_start,
 )
+from feedback_validation import FEEDBACK_CATEGORIES, validate_feedback_form
 
 load_dotenv()
 
@@ -1124,6 +1125,107 @@ def friends():
         friend_query=query,
         **load_friend_center(client, query),
     )
+
+
+FEEDBACK_PAGE_SIZE = 10
+
+
+def _fetch_feedback_history(client, user_id, page):
+    """Fetch only the signed-in user's private feedback, newest first."""
+    offset = (page - 1) * FEEDBACK_PAGE_SIZE
+    result = (
+        client.table("user_feedback")
+        .select("id,category,rating,message,status,created_at", count="exact")
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .range(offset, offset + FEEDBACK_PAGE_SIZE - 1)
+        .execute()
+    )
+    rows = result.data or []
+    total = result.count or 0
+    total_pages = max(1, (total + FEEDBACK_PAGE_SIZE - 1) // FEEDBACK_PAGE_SIZE)
+    return rows, total_pages
+
+
+@app.route("/feedback", methods=["GET", "POST"])
+@login_required
+def feedback():
+    client = get_user_client()
+    user_id = session["user_id"]
+    page_raw = request.args.get("page", "1")
+    try:
+        page = max(1, min(int(page_raw), 1000000))
+    except (TypeError, ValueError):
+        page = 1
+
+    form_values = {"category": "", "rating": "", "rating_value": None, "message": ""}
+    errors = {}
+    feedback_error = None
+    submitted = request.args.get("submitted") == "1"
+    response_status = 200
+
+    if request.method == "POST":
+        form_values, errors = validate_feedback_form(request.form)
+        if not errors:
+            payload = {
+                "user_id": user_id,
+                "category": form_values["category"],
+                "rating": form_values["rating_value"],
+                "message": form_values["message"],
+            }
+            try:
+                result = (
+                    client.table("user_feedback")
+                    .insert(payload)
+                    .select("id")
+                    .execute()
+                )
+                if not result.data:
+                    raise RuntimeError("Feedback insert returned no confirmation row")
+            except Exception as exc:
+                # Never log the private message or expose database details.
+                app.logger.warning(
+                    "Feedback submission failed for user %s (%s)",
+                    user_id,
+                    type(exc).__name__,
+                )
+                feedback_error = (
+                    "We couldn't submit your feedback right now. "
+                    "Your message is still here. Please try again."
+                )
+                response_status = 503
+            else:
+                return redirect(url_for("feedback", submitted="1"))
+        else:
+            response_status = 400
+
+    history_error = None
+    try:
+        feedback_rows, total_pages = _fetch_feedback_history(client, user_id, page)
+    except Exception as exc:
+        # Keep private content out of logs and do not expose provider errors.
+        app.logger.warning(
+            "Feedback history load failed for user %s (%s)",
+            user_id,
+            type(exc).__name__,
+        )
+        feedback_rows, total_pages = [], 1
+        history_error = "Your feedback history couldn't be loaded. Please try again later."
+
+    return render_template(
+        "feedback.html",
+        categories=FEEDBACK_CATEGORIES,
+        form_values=form_values,
+        errors=errors,
+        feedback_rows=feedback_rows,
+        history_error=history_error,
+        feedback_error=feedback_error,
+        submitted=submitted,
+        page=page,
+        total_pages=total_pages,
+        has_previous=page > 1,
+        has_next=page < total_pages,
+    ), response_status
 
 
 @app.route("/profile")
