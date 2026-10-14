@@ -5036,7 +5036,16 @@ def update_card_cycle(source_id):
 @app.route("/sources", methods=["GET", "POST"])
 @login_required
 def sources():
+    def log_sources_stage(stage, started_at):
+        app.logger.info(
+            "sources_stage=%s elapsed_ms=%.1f",
+            stage,
+            (time.perf_counter() - started_at) * 1000,
+        )
+
+    stage_started = time.perf_counter()
     client = get_user_client()
+    log_sources_stage("client_setup", stage_started)
     user_id = session["user_id"]
 
     if request.method == "POST":
@@ -5088,11 +5097,21 @@ def sources():
                 flash("Couldn't add that account. Please try again.")
         return redirect(url_for("sources"))
 
+    stage_started = time.perf_counter()
     savings, credit_cards, _ = compute_source_balances(client, user_id)
+    log_sources_stage("source_balances", stage_started)
+
+    stage_started = time.perf_counter()
     cash = [s for s in savings if s["source_type"] == "cash"]
     savings = [s for s in savings if s["source_type"] == "savings"]
+    log_sources_stage("account_list_processing", stage_started)
+
+    stage_started = time.perf_counter()
     cc_loans = get_active_cc_loans(client, user_id)
-    return render_template(
+    log_sources_stage("active_credit_card_loans", stage_started)
+
+    stage_started = time.perf_counter()
+    response = render_template(
         "sources.html",
         savings=savings,
         cash=cash,
@@ -5100,6 +5119,8 @@ def sources():
         cc_loans=cc_loans,
         today=datetime.now(APP_TZ).date().isoformat(),
     )
+    log_sources_stage("template_render", stage_started)
+    return response
 
 
 @app.template_filter("inr")
