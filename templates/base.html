@@ -1663,6 +1663,7 @@
       <div class="nav-dropdown profile-dropdown" id="navProfileMenu" role="menu" hidden>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'profile' else '' }}" href="{{ url_for('profile') }}">Profile</a>
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'feedback' else '' }}" href="{{ url_for('feedback') }}">Feedback &amp; Support</a>
+        {% if is_admin_user %}<a role="menuitem" class="{{ 'active' if request.endpoint and request.endpoint.startswith('admin_') else '' }}" href="{{ url_for('admin_dashboard') }}">Admin Panel</a>{% endif %}
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}">Friends</a>
         {% if app_mode != 'trip' %}<a role="menuitem" href="{{ url_for('net_worth') }}">Protected Net Worth</a>{% endif %}
         <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">About Minto</a>
