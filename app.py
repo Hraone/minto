@@ -2911,17 +2911,65 @@ def parse_friend_names(raw):
     return names
 
 
-def get_trip_or_none(client, user_id, trip_id):
-    rows = (
+def get_accessible_trip_rows(client, user_id, columns="id, name, is_group, active, created_at, destination, start_date, end_date, budget, status"):
+    """Return only trips owned by the user or explicitly joined through an active Minto membership.
+
+    Keep this authorization check in the application as defense in depth; it must
+    not depend solely on RLS being enabled in Supabase.
+    """
+    owned_rows = (
         client.table("trips")
-        .select("id, name, is_group, active, created_at, destination, start_date, end_date, budget, status")
-        .eq("id", trip_id)
+        .select(columns)
+        .eq("user_id", user_id)
         .execute()
         .data
+        or []
     )
-    if not rows:
+
+    membership_rows = (
+        client.table("trip_members")
+        .select("trip_id")
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .execute()
+        .data
+        or []
+    )
+    member_trip_ids = list({row.get("trip_id") for row in membership_rows if row.get("trip_id") is not None})
+    owned_ids = {row.get("id") for row in owned_rows}
+    additional_ids = [trip_id for trip_id in member_trip_ids if trip_id not in owned_ids]
+
+    shared_rows = []
+    if additional_ids:
+        shared_rows = (
+            client.table("trips")
+            .select(columns)
+            .in_("id", additional_ids)
+            .execute()
+            .data
+            or []
+        )
+
+    # Membership is checked against the authenticated user's ID above, not
+    # merely against trip IDs supplied by the browser.
+    by_id = {row["id"]: dict(row) for row in [*owned_rows, *shared_rows] if row.get("id") is not None}
+    return sorted(
+        by_id.values(),
+        key=lambda row: row.get("created_at") or "",
+        reverse=True,
+    )
+
+
+def get_trip_or_none(client, user_id, trip_id):
+    """Return a trip only when the current user owns it or is an active member."""
+    try:
+        target_id = int(trip_id)
+    except (TypeError, ValueError):
         return None
-    return dict(rows[0])
+    for trip in get_accessible_trip_rows(client, user_id):
+        if trip.get("id") == target_id:
+            return trip
+    return None
 
 
 def current_trip_member_id(client, trip_id):
@@ -3023,7 +3071,7 @@ def trip_home():
         return redirect(url_for("trip_detail", trip_id=active))
     session.pop("active_trip", None)
 
-    latest = client.table("trips").select("id").order("created_at", desc=True).execute().data
+    latest = get_accessible_trip_rows(client, user_id, "id, created_at")
     if latest:
         return redirect(url_for("trip_detail", trip_id=latest[0]["id"]))
     return redirect(url_for("trips"))
@@ -3308,12 +3356,10 @@ def trips():
         return redirect(url_for("trip_detail", trip_id=trip_id))
 
     stage_started = time.perf_counter()
-    trip_rows = (
-        client.table("trips")
-        .select("id, name, is_group, active, created_at, destination, start_date, end_date, budget, status")
-        .order("created_at", desc=True)
-        .execute()
-        .data
+    trip_rows = get_accessible_trip_rows(
+        client,
+        user_id,
+        "id, name, is_group, active, created_at, destination, start_date, end_date, budget, status",
     )
     log_trips_stage("trips_query", stage_started)
 
