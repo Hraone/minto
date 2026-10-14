@@ -33,6 +33,7 @@ from dashboard_finance import (
 )
 from feedback_validation import FEEDBACK_CATEGORIES, validate_feedback_form
 from admin_validation import validate_admin_feedback_update, parse_admin_page
+from login_performance import load_login_profile_state
 
 load_dotenv()
 
@@ -966,14 +967,26 @@ def login():
         return redirect(home_url())
 
     if request.method == "POST":
+        login_started = time.perf_counter()
         email = request.form["email"].strip()
         password = request.form["password"]
         client = get_client()
+        auth_started = time.perf_counter()
         try:
             result = client.auth.sign_in_with_password({"email": email, "password": password})
         except Exception as e:
+            app.logger.warning(
+                "login_stage=auth outcome=failure elapsed_ms=%.1f error_type=%s",
+                (time.perf_counter() - auth_started) * 1000,
+                type(e).__name__,
+            )
             flash(f"Login failed: {e}")
             return render_template("login.html")
+
+        app.logger.info(
+            "login_stage=auth outcome=success elapsed_ms=%.1f",
+            (time.perf_counter() - auth_started) * 1000,
+        )
 
         session.permanent = True  # survive browser restarts, not just the tab
         session["user_id"] = result.user.id
@@ -982,18 +995,47 @@ def login():
         session["refresh_token"] = result.session.refresh_token
         session["expires_at"] = result.session.expires_at
 
-        # Resume whichever mode they were last in (Trip mode survives a re-login).
+        # Fetch login preferences in one request instead of five sequential
+        # PostgREST round trips. Older schemas fall back to the existing
+        # per-setting loaders, preserving compatibility during migrations.
+        profile_started = time.perf_counter()
         user_client = get_user_client()
-        session["mode"] = load_saved_mode(user_client, result.user.id)
-        session["theme"] = load_saved_theme(user_client, result.user.id)
-        session["genz_mode"] = load_genz_mode(user_client, result.user.id)
-        session["display_name"] = load_display_name(user_client, result.user.id)
-        session["biometric_enabled"] = load_biometric_flag(user_client, result.user.id)
+        profile_state = load_login_profile_state(user_client, result.user.id)
+        if profile_state is None:
+            session["mode"] = load_saved_mode(user_client, result.user.id)
+            session["theme"] = load_saved_theme(user_client, result.user.id)
+            session["genz_mode"] = load_genz_mode(user_client, result.user.id)
+            session["display_name"] = load_display_name(user_client, result.user.id)
+            session["biometric_enabled"] = load_biometric_flag(user_client, result.user.id)
+            profile_source = "legacy_fallback"
+        else:
+            saved_mode = profile_state.get("app_mode")
+            session["mode"] = saved_mode if saved_mode in MODES else "personal"
+            saved_theme = profile_state.get("theme")
+            session["theme"] = saved_theme if saved_theme in ("light", "dark") else "light"
+            session["genz_mode"] = bool(profile_state.get("genz_mode", False))
+            session["display_name"] = profile_state.get("display_name") or ""
+            session["biometric_enabled"] = bool(profile_state.get("biometric_enabled", False))
+            profile_source = "combined_query"
+
+        app.logger.info(
+            "login_stage=profile_preferences source=%s elapsed_ms=%.1f",
+            profile_source,
+            (time.perf_counter() - profile_started) * 1000,
+        )
 
         # New users see Minto's short introduction once before entering the app.
         if session.pop("show_info", False):
+            app.logger.info(
+                "login_stage=complete outcome=success elapsed_ms=%.1f",
+                (time.perf_counter() - login_started) * 1000,
+            )
             return redirect(url_for("info"))
 
+        app.logger.info(
+            "login_stage=complete outcome=success elapsed_ms=%.1f",
+            (time.perf_counter() - login_started) * 1000,
+        )
         return redirect(home_url())
 
     return render_template("login.html")
