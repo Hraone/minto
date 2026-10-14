@@ -1748,16 +1748,9 @@ def planner():
     ]
     unpaid_fixed.sort(key=lambda x: (x.get("due_date") or month_end, x.get("name") or ""))
 
-    stage_started = time.perf_counter()
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
-    log_dashboard_stage("source_balances", stage_started)
-    stage_started = time.perf_counter()
     cc_loans = get_active_cc_loans(client, user_id)
-    log_dashboard_stage("active_credit_card_loans", stage_started)
-
-    stage_started = time.perf_counter()
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
-    log_dashboard_stage("credit_card_forecasts", stage_started)
     expected_bills = [
         {
             "kind": "credit_card",
@@ -5110,7 +5103,9 @@ def dashboard():
 
     recent = txns[:5]
 
+    stage_started = time.perf_counter()
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    log_dashboard_stage("source_balances", stage_started)
     stage_started = time.perf_counter()
     manual_items = get_net_worth_manual_items() if net_worth_is_unlocked() else []
     log_dashboard_stage("manual_net_worth_items", stage_started)
@@ -5132,8 +5127,14 @@ def dashboard():
     # Fixed monthly commitments plus expected CC statements form the dashboard's
     # future obligations. They are independent of the period tabs.
     today = datetime.now(APP_TZ).date()
+    stage_started = time.perf_counter()
     cc_loans = get_active_cc_loans(client, user_id)
+    log_dashboard_stage("active_credit_card_loans", stage_started)
+
+    stage_started = time.perf_counter()
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
+    log_dashboard_stage("credit_card_forecasts", stage_started)
+
     stage_started = time.perf_counter()
     try:
         upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
