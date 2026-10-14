@@ -1867,32 +1867,54 @@ def planner():
 @app.route("/reports")
 @login_required
 def reports():
+    stage_started = time.perf_counter()
     client = get_user_client()
+    app.logger.info("reports_stage=client_setup elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
     today = datetime.now(APP_TZ).date()
-    return render_template(
+
+    stage_started = time.perf_counter()
+    history = _fetch_report_history(client, session["user_id"], offset=0, limit=10)
+    app.logger.info("reports_stage=history_query elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
+
+    stage_started = time.perf_counter()
+    response = render_template(
         "reports.html",
         default_from=today.replace(day=1).isoformat(),
         default_to=today.isoformat(),
-        history=_fetch_report_history(client, session["user_id"], offset=0, limit=10),
+        history=history,
     )
+    app.logger.info("reports_stage=template_render elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
+    return response
 
 
 @app.route("/reports/history")
 @login_required
 def reports_history():
+    stage_started = time.perf_counter()
     client = get_user_client()
+    app.logger.info("reports_history_stage=client_setup elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
     try:
         offset = max(int(request.args.get("offset", 0)), 0)
     except (TypeError, ValueError):
         offset = 0
-    return jsonify(_fetch_report_history(client, session["user_id"], offset=offset, limit=10))
+
+    stage_started = time.perf_counter()
+    history = _fetch_report_history(client, session["user_id"], offset=offset, limit=10)
+    app.logger.info("reports_history_stage=history_query elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
+
+    stage_started = time.perf_counter()
+    response = jsonify(history)
+    app.logger.info("reports_history_stage=json_response elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
+    return response
 
 
 def _fetch_transactions(client, user_id, d_from, d_to, columns):
     """Every transaction in the range. Supabase returns at most 1000 rows per
     request, so this pages through them."""
     rows, start = [], 0
+    total_started = time.perf_counter()
     while True:
+        page_started = time.perf_counter()
         batch = (
             client.table("transactions")
             .select(columns)
@@ -1906,7 +1928,17 @@ def _fetch_transactions(client, user_id, d_from, d_to, columns):
             .data
         )
         rows.extend(batch)
+        app.logger.info(
+            "report_stage=transaction_page page=%s elapsed_ms=%.1f",
+            start // 1000 + 1,
+            (time.perf_counter() - page_started) * 1000,
+        )
         if len(batch) < 1000:
+            app.logger.info(
+                "report_stage=transaction_fetch_total pages=%s elapsed_ms=%.1f",
+                start // 1000 + 1,
+                (time.perf_counter() - total_started) * 1000,
+            )
             return rows
         start += 1000
 
@@ -1981,10 +2013,12 @@ def download_report():
     client = get_user_client()
     user_id = session["user_id"]
 
+    stage_started = time.perf_counter()
     rows = _fetch_transactions(
         client, user_id, d_from, d_to,
         "*, user_sources(name, source_type)",
     )
+    app.logger.info("report_stage=current_period_transactions elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
     if not rows:
         flash("No transactions between those dates.")
         return redirect(url_for("reports"))
@@ -1993,19 +2027,23 @@ def download_report():
     span = (d_to - d_from).days + 1
     prev_to = d_from - timedelta(days=1)
     prev_from = prev_to - timedelta(days=span - 1)
+    stage_started = time.perf_counter()
     try:
         prev_rows = _fetch_transactions(client, user_id, prev_from, prev_to, "amount, category")
         prev_spend = sum(float(r["amount"] or 0) for r in prev_rows if r.get("category") == "expense")
     except Exception:
         prev_spend = None
+    app.logger.info("report_stage=previous_period_comparison elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
 
     name = (session.get("display_name") or "").strip() or (session.get("email") or "").split("@")[0] or "Minto user"
+    stage_started = time.perf_counter()
     try:
         pdf = build_report_pdf(name, d_from, d_to, rows, prev_spend)
     except Exception as e:
         app.logger.exception("Report PDF failed")
         flash("Couldn't build the report. Please try again.")
         return redirect(url_for("reports"))
+    app.logger.info("report_stage=pdf_generation elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
 
     # Log that a report was made (range and size only, never the report itself).
     # Never blocks the download.
