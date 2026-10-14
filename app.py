@@ -18,7 +18,7 @@ import random
 from email.message import EmailMessage
 from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, Response
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, Response, abort
 from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
@@ -32,6 +32,7 @@ from dashboard_finance import (
     get_dashboard_period_start,
 )
 from feedback_validation import FEEDBACK_CATEGORIES, validate_feedback_form
+from admin_validation import validate_admin_feedback_update, parse_admin_page
 
 load_dotenv()
 
@@ -345,6 +346,7 @@ def inject_template_globals():
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
         "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
         "nav_name": name,
+        "is_admin_user": _is_admin_user_id(session.get("user_id")) if session.get("user_id") else False,
         "profile_avatar": profile_avatar,
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
@@ -532,6 +534,33 @@ def get_service_client():
     if not SUPABASE_SERVICE_ROLE_KEY:
         return None
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+
+
+
+def _is_admin_user_id(user_id):
+    if not user_id:
+        return False
+    service = get_service_client()
+    if service is None:
+        return False
+    try:
+        return bool(service.table("admin_roles").select("user_id").eq("user_id", str(user_id)).limit(1).execute().data)
+    except Exception as exc:
+        app.logger.warning("Administrator role lookup failed (%s)", type(exc).__name__)
+        return False
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not session.get("user_id"):
+            return redirect(url_for("info"))
+        if get_service_client() is None:
+            abort(503)
+        if not _is_admin_user_id(session.get("user_id")):
+            abort(403)
+        return view(*args, **kwargs)
+    return wrapped
 
 
 def net_worth_is_unlocked():
@@ -5124,6 +5153,9 @@ def favicon():
 def health():
     return "OK"
 
+
+from admin_panel import register_admin_routes
+register_admin_routes(app, login_required, admin_required, _admin_client)
 
 if __name__ == "__main__":
     app.run(debug=True)

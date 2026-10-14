@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Minto Admin Panel{% endblock %}
+{% block content %}
+<style>
+.admin-shell{max-width:1240px;margin:0 auto;padding:24px 18px 48px;color:var(--text-color,#1f2937)}
+.admin-heading{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:22px}
+.admin-heading h1{font-size:clamp(1.6rem,3vw,2.2rem);margin:0 0 6px}.admin-heading p{color:var(--muted,#687386);margin:0;line-height:1.5}
+.admin-nav{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border-color,#dfe3e8);padding-bottom:14px;margin-bottom:22px}
+.admin-nav a,.admin-btn{display:inline-flex;align-items:center;justify-content:center;padding:9px 12px;border:1px solid var(--border-color,#dfe3e8);border-radius:8px;text-decoration:none;color:inherit;background:var(--card-bg,#fff);font:inherit;font-size:.9rem;font-weight:600;cursor:pointer}
+.admin-nav a[aria-current=page],.admin-primary{background:var(--primary,#245bdb);border-color:var(--primary,#245bdb);color:#fff}.admin-danger{border-color:#b42318;color:#b42318}
+.admin-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}.admin-card,.admin-panel{border:1px solid var(--border-color,#dfe3e8);border-radius:12px;padding:18px;background:var(--card-bg,#fff);min-width:0}
+.admin-label{font-size:.86rem;color:var(--muted,#687386);margin:0 0 10px}.admin-value{font-size:clamp(1.4rem,2.5vw,2rem);font-weight:750;overflow-wrap:anywhere}.admin-muted{color:var(--muted,#687386);font-size:.88rem}
+.admin-section{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:28px 0 12px}.admin-section h2{font-size:1.15rem;margin:0}
+.admin-table-wrap{width:100%;overflow-x:auto;border:1px solid var(--border-color,#dfe3e8);border-radius:10px}.admin-table{width:100%;border-collapse:collapse;min-width:720px;font-size:.9rem}
+.admin-table th,.admin-table td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--border-color,#dfe3e8);vertical-align:top}.admin-table th{font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted,#687386);background:var(--surface-muted,#f7f8fa);white-space:nowrap}.admin-table tr:last-child td{border-bottom:0}
+.admin-toolbar,.admin-actions{display:flex;align-items:end;gap:10px;flex-wrap:wrap}.admin-field{display:flex;flex-direction:column;gap:6px;min-width:140px}.admin-field label{font-size:.82rem;font-weight:650}
+.admin-field input,.admin-field select,.admin-field textarea{box-sizing:border-box;width:100%;border:1px solid var(--border-color,#cfd5dd);border-radius:7px;padding:10px 11px;background:var(--input-bg,#fff);color:inherit;font:inherit}
+.admin-field input:focus-visible,.admin-field select:focus-visible,.admin-btn:focus-visible,.admin-nav a:focus-visible{outline:3px solid #6ea8fe;outline-offset:2px}
+.admin-badge{display:inline-flex;padding:3px 8px;border:1px solid var(--border-color,#dfe3e8);border-radius:5px;font-size:.78rem;font-weight:650}.admin-mono{font-family:ui-monospace,monospace;font-size:.78rem;overflow-wrap:anywhere}.admin-message{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65}
+.admin-alert{padding:12px 14px;border:1px solid #d97706;border-radius:8px;margin:0 0 16px;background:var(--surface-muted,#fff8e7)}.admin-pagination{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}
+@media(max-width:900px){.admin-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:540px){.admin-shell{padding:18px 12px 36px}.admin-grid{gap:9px}.admin-card,.admin-panel{padding:13px}.admin-nav a{flex:1 1 auto}}
+</style>
+<section class="admin-shell"><header class="admin-heading"><div><p>Minto · Administration</p><h1>Admin Panel</h1><p>Manage access and review feedback. Private financial records are not part of this workspace.</p></div></header>
+<nav class="admin-nav" aria-label="Admin navigation"><a href="{{ url_for('admin_dashboard') }}" {% if request.endpoint == 'admin_dashboard' %}aria-current="page"{% endif %}>Dashboard</a><a href="{{ url_for('admin_users') }}" {% if request.endpoint == 'admin_users' %}aria-current="page"{% endif %}>Manage Users</a><a href="{{ url_for('admin_feedback') }}" {% if request.endpoint in ('admin_feedback','admin_feedback_detail') %}aria-current="page"{% endif %}>Feedback &amp; Reviews</a><a href="{{ url_for('admin_activity') }}" {% if request.endpoint == 'admin_activity' %}aria-current="page"{% endif %}>Activity Logs</a></nav>
+{% with messages = get_flashed_messages() %}{% if messages %}<div class="admin-alert" role="status">{% for message in messages %}<div>{{ message }}</div>{% endfor %}</div>{% endif %}{% endwith %}
+{% block admin_content %}{% endblock %}</section>
+{% endblock %}
