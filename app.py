@@ -3142,7 +3142,16 @@ def load_trip_financials(client, user_id, trip_id):
 @app.route("/trips", methods=["GET", "POST"])
 @login_required
 def trips():
+    def log_trips_stage(stage, started_at):
+        app.logger.info(
+            "trips_stage=%s elapsed_ms=%.1f",
+            stage,
+            (time.perf_counter() - started_at) * 1000,
+        )
+
+    stage_started = time.perf_counter()
     client = get_user_client()
+    log_trips_stage("client_setup", stage_started)
     user_id = session["user_id"]
     today = datetime.now(APP_TZ).date()
 
@@ -3201,6 +3210,7 @@ def trips():
                     flash(f"Could not add @{username}. Confirm the username and that you are Minto friends.")
         return redirect(url_for("trip_detail", trip_id=trip_id))
 
+    stage_started = time.perf_counter()
     trip_rows = (
         client.table("trips")
         .select("id, name, is_group, active, created_at, destination, start_date, end_date, budget, status")
@@ -3208,19 +3218,27 @@ def trips():
         .execute()
         .data
     )
+    log_trips_stage("trips_query", stage_started)
+
+    stage_started = time.perf_counter()
     expense_rows = (
         client.table("trip_expenses")
         .select("trip_id, amount")
         .execute()
         .data
     )
+    log_trips_stage("trip_expenses_query", stage_started)
+
+    stage_started = time.perf_counter()
     member_rows = client.table("trip_members").select("trip_id").eq("active", True).execute().data
+    log_trips_stage("trip_members_query", stage_started)
     totals = defaultdict(int)
     for e in expense_rows:
         totals[e["trip_id"]] += _to_paise(e["amount"])
     friend_counts = defaultdict(int)
     for f in member_rows:
         friend_counts[f["trip_id"]] += 1
+    stage_started = time.perf_counter()
     for t in trip_rows:
         t["total"] = totals[t["id"]] / 100
         t["friend_count"] = max(friend_counts[t["id"]] - 1, 0)
@@ -3230,8 +3248,12 @@ def trips():
         t["budget_pct"] = min(round((t["total"] / budget) * 100, 1), 100) if budget > 0 else None
         t["status_label"] = trip_status_label(t.get("status"))
         t["is_owner"] = is_trip_owner(client, t["id"])
+    log_trips_stage("trip_list_calculations_and_owner_checks", stage_started)
 
-    return render_template("trips.html", trips=trip_rows, today=today.isoformat())
+    stage_started = time.perf_counter()
+    response = render_template("trips.html", trips=trip_rows, today=today.isoformat())
+    log_trips_stage("template_render", stage_started)
+    return response
 
 
 @app.route("/trips/<int:trip_id>/update", methods=["POST"])
@@ -3748,20 +3770,35 @@ def update_trip_status(trip_id):
 @app.route("/trips/<int:trip_id>")
 @login_required
 def trip_detail(trip_id):
+    def log_trip_detail_stage(stage, started_at):
+        app.logger.info(
+            "trip_detail_stage=%s elapsed_ms=%.1f",
+            stage,
+            (time.perf_counter() - started_at) * 1000,
+        )
+
+    stage_started = time.perf_counter()
     client = get_user_client()
+    log_trip_detail_stage("client_setup", stage_started)
     user_id = session["user_id"]
     today = datetime.now(APP_TZ).date()
 
+    stage_started = time.perf_counter()
     trip = get_trip_or_none(client, user_id, trip_id)
+    log_trip_detail_stage("trip_lookup", stage_started)
     if not trip:
         flash("That trip wasn't found.")
         return redirect(url_for("trips"))
 
     session["active_trip"] = trip_id
     trip["status_label"] = trip_status_label(trip.get("status"))
+    stage_started = time.perf_counter()
     trip_owner = is_trip_owner(client, trip_id)
     current_id = current_trip_member_id(client, trip_id)
     friends, people, members, current_id = get_trip_people(client, user_id, trip_id)
+    log_trip_detail_stage("owner_and_member_lookups", stage_started)
+
+    stage_started = time.perf_counter()
     expenses = (
         client.table("trip_expenses")
         .select("id, trip_id, description, amount, paid_by, expense_date, category, created_at, payer_member_id")
@@ -3771,14 +3808,29 @@ def trip_detail(trip_id):
         .execute()
         .data
     )
+    log_trip_detail_stage("expenses_query", stage_started)
+
+    stage_started = time.perf_counter()
     settlement_rows = get_trip_settlement_rows(client, user_id, trip_id)
+    log_trip_detail_stage("settlements_and_links", stage_started)
+
     expense_ids = [e["id"] for e in expenses]
+    stage_started = time.perf_counter()
     shares = client.table("trip_expense_shares").select("id, trip_expense_id, trip_member_id, amount, status, created_at, responded_at").in_("trip_expense_id", expense_ids).execute().data if expense_ids else []
+    log_trip_detail_stage("expense_shares_query", stage_started)
+
+    stage_started = time.perf_counter()
     splits = client.table("trip_expense_splits").select("trip_expense_id, trip_member_id, participant_name, share_amount").in_("trip_expense_id", expense_ids).execute().data if expense_ids else []
+    log_trip_detail_stage("expense_splits_query", stage_started)
+
+    stage_started = time.perf_counter()
     share_links = get_trip_share_links(client, trip_id)
+    log_trip_detail_stage("share_links", stage_started)
     for share in shares:
         share.update(share_links.get(share["id"], {}))
+    stage_started = time.perf_counter()
     expense_permissions = get_trip_expense_permissions(client, trip_id)
+    log_trip_detail_stage("expense_permissions", stage_started)
     for expense in expenses:
         permission = expense_permissions.get(expense["id"], {})
         expense["is_author"] = bool(permission.get("is_author"))
@@ -3814,8 +3866,10 @@ def trip_detail(trip_id):
         if not expense["is_author"]:
             expense.pop("payment_transaction_id", None)
 
+    stage_started = time.perf_counter()
     paid, owed, net = calculate_trip_balances(members, expenses, shares, settlement_rows, splits)
     total_paise = sum(_to_paise(e["amount"]) for e in expenses)
+    log_trip_detail_stage("balance_calculation", stage_started)
     people_rows = []
     for member in members:
         member_id = member["id"]
@@ -3879,7 +3933,8 @@ def trip_detail(trip_id):
     budget_over = max(total_paise / 100 - budget, 0) if budget > 0 else 0
     budget_pct = min(round((total_paise / 100 / budget) * 100, 1), 100) if budget > 0 else None
 
-    return render_template(
+    stage_started = time.perf_counter()
+    response = render_template(
         "trip_detail.html",
         trip=trip,
         friends=friends,
@@ -3912,6 +3967,8 @@ def trip_detail(trip_id):
         trip_expense_categories=TRIP_EXPENSE_CATEGORIES,
         today=today.isoformat(),
     )
+    log_trip_detail_stage("template_render", stage_started)
+    return response
 
 
 @app.route("/withdraw-cash", methods=["GET", "POST"])
