@@ -1749,12 +1749,22 @@ def _fetch_report_history(client, user_id, offset=0, limit=10):
 @login_required
 def planner():
     """Current-month planning view built from salary, unpaid commitments and recorded spending."""
+    def log_planner_stage(stage, started_at):
+        app.logger.info(
+            "planner_stage=%s elapsed_ms=%.1f",
+            stage,
+            (time.perf_counter() - started_at) * 1000,
+        )
+
+    stage_started = time.perf_counter()
     client = get_user_client()
+    log_planner_stage("client_setup", stage_started)
     user_id = session["user_id"]
     today = datetime.now(APP_TZ).date()
     month_start = today.replace(day=1)
     month_end = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
 
+    stage_started = time.perf_counter()
     profile_rows = (
         client.table("profiles")
         .select("monthly_salary, salary_day")
@@ -1763,19 +1773,32 @@ def planner():
         .execute()
         .data
     )
+    log_planner_stage("profile_settings_query", stage_started)
     profile_settings = profile_rows[0] if profile_rows else {}
     salary_cycle = get_salary_cycle(profile_settings, today)
 
+    stage_started = time.perf_counter()
     fixed_items = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
+    log_planner_stage("fixed_expenses", stage_started)
+    stage_started = time.perf_counter()
     unpaid_fixed = [
         item for item in fixed_items
         if not item.get("paid") and item.get("amount")
     ]
     unpaid_fixed.sort(key=lambda x: (x.get("due_date") or month_end, x.get("name") or ""))
+    log_planner_stage("fixed_commitment_processing", stage_started)
 
+    stage_started = time.perf_counter()
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    log_planner_stage("source_balances", stage_started)
+
+    stage_started = time.perf_counter()
     cc_loans = get_active_cc_loans(client, user_id)
+    log_planner_stage("active_credit_card_loans", stage_started)
+
+    stage_started = time.perf_counter()
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
+    log_planner_stage("credit_card_forecasts", stage_started)
     expected_bills = [
         {
             "kind": "credit_card",
@@ -1799,10 +1822,13 @@ def planner():
         }
         for item in unpaid_fixed
     ] + expected_bills
+    stage_started = time.perf_counter()
     commitments.sort(key=lambda x: (x.get("due_date") or month_end, x.get("name") or ""))
 
     commitment_total = round(sum(item["amount"] for item in commitments), 2)
+    log_planner_stage("commitment_processing", stage_started)
 
+    stage_started = time.perf_counter()
     txns = (
         client.table("transactions")
         .select("direction, category, amount, transaction_date, expense_category")
@@ -1813,6 +1839,8 @@ def planner():
         .execute()
         .data
     )
+    log_planner_stage("month_transactions_query", stage_started)
+    stage_started = time.perf_counter()
     excluded_categories = {"transfer", "lending", "trip_expense_payment", "trip_settlement"}
     spent_so_far = round(sum(
         float(txn.get("amount") or 0)
@@ -1821,7 +1849,9 @@ def planner():
         and txn.get("category") not in excluded_categories
         and txn.get("amount")
     ), 2)
+    log_planner_stage("spending_calculation", stage_started)
 
+    stage_started = time.perf_counter()
     planned_salary = round(float(profile_settings.get("monthly_salary") or 0), 2)
     after_commitments = round(planned_salary - commitment_total, 2)
     remaining_plan = round(after_commitments - spent_so_far, 2)
@@ -1844,8 +1874,10 @@ def planner():
                 )
             ),
         })
+    log_planner_stage("budget_and_due_item_calculations", stage_started)
 
-    return render_template(
+    stage_started = time.perf_counter()
+    response = render_template(
         "planner.html",
         today=today,
         month_label=today.strftime("%B %Y"),
@@ -1862,6 +1894,8 @@ def planner():
         weekly_plan=weekly_plan,
         commitments=due_items,
     )
+    log_planner_stage("template_render", stage_started)
+    return response
 
 
 @app.route("/reports")
