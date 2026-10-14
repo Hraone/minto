@@ -46,6 +46,8 @@ app.secret_key = os.environ["SECRET_KEY"]
 def start_request_timing():
     """Capture server-side request duration without recording URLs or user data."""
     request.environ["minto_request_started_at"] = time.perf_counter()
+
+
 # How long a logged-in session survives with no activity at all — separate
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
 # renews automatically as long as this outer session is still alive.
