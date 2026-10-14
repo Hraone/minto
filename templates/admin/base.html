@@ -18,9 +18,9 @@
 .admin-card,.admin-panel{border:1px solid var(--border,#e4e1d9);border-radius:12px;padding:18px;background:var(--surface,#fff);min-width:0;color:var(--text,#17181d)}
 .admin-card{height:100%;box-sizing:border-box}
 .admin-card a{color:inherit}
-.admin-card-link{display:block;color:var(--text,#17181d);text-decoration:none;border-radius:12px}
-.admin-card-link .admin-card{transition:border-color .15s ease,background-color .15s ease}
-.admin-card-link:hover .admin-card{border-color:var(--border-strong,#d8d4c8);background:var(--surface-alt,#f3f1ea)}
+.admin-card-link,.admin-grid>a{display:block;color:var(--text,#17181d);text-decoration:none;border-radius:12px}
+.admin-card-link .admin-card,.admin-grid>a .admin-card{transition:border-color .15s ease,background-color .15s ease}
+.admin-card-link:hover .admin-card,.admin-grid>a:hover .admin-card{border-color:var(--border-strong,#d8d4c8);background:var(--surface-alt,#f3f1ea)}
 .admin-label{font-size:.86rem;color:var(--muted,#6f7180);margin:0 0 10px}
 .admin-value{font-size:clamp(1.4rem,2.5vw,2rem);font-weight:750;overflow-wrap:anywhere;color:var(--text,#17181d)}
 .admin-muted{color:var(--muted,#6f7180);font-size:.88rem}
@@ -37,7 +37,7 @@
 .admin-field label{font-size:.82rem;font-weight:650;color:var(--text,#17181d)}
 .admin-field input,.admin-field select,.admin-field textarea{box-sizing:border-box;width:100%;border:1px solid var(--border-strong,#d8d4c8);border-radius:7px;padding:10px 11px;background:var(--input-bg,#f6f4ee);color:var(--text,#17181d);font:inherit}
 .admin-field input::placeholder,.admin-field textarea::placeholder{color:var(--muted,#6f7180);opacity:1}
-.admin-field input:focus-visible,.admin-field select:focus-visible,.admin-field textarea:focus-visible,.admin-btn:focus-visible,.admin-nav a:focus-visible,.admin-card-link:focus-visible,.admin-table a:focus-visible{outline:3px solid var(--positive,#1f6f50);outline-offset:3px}
+.admin-field input:focus-visible,.admin-field select:focus-visible,.admin-field textarea:focus-visible,.admin-btn:focus-visible,.admin-nav a:focus-visible,.admin-card-link:focus-visible,.admin-grid>a:focus-visible,.admin-table a:focus-visible{outline:3px solid var(--positive,#1f6f50);outline-offset:3px}
 .admin-badge{display:inline-flex;padding:3px 8px;border:1px solid var(--border-strong,#d8d4c8);border-radius:5px;font-size:.78rem;font-weight:650;color:var(--text-secondary,#43454c);background:var(--surface-alt,#f3f1ea);overflow-wrap:anywhere}
 .admin-mono{font-family:ui-monospace,monospace;font-size:.78rem;overflow-wrap:anywhere;color:var(--text-secondary,#43454c)}
 .admin-message{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.65;color:var(--text,#17181d)}
