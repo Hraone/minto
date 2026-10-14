@@ -1363,12 +1363,22 @@ def feedback():
 @app.route("/profile")
 @login_required
 def profile():
+    def log_profile_stage(stage, started_at):
+        app.logger.info(
+            "profile_stage=%s elapsed_ms=%.1f",
+            stage,
+            (time.perf_counter() - started_at) * 1000,
+        )
+
+    stage_started = time.perf_counter()
     client = get_user_client()
+    log_profile_stage("client_setup", stage_started)
     user_id = session["user_id"]
     email = session.get("email") or ""
     access_token = session.get("access_token")  # threads can't read the session
 
     def count(table):
+        count_started = time.perf_counter()
         try:
             query = client.table(table).select("id", count="exact")
             if table != "trips":
@@ -1376,8 +1386,11 @@ def profile():
             return query.limit(1).execute().count
         except Exception:
             return None
+        finally:
+            log_profile_stage(f"count_{table}", count_started)
 
     def saved_name():
+        profile_started = time.perf_counter()
         try:
             # "*" returns whichever columns exist, so one missing column
             # (say theme) can never hide the others (like the display name).
@@ -1385,13 +1398,19 @@ def profile():
             return rows[0] if rows else {}
         except Exception:
             return None
+        finally:
+            log_profile_stage("profile_data_query", profile_started)
 
     def member_since():
+        auth_started = time.perf_counter()
         try:
             return client.auth.get_user(access_token).user.created_at
         except Exception:
             return None
+        finally:
+            log_profile_stage("member_since_auth_lookup", auth_started)
 
+    parallel_started = time.perf_counter()
     with ThreadPoolExecutor(max_workers=5) as pool:
         accounts_f = pool.submit(count, "user_sources")
         transactions_f = pool.submit(count, "transactions")
@@ -1403,12 +1422,14 @@ def profile():
         trips = trips_f.result()
         profile_data = name_f.result() or {}
         since = since_f.result()
+    log_profile_stage("parallel_profile_loads_wall_time", parallel_started)
 
     name = profile_data.get("display_name") or ""
     theme = profile_data.get("theme") if profile_data.get("theme") in ("light", "dark") else session.get("theme", "light")
     profile_avatar = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_AVATARS else load_profile_avatar(client, user_id)
     biometric_enabled = bool(profile_data.get("biometric_enabled"))
     genz_mode = bool(profile_data.get("genz_mode"))
+    accounts_started = time.perf_counter()
     try:
         expense_accounts = (
             client.table("user_sources")
@@ -1420,12 +1441,14 @@ def profile():
         )
     except Exception:
         expense_accounts = []
+    log_profile_stage("expense_accounts_query", accounts_started)
     session["display_name"] = name  # keeps the top bar in step
     session["profile_avatar"] = profile_avatar
     session["theme"] = theme
     session["biometric_enabled"] = biometric_enabled
     display_name = name or (email.split("@")[0] if email else "Minto user")
-    return render_template(
+    render_started = time.perf_counter()
+    response = render_template(
         "profile.html",
         display_name=display_name,
         has_custom_name=bool(name),
@@ -1449,6 +1472,8 @@ def profile():
         share_phone=bool(profile_data.get("share_phone_with_friends")),
         share_email=bool(profile_data.get("share_email_with_friends")),
     )
+    log_profile_stage("template_render", render_started)
+    return response
 
 
 @app.route("/profile/contact-sharing", methods=["POST"])
