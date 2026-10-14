@@ -40,6 +40,12 @@ load_dotenv()
 app = Flask(__name__)
 MINTO_VERSION = "2.0.0"
 app.secret_key = os.environ["SECRET_KEY"]
+
+
+@app.before_request
+def start_request_timing():
+    """Capture server-side request duration without recording URLs or user data."""
+    request.environ["minto_request_started_at"] = time.perf_counter()
 # How long a logged-in session survives with no activity at all — separate
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
 # renews automatically as long as this outer session is still alive.
@@ -89,6 +95,24 @@ def validate_unsafe_request_origin():
         return "Cross-origin request blocked.", 403
 
     return None
+
+
+@app.after_request
+def log_request_timing(response):
+    """Log total dynamic request time and expose it for browser waterfall analysis."""
+    started_at = request.environ.get("minto_request_started_at")
+    if started_at is not None and request.endpoint != "static":
+        elapsed_ms = (time.perf_counter() - started_at) * 1000
+        endpoint = request.endpoint or "unmatched"
+        app.logger.info(
+            "request_stage=total method=%s endpoint=%s status=%s elapsed_ms=%.1f",
+            request.method,
+            endpoint,
+            response.status_code,
+            elapsed_ms,
+        )
+        response.headers["Server-Timing"] = f"app;dur={elapsed_ms:.1f}"
+    return response
 
 
 @app.after_request
@@ -333,12 +357,27 @@ def inject_template_globals():
     if not name:
         name = (session.get("email") or "").split("@")[0]
 
+    context_started = time.perf_counter()
+    avatar_started = time.perf_counter()
     profile_avatar = "avatar-01"
     if session.get("user_id"):
         profile_avatar = session.get("profile_avatar")
         if profile_avatar not in PROFILE_AVATARS:
             profile_avatar = load_profile_avatar(get_user_client(), session["user_id"])
             session["profile_avatar"] = profile_avatar
+    avatar_elapsed_ms = (time.perf_counter() - avatar_started) * 1000
+
+    admin_started = time.perf_counter()
+    is_admin_user = _is_admin_user_id(session.get("user_id")) if session.get("user_id") else False
+    admin_elapsed_ms = (time.perf_counter() - admin_started) * 1000
+    if session.get("user_id"):
+        app.logger.info(
+            "request_stage=template_context endpoint=%s avatar_ms=%.1f admin_role_ms=%.1f elapsed_ms=%.1f",
+            request.endpoint or "unmatched",
+            avatar_elapsed_ms,
+            admin_elapsed_ms,
+            (time.perf_counter() - context_started) * 1000,
+        )
 
     return {
         "asset_version": "6",
@@ -347,7 +386,7 @@ def inject_template_globals():
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
         "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
         "nav_name": name,
-        "is_admin_user": _is_admin_user_id(session.get("user_id")) if session.get("user_id") else False,
+        "is_admin_user": is_admin_user,
         "profile_avatar": profile_avatar,
         "supabase_url": SUPABASE_URL,
         "supabase_anon_key": SUPABASE_ANON_KEY,
@@ -897,27 +936,47 @@ def login_required(view):
         if "user_id" not in session:
             return redirect(url_for("info"))
 
+        guard_started = time.perf_counter()
+        profile_started = time.perf_counter()
         if session.get("theme") not in ("light", "dark"):
             session["theme"] = load_saved_theme(get_user_client(), session["user_id"])
         if "genz_mode" not in session:
             session["genz_mode"] = load_genz_mode(get_user_client(), session["user_id"])
+        profile_elapsed_ms = (time.perf_counter() - profile_started) * 1000
 
         now = datetime.now(timezone.utc).timestamp()
         last_verified = session.get("verified_at", 0)
+        auth_verify_ms = 0.0
         if now - last_verified > USER_VERIFY_INTERVAL_SECONDS:
             client = get_user_client()  # also refreshes the access token if it's stale
+            verify_started = time.perf_counter()
             try:
                 # Asks Supabase's Auth service directly whether this user
                 # still exists, rather than trusting the JWT's own claim to
                 # still be valid — this is the actual source of truth that
                 # a deleted user can no longer pass.
                 client.auth.get_user(session["access_token"])
+                auth_verify_ms = (time.perf_counter() - verify_started) * 1000
                 session["verified_at"] = now
-            except Exception:
+            except Exception as exc:
+                auth_verify_ms = (time.perf_counter() - verify_started) * 1000
+                app.logger.warning(
+                    "request_stage=auth_verify outcome=failure endpoint=%s elapsed_ms=%.1f error_type=%s",
+                    request.endpoint or "unmatched",
+                    auth_verify_ms,
+                    type(exc).__name__,
+                )
                 session.clear()
                 flash("Your account is no longer valid. Please log in again.")
                 return redirect(url_for("login"))
 
+        app.logger.info(
+            "request_stage=auth_guard endpoint=%s profile_preferences_ms=%.1f auth_verify_ms=%.1f elapsed_ms=%.1f",
+            request.endpoint or "unmatched",
+            profile_elapsed_ms,
+            auth_verify_ms,
+            (time.perf_counter() - guard_started) * 1000,
+        )
         return view(*args, **kwargs)
     return wrapped
 
