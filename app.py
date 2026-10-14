@@ -3359,9 +3359,32 @@ def trips():
     trip_rows = get_accessible_trip_rows(
         client,
         user_id,
-        "id, name, is_group, active, created_at, destination, start_date, end_date, budget, status",
+        "id, user_id, name, is_group, active, created_at, destination, start_date, end_date, budget, status",
     )
     log_trips_stage("trips_query", stage_started)
+
+    # Resolve trip owners in one batched profile lookup, not one request per card.
+    owner_ids = list({str(t.get("user_id")) for t in trip_rows if t.get("user_id")})
+    owner_usernames = {}
+    if owner_ids:
+        try:
+            owner_profiles = (
+                client.table("profiles")
+                .select("id, username")
+                .in_("id", owner_ids)
+                .execute()
+                .data
+                or []
+            )
+            owner_usernames = {
+                str(profile["id"]): profile.get("username")
+                for profile in owner_profiles
+                if profile.get("id") and profile.get("username")
+            }
+        except Exception:
+            app.logger.exception("Could not load trip owner usernames")
+    for trip in trip_rows:
+        trip["owner_username"] = owner_usernames.get(str(trip.get("user_id")))
 
     stage_started = time.perf_counter()
     expense_rows = (
