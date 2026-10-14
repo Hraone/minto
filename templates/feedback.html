@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}Feedback & Support · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .feedback-page {
+    width: 100%;
+    max-width: 980px;
+    min-width: 0;
+    margin: 0 auto;
+    padding: 28px 16px 56px;
+    color: var(--text);
+  }
+  .feedback-page, .feedback-page * { box-sizing: border-box; }
+  .feedback-heading { margin: 0 0 8px; font-size: clamp(25px, 4vw, 32px); line-height: 1.2; letter-spacing: -.03em; }
+  .feedback-intro { max-width: 680px; margin: 0 0 22px; color: var(--muted); line-height: 1.6; }
+  .feedback-card { min-width: 0; padding: 22px; margin: 0 0 18px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); }
+  .feedback-card h2 { margin: 0 0 6px; font-size: 18px; }
+  .feedback-subtitle { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .feedback-field { margin: 0 0 18px; min-width: 0; }
+  .feedback-field > label, .feedback-field legend { display: block; margin: 0 0 8px; color: var(--text); font-size: 13px; font-weight: 650; }
+  .feedback-field select, .feedback-field textarea {
+    display: block; width: 100%; min-width: 0; border: 1px solid var(--border);
+    border-radius: 10px; background: var(--surface); color: var(--text);
+    font: inherit; font-size: 14px; padding: 11px 12px;
+  }
+  .feedback-field select { min-height: 44px; }
+  .feedback-field textarea { min-height: 150px; resize: vertical; line-height: 1.55; }
+  .feedback-field select:focus-visible, .feedback-field textarea:focus-visible,
+  .feedback-submit:focus-visible, .feedback-page a:focus-visible, .feedback-star:focus-visible + label {
+    outline: 3px solid var(--positive); outline-offset: 3px;
+  }
+  .feedback-help { margin: 7px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+  .feedback-error { margin: 7px 0 0; color: var(--danger, #b42318); font-size: 12px; }
+  .feedback-rating { border: 0; padding: 0; margin: 0 0 18px; }
+  .feedback-rating legend { margin-bottom: 8px; }
+  .feedback-stars { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+  .feedback-star { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  .feedback-stars label { display: inline-flex; align-items: center; justify-content: center; min-width: 42px; min-height: 42px; border: 1px solid var(--border); border-radius: 9px; color: var(--muted); cursor: pointer; font-size: 23px; }
+  .feedback-stars label span { line-height: 1; }
+  .feedback-star:checked + label { color: #b7791f; border-color: #b7791f; background: color-mix(in srgb, #d69e2e 12%, var(--surface)); }
+  .feedback-stars label:hover { border-color: var(--muted); }
+  .feedback-submit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border: 1px solid var(--positive); border-radius: 10px; padding: 11px 16px; background: var(--positive); color: #fff; font: inherit; font-weight: 650; cursor: pointer; }
+  .feedback-submit:disabled { opacity: .65; cursor: wait; }
+  .feedback-notice { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; margin: 0 0 16px; font-size: 13px; line-height: 1.5; }
+  .feedback-notice.success { border-color: var(--positive); }
+  .feedback-notice.error { border-color: var(--danger, #b42318); }
+  .feedback-history { display: grid; gap: 12px; }
+  .feedback-item { min-width: 0; border: 1px solid var(--border); border-radius: 12px; padding: 15px; background: var(--surface); }
+  .feedback-item-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+  .feedback-item-title { margin: 0; font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+  .feedback-meta { color: var(--muted); font-size: 12px; }
+  .feedback-status { display: inline-flex; align-items: center; min-height: 25px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 11px; font-weight: 650; }
+  .feedback-message { margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text); font-size: 13px; line-height: 1.6; }
+  .feedback-empty { padding: 22px; border: 1px dashed var(--border); border-radius: 12px; color: var(--muted); text-align: center; line-height: 1.6; }
+  .feedback-pagination { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-top: 16px; color: var(--muted); font-size: 12px; }
+  .feedback-pagination a { color: var(--text); text-decoration: none; padding: 8px 11px; border: 1px solid var(--border); border-radius: 8px; }
+  .feedback-pagination a:hover { background: var(--surface-subtle); }
+  .feedback-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+  @media (max-width: 600px) {
+    .feedback-page { padding: 18px 12px 38px; }
+    .feedback-card { padding: 16px; border-radius: 13px; }
+    .feedback-stars { gap: 6px; }
+    .feedback-stars label { min-width: 40px; min-height: 40px; }
+    .feedback-submit { width: 100%; }
+  }
+</style>
+
+<main class="feedback-page">
+  <h1 class="feedback-heading">Feedback &amp; Support</h1>
+  <p class="feedback-intro">Your feedback helps us improve Minto. Tell us what works, what needs improvement, or what you would like to see next.</p>
+
+  {% if submitted %}
+    <div class="feedback-notice success" role="status" aria-live="polite">
+      Thank you for helping us improve Minto. Your feedback has been submitted successfully.
+    </div>
+  {% endif %}
+  {% if feedback_error %}
+    <div class="feedback-notice error" role="alert">{{ feedback_error }}</div>
+  {% endif %}
+  {% if history_error %}
+    <div class="feedback-notice error" role="alert">{{ history_error }}</div>
+  {% endif %}
+
+  <section class="feedback-card" aria-labelledby="feedback-form-title">
+    <h2 id="feedback-form-title">Send feedback</h2>
+    <p class="feedback-subtitle">Choose the type of feedback and tell us what happened or what you would like to improve.</p>
+
+    <form id="feedback-form" method="post" action="{{ url_for('feedback') }}" novalidate>
+      <div class="feedback-field">
+        <label for="feedback-category">Feedback category</label>
+        <select id="feedback-category" name="category" required aria-describedby="category-error">
+          <option value="">Select a category</option>
+          {% for category in categories %}
+            <option value="{{ category }}" {{ 'selected' if form_values.category == category else '' }}>{{ category }}</option>
+          {% endfor %}
+        </select>
+        <p class="feedback-error" id="category-error" {% if not errors.get('category') %}hidden{% endif %}>{{ errors.get('category', '') }}</p>
+      </div>
+
+      <fieldset class="feedback-rating">
+        <legend>Rating <span class="feedback-meta">(optional)</span></legend>
+        <div class="feedback-stars" role="radiogroup" aria-label="Rate your experience from 1 to 5 stars">
+          {% for value in range(1, 6) %}
+            <input class="feedback-star" type="radio" id="feedback-rating-{{ value }}" name="rating" value="{{ value }}" {{ 'checked' if form_values.rating == value|string else '' }} aria-label="{{ value }} {{ 'star' if value == 1 else 'stars' }}">
+            <label for="feedback-rating-{{ value }}" title="{{ value }} {{ 'star' if value == 1 else 'stars' }}"><span aria-hidden="true">★</span><span class="feedback-sr-only">{{ value }} {{ 'star' if value == 1 else 'stars' }}</span></label>
+          {% endfor %}
+        </div>
+        {% if errors.get('rating') %}<p class="feedback-error" id="rating-error">{{ errors.get('rating') }}</p>{% endif %}
+      </fieldset>
+
+      <div class="feedback-field">
+        <label for="feedback-message">Your feedback</label>
+        <textarea id="feedback-message" name="message" maxlength="5000" required aria-describedby="message-help message-count{% if errors.get('message') %} message-error{% endif %}" placeholder="Share details that will help us understand your feedback...">{{ form_values.message }}</textarea>
+        <div class="feedback-help" id="message-help">Do not include passwords, account credentials, or sensitive financial information.</div>
+        <div class="feedback-help"><span id="message-count" aria-live="off">{{ form_values.message|length }}</span>/5,000 characters</div>
+        <p class="feedback-error" id="message-error" {% if not errors.get('message') %}hidden{% endif %}>{{ errors.get('message', '') }}</p>
+      </div>
+
+      <button class="feedback-submit" id="feedback-submit" type="submit">
+        <span id="feedback-submit-label">Submit Feedback</span>
+      </button>
+    </form>
+  </section>
+
+  <section aria-labelledby="feedback-history-title">
+    <div class="feedback-card">
+      <h2 id="feedback-history-title">My feedback</h2>
+      <p class="feedback-subtitle">Review your previous submissions and their current processing status.</p>
+
+      {% if feedback_rows %}
+        <div class="feedback-history">
+          {% for item in feedback_rows %}
+            <article class="feedback-item">
+              <div class="feedback-item-head">
+                <div>
+                  <h3 class="feedback-item-title">{{ item.category }}</h3>
+                  <div class="feedback-meta">
+                    {{ item.created_at[:10] if item.created_at else 'Date unavailable' }}
+                    {% if item.rating %} · {{ item.rating }}/5 stars{% endif %}
+                  </div>
+                </div>
+                <span class="feedback-status">{{ item.status }}</span>
+              </div>
+              <p class="feedback-message">{{ item.message[:220] }}{% if item.message|length > 220 %}…{% endif %}</p>
+            </article>
+          {% endfor %}
+        </div>
+        {% if total_pages > 1 %}
+          <nav class="feedback-pagination" aria-label="Feedback history pages">
+            <span>Page {{ page }} of {{ total_pages }}</span>
+            <div>
+              {% if has_previous %}<a href="{{ url_for('feedback', page=page-1) }}">Previous</a>{% endif %}
+              {% if has_next %}<a href="{{ url_for('feedback', page=page+1) }}">Next</a>{% endif %}
+            </div>
+          </nav>
+        {% endif %}
+      {% else %}
+        <div class="feedback-empty">
+          {% if history_error %}
+            Your feedback history is temporarily unavailable. Your finance data is unaffected.
+          {% else %}
+            You haven't submitted any feedback yet. When you do, your submissions and their statuses will appear here.
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var form = document.getElementById("feedback-form");
+  if (!form) return;
+
+  var message = document.getElementById("feedback-message");
+  var count = document.getElementById("message-count");
+  var button = document.getElementById("feedback-submit");
+  var label = document.getElementById("feedback-submit-label");
+  var categoryError = document.getElementById("category-error");
+  var messageError = document.getElementById("message-error");
+  var submitting = false;
+
+  function updateCount() {
+    if (message && count) count.textContent = String(message.value.length);
+  }
+
+  if (message) message.addEventListener("input", updateCount);
+  updateCount();
+
+  form.addEventListener("submit", function (event) {
+    if (submitting) {
+      event.preventDefault();
+      return;
+    }
+
+    var category = document.getElementById("feedback-category");
+    var rating = form.querySelector('input[name="rating"]:checked');
+    var valid = true;
+
+    if (!category.value) {
+      category.setAttribute("aria-invalid", "true");
+      categoryError.textContent = "Choose a feedback category.";
+      categoryError.hidden = false;
+      valid = false;
+    } else {
+      category.removeAttribute("aria-invalid");
+      categoryError.textContent = "";
+      categoryError.hidden = true;
+    }
+
+    if (!message.value.trim()) {
+      message.setAttribute("aria-invalid", "true");
+      messageError.textContent = "Please tell us a little more about your feedback.";
+      messageError.hidden = false;
+      valid = false;
+    } else if (message.value.trim().length > 5000) {
+      message.setAttribute("aria-invalid", "true");
+      messageError.textContent = "Feedback must be 5,000 characters or fewer.";
+      messageError.hidden = false;
+      valid = false;
+    } else {
+      message.removeAttribute("aria-invalid");
+      messageError.textContent = "";
+      messageError.hidden = true;
+    }
+
+    if (!valid) {
+      event.preventDefault();
+      (category.value ? message : category).focus();
+      return;
+    }
+
+    // Rating is intentionally optional; keep this reference explicit for
+    // future category-specific validation without requiring it for bug reports.
+    void rating;
+    submitting = true;
+    button.disabled = true;
+    button.setAttribute("aria-busy", "true");
+    label.textContent = "Submitting…";
+  });
+})();
+</script>
+{% endblock %}
