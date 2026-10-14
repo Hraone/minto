@@ -1748,9 +1748,16 @@ def planner():
     ]
     unpaid_fixed.sort(key=lambda x: (x.get("due_date") or month_end, x.get("name") or ""))
 
+    stage_started = time.perf_counter()
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    log_dashboard_stage("source_balances", stage_started)
+    stage_started = time.perf_counter()
     cc_loans = get_active_cc_loans(client, user_id)
+    log_dashboard_stage("active_credit_card_loans", stage_started)
+
+    stage_started = time.perf_counter()
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
+    log_dashboard_stage("credit_card_forecasts", stage_started)
     expected_bills = [
         {
             "kind": "credit_card",
@@ -5064,7 +5071,16 @@ def get_period_start(period):
 @app.route("/dashboard")
 @login_required
 def dashboard():
+    def log_dashboard_stage(stage, started_at):
+        app.logger.info(
+            "dashboard_stage=%s elapsed_ms=%.1f",
+            stage,
+            (time.perf_counter() - started_at) * 1000,
+        )
+
+    stage_started = time.perf_counter()
     client = get_user_client()
+    log_dashboard_stage("client_setup", stage_started)
     user_id = session["user_id"]
     period = request.args.get("period", "month")
     if period not in ("today", "week", "month", "year", "all"):
@@ -5078,9 +5094,13 @@ def dashboard():
     start = get_period_start(period)
     if start:
         query = query.gte("transaction_date", start.date().isoformat())
+    stage_started = time.perf_counter()
     txns = query.order("transaction_date", desc=True).order("created_at", desc=True).execute().data
+    log_dashboard_stage("transactions_query", stage_started)
 
+    stage_started = time.perf_counter()
     flow_summary = calculate_dashboard_flow(txns)
+    log_dashboard_stage("transaction_flow_calculation", stage_started)
     total_in = flow_summary["total_in"]
     total_out = flow_summary["total_out"]
     net = flow_summary["net"]
@@ -5091,28 +5111,44 @@ def dashboard():
     recent = txns[:5]
 
     savings, credit_cards, all_txns = compute_source_balances(client, user_id)
+    stage_started = time.perf_counter()
     manual_items = get_net_worth_manual_items() if net_worth_is_unlocked() else []
+    log_dashboard_stage("manual_net_worth_items", stage_started)
+    stage_started = time.perf_counter()
     try:
         profile_settings_rows = client.table("profiles").select("monthly_salary, salary_day, reminder_days_before").eq("id", user_id).limit(1).execute().data
         profile_settings = profile_settings_rows[0] if profile_settings_rows else {}
     except Exception:
         profile_settings = {}
+    log_dashboard_stage("profile_settings_query", stage_started)
+    stage_started = time.perf_counter()
     trip_payables = get_trip_payables(client, user_id)
+    log_dashboard_stage("trip_payables", stage_started)
+
+    stage_started = time.perf_counter()
     wealth = compute_net_worth(all_txns, savings, credit_cards, manual_items, trip_payables)
+    log_dashboard_stage("net_worth_calculation", stage_started)
 
     # Fixed monthly commitments plus expected CC statements form the dashboard's
     # future obligations. They are independent of the period tabs.
     today = datetime.now(APP_TZ).date()
     cc_loans = get_active_cc_loans(client, user_id)
     card_forecasts = get_credit_card_forecasts(credit_cards, all_txns, today, cc_loans)
+    stage_started = time.perf_counter()
     try:
         upcoming_commitments = get_upcoming_commitments(client, user_id, card_forecasts)
     except Exception:
         app.logger.exception("Upcoming commitments could not be loaded")
         upcoming_commitments = []
+    log_dashboard_stage("upcoming_commitments", stage_started)
 
+    stage_started = time.perf_counter()
     salary_cycle = get_salary_cycle(profile_settings, today)
+    log_dashboard_stage("salary_cycle_calculation", stage_started)
+
+    stage_started = time.perf_counter()
     category_budgets = get_category_budget_status(client, user_id, all_txns, today)
+    log_dashboard_stage("category_budget_status", stage_started)
     reminder_days_before = int(profile_settings.get("reminder_days_before") or 5)
     due_soon_commitments = get_due_soon_commitments(
         upcoming_commitments,
@@ -5123,6 +5159,7 @@ def dashboard():
     # Safe to Spend reserves only commitments due in the current calendar month.
     safe_spend_commitments = filter_commitments_to_current_month(upcoming_commitments, today)
 
+    stage_started = time.perf_counter()
     try:
         fixed_expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     except Exception:
@@ -5130,6 +5167,7 @@ def dashboard():
         # Overview should still open instead of showing an error page.
         app.logger.exception("Fixed expenses could not be loaded for the Overview")
         fixed_expenses = []
+    log_dashboard_stage("fixed_expenses_query", stage_started)
     fixed_total = sum(
         float(x["amount"] or 0) for x in fixed_expenses
         if not x["paid"] and (x.get("kind") or "expense") == "expense"
@@ -5166,7 +5204,9 @@ def dashboard():
         for x in safe_spend_commitments
         if x.get("kind") == "credit_card"
     )
+    stage_started = time.perf_counter()
     alerts = get_dashboard_alerts(savings, credit_cards, txns)
+    log_dashboard_stage("alerts_calculation", stage_started)
 
     expected_cc_total = sum(
         float(c.get("expected_bill") or 0) for c in card_forecasts
@@ -5181,9 +5221,12 @@ def dashboard():
     # Outstanding loans by person — all-time, like net worth, not scoped to
     # the period tabs. Only people with a nonzero balance are shown; fully
     # repaid loans (out - in == 0) drop off automatically.
+    stage_started = time.perf_counter()
     _, outstanding_loans = get_lending_summary(client, user_id)
+    log_dashboard_stage("lending_summary", stage_started)
 
-    return render_template(
+    stage_started = time.perf_counter()
+    response = render_template(
         "dashboard.html",
         period=period,
         total_in=total_in,
@@ -5225,6 +5268,8 @@ def dashboard():
         report_from=datetime.now(APP_TZ).date().replace(day=1).isoformat(),
         report_to=datetime.now(APP_TZ).date().isoformat(),
     )
+    log_dashboard_stage("template_render", stage_started)
+    return response
 
 
 @app.route("/sw.js")
