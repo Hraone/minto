@@ -76,9 +76,10 @@
     } else history.appendChild(article);
   }
 
-  async function loadMessages(older = false) {
+  async function loadMessages(older = false, background = false) {
     if (loading) return;
     loading = true;
+    const wasNearBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 80;
     try {
       const url = new URL(apiUrl, window.location.origin);
       if (older && nextBefore) url.searchParams.set('before', nextBefore);
@@ -99,7 +100,7 @@
           empty.textContent = 'No messages yet. Start the conversation.';
           history.appendChild(empty);
         }
-        history.scrollTop = history.scrollHeight;
+        if (!background || wasNearBottom) history.scrollTop = history.scrollHeight;
       }
       nextBefore = data.next_before || null;
       let olderButton = document.getElementById('chat-load-older');
@@ -144,7 +145,7 @@
   });
 
   loadMessages();
-  window.setInterval(() => loadMessages(), 12000);
+  window.setInterval(() => loadMessages(false, true), 12000);
 })();
 </script>
 {% endblock %}
