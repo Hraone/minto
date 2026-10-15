@@ -4208,6 +4208,29 @@ def trip_chat_api(trip_id):
 
     if request.method == "POST":
         payload = request.get_json(silent=True) or {}
+        if payload.get("action") == "mark_read":
+            try:
+                latest = (
+                    client.table("trip_chat_messages")
+                    .select("created_at")
+                    .eq("trip_id", trip_id)
+                    .order("created_at", desc=True)
+                    .order("id", desc=True)
+                    .limit(1)
+                    .execute()
+                    .data
+                    or []
+                )
+                if latest:
+                    client.table("trip_chat_reads").upsert({
+                        "trip_id": trip_id,
+                        "user_id": user_id,
+                        "last_read_at": latest[0]["created_at"],
+                    }, on_conflict="trip_id,user_id").execute()
+                return jsonify({"ok": True})
+            except Exception:
+                app.logger.exception("Could not update trip chat read marker")
+                return jsonify({"error": "Read status could not be updated."}), 503
         body = payload.get("body")
         if not isinstance(body, str):
             return jsonify({"error": "Enter a message."}), 400
@@ -4247,8 +4270,35 @@ def trip_chat_api(trip_id):
             return jsonify({"error": "Message could not be saved. Please retry. If it keeps failing, share the time of this attempt with support."}), 503
 
     try:
-        limit = 50
+        unread_count = 0
+        try:
+            read_rows = (
+                client.table("trip_chat_reads")
+                .select("last_read_at")
+                .eq("trip_id", trip_id)
+                .eq("user_id", user_id)
+                .limit(1)
+                .execute()
+                .data
+                or []
+            )
+            last_read_at = read_rows[0].get("last_read_at") if read_rows else None
+            unread_query = (
+                client.table("trip_chat_messages")
+                .select("id", count="exact")
+                .eq("trip_id", trip_id)
+                .neq("sender_user_id", user_id)
+            )
+            if last_read_at:
+                unread_query = unread_query.gt("created_at", last_read_at)
+            unread_result = unread_query.limit(1).execute()
+            unread_count = int(getattr(unread_result, "count", 0) or 0)
+        except Exception:
+            # Chat history should remain usable while the read-marker migration is pending.
+            app.logger.exception("Could not calculate trip chat unread count")
+        limit = 25
         before = (request.args.get("before") or "").strip()
+        before_id = (request.args.get("before_id") or "").strip()
         query = (
             client.table("trip_chat_messages")
             .select("id, trip_id, sender_user_id, body, created_at")
@@ -4257,7 +4307,12 @@ def trip_chat_api(trip_id):
             .order("id", desc=True)
             .limit(limit + 1)
         )
-        if before:
+        if before and before_id.isdigit():
+            # Stable compound cursor: multiple messages can share the same timestamp.
+            query = query.or_(
+                f"created_at.lt.{before},and(created_at.eq.{before},id.lt.{int(before_id)})"
+            )
+        elif before:
             query = query.lt("created_at", before)
         rows = query.execute().data or []
         has_more = len(rows) > limit
@@ -4277,7 +4332,14 @@ def trip_chat_api(trip_id):
         for row in rows:
             row["sender_name"] = names.get(str(row.get("sender_user_id"))) or "Trip member"
         rows.reverse()
-        return jsonify({"messages": rows, "has_more": has_more, "next_before": rows[0].get("created_at") if has_more and rows else None})
+        oldest = rows[0] if rows else None
+        return jsonify({
+            "messages": rows,
+            "has_more": has_more,
+            "next_before": oldest.get("created_at") if has_more and oldest else None,
+            "next_before_id": oldest.get("id") if has_more and oldest else None,
+            "unread_count": unread_count,
+        })
     except Exception:
         app.logger.exception("Could not load trip chat history")
         return jsonify({"error": "Chat history could not be loaded. Please retry."}), 503
