@@ -60,7 +60,7 @@
 </div>
 <script>
 (() => {
-  const apiUrl = {{ url_for('trip_chat_api', trip_id=trip.id)|tojson }};
+  const apiUrl = {{ (url_for('trip_chat_api', trip_id=trip.id) ~ '?messages_only=1')|tojson }};
   const currentUser = {{ session.get('user_id')|tojson }};
   const history = document.getElementById('chat-history');
   const status = document.getElementById('chat-status');
