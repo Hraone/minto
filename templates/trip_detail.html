@@ -13,6 +13,9 @@
   .head-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
   .mini-btn{width:auto;margin:0;padding:9px 13px;font-size:12.5px;font-weight:700;border-radius:10px;background:transparent;color:var(--muted);border:1px solid var(--border)}
   .mini-btn:hover{background:var(--surface-subtle);transform:none;box-shadow:none}
+  .trip-chat-link{display:inline-flex;align-items:center;gap:7px}
+  .chat-unread-badge{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:var(--negative);color:#fff;font-size:11px;line-height:1;font-weight:800;font-variant-numeric:tabular-nums}
+  .chat-unread-badge[hidden]{display:none}
   .danger-btn:hover{background:var(--danger-bg);color:var(--negative);border-color:var(--danger-border)}
   .pill{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:750;border:1px solid var(--border);background:var(--input-bg);color:var(--text-secondary)}
   .pill.active{color:var(--positive)}
@@ -107,7 +110,7 @@
       </p>
     </div>
     <div class="head-actions">
-      <a class="mini-btn" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat</a>
+      <a class="mini-btn trip-chat-link" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat <span class="chat-unread-badge" id="trip-chat-unread" hidden aria-label="Unread messages">0</span></a>
       {% if trip_owner and trip.status != "archived" %}
       <button type="button" class="mini-btn" onclick="openTripSettings()">Edit trip</button>
       <form method="post" action="{{ url_for('delete_trip', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip and all of its expenses? This cannot be undone.');">
@@ -313,4 +316,33 @@ function updateCustomSum(){const label=document.getElementById("custom-sum");if(
 document.addEventListener("DOMContentLoaded",toggleSplitBlocks);
 </script>
 {% endif %}
+<script>
+(() => {
+  const badge = document.getElementById('trip-chat-unread');
+  if (!badge) return;
+  const apiUrl = {{ url_for('trip_chat_api', trip_id=trip.id)|tojson }};
+  async function refreshUnreadCount() {
+    try {
+      const response = await fetch(apiUrl, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {'Accept': 'application/json'}
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      const count = Math.max(0, Number(data.unread_count || 0));
+      badge.textContent = count > 99 ? '99+' : String(count);
+      badge.hidden = count === 0;
+      badge.setAttribute('aria-label', count + ' unread chat message' + (count === 1 ? '' : 's'));
+    } catch (_) {
+      // Keep the trip page usable if chat unread status is temporarily unavailable.
+    }
+  }
+  refreshUnreadCount();
+  window.setInterval(refreshUnreadCount, 15000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshUnreadCount();
+  });
+})();
+</script>
 {% endblock %}
