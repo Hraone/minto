@@ -4229,9 +4229,22 @@ def trip_chat_api(trip_id):
             message = saved[0]
             message["sender_name"] = (session.get("display_name") or "").strip() or (session.get("email") or "Trip member")
             return jsonify({"message": message}), 201
-        except Exception:
+        except Exception as exc:
             app.logger.exception("Could not persist trip chat message")
-            return jsonify({"error": "Message could not be sent. Please try again."}), 503
+            error_text = str(exc).lower()
+            if "trip_chat_messages" in error_text and (
+                "does not exist" in error_text
+                or "could not find the table" in error_text
+                or "schema cache" in error_text
+            ):
+                return jsonify({
+                    "error": "Trip chat is not enabled in the database yet. Apply trip_chat_migration.sql, then retry."
+                }), 503
+            if "row-level security" in error_text or "permission denied" in error_text or "42501" in error_text:
+                return jsonify({
+                    "error": "The database rejected this message. Check the trip-chat RLS policies and current trip membership."
+                }), 403
+            return jsonify({"error": "Message could not be saved. Please retry. If it keeps failing, share the time of this attempt with support."}), 503
 
     try:
         limit = 50

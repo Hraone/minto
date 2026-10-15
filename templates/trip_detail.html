@@ -96,7 +96,6 @@
   <a class="back-link" href="{{ url_for('trips') }}">← All trips</a>
 
   <div class="trip-head">
-    <a class="mini-btn" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat</a>
     <div>
       <div style="margin-bottom:7px;"><span class="pill {{ trip.status }}">{{ trip.status_label }}</span></div>
       <h2>{{ trip.name }}</h2>
@@ -107,12 +106,15 @@
         {% if not trip.destination and not date_summary.start %}{% if trip.is_group %}Group trip with {{ friends|length }} member{{ "s" if friends|length != 1 else "" }}{% else %}Solo trip{% endif %}{% endif %}
       </p>
     </div>
-    {% if trip_owner and trip.status != "archived" %}<div class="head-actions">
+    <div class="head-actions">
+      <a class="mini-btn" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat</a>
+      {% if trip_owner and trip.status != "archived" %}
       <button type="button" class="mini-btn" onclick="openTripSettings()">Edit trip</button>
       <form method="post" action="{{ url_for('delete_trip', trip_id=trip.id) }}" onsubmit="return confirm('Delete this trip and all of its expenses? This cannot be undone.');">
         <button type="submit" class="mini-btn danger-btn">Delete</button>
       </form>
-    </div>{% endif %}
+      {% endif %}
+    </div>
   </div>
 
   <div class="stat-row">
