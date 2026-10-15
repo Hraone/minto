@@ -96,6 +96,7 @@
   <a class="back-link" href="{{ url_for('trips') }}">← All trips</a>
 
   <div class="trip-head">
+    <a class="mini-btn" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat</a>
     <div>
       <div style="margin-bottom:7px;"><span class="pill {{ trip.status }}">{{ trip.status_label }}</span></div>
       <h2>{{ trip.name }}</h2>
