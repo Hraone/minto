@@ -70,6 +70,10 @@
   const seen = new Set();
   let loading = false;
   let nextBefore = null;
+  let nextBeforeId = null;
+  let hasOlder = false;
+  let unreadCount = 0;
+  let markReadTimer = null;
 
   function renderMessage(message, prepend = false) {
     const key = String(message.id);
@@ -105,7 +109,10 @@
     const wasNearBottom = history.scrollHeight - history.scrollTop - history.clientHeight < 80;
     try {
       const url = new URL(apiUrl, window.location.origin);
-      if (older && nextBefore) url.searchParams.set('before', nextBefore);
+      if (older && nextBefore) {
+        url.searchParams.set('before', nextBefore);
+        if (nextBeforeId) url.searchParams.set('before_id', nextBeforeId);
+      }
       const response = await fetch(url, {
         credentials: 'same-origin',
         cache: 'no-store',
@@ -136,24 +143,59 @@
         }
         if (!background || wasNearBottom) history.scrollTop = history.scrollHeight;
       }
-      nextBefore = data.next_before || null;
-      let olderButton = document.getElementById('chat-load-older');
-      if (data.has_more && nextBefore && !olderButton) {
-        olderButton = document.createElement('button');
-        olderButton.type = 'button';
-        olderButton.id = 'chat-load-older';
-        olderButton.className = 'chat-load-older mini-btn';
-        olderButton.textContent = 'Load older messages';
-        olderButton.addEventListener('click', () => loadMessages(true));
-        history.prepend(olderButton);
-      } else if (!data.has_more && olderButton) olderButton.remove();
+      if (older) {
+        nextBefore = data.next_before || null;
+        nextBeforeId = data.next_before_id || null;
+      } else {
+        nextBefore = data.next_before || null;
+        nextBeforeId = data.next_before_id || null;
+      }
+      hasOlder = Boolean(data.has_more && nextBefore && nextBeforeId);
+      unreadCount = Number(data.unread_count || 0);
+      updateOlderButton();
       status.textContent = '';
+      if (!background) markRead();
     } catch (error) {
       status.textContent = error.message || 'Chat could not be loaded. Please retry.';
       const empty = document.getElementById('chat-empty');
       if (empty && !seen.size) empty.textContent = 'Messages could not be loaded. Please retry.';
     } finally { loading = false; }
   }
+
+  function updateOlderButton() {
+    let button = document.getElementById('chat-load-older');
+    if (hasOlder && !button) {
+      button = document.createElement('button');
+      button.type = 'button';
+      button.id = 'chat-load-older';
+      button.className = 'chat-load-older mini-btn';
+      button.textContent = 'Load older messages';
+      button.addEventListener('click', () => loadMessages(true));
+      history.prepend(button);
+    } else if (!hasOlder && button) {
+      button.remove();
+    }
+  }
+
+  async function markRead() {
+    if (document.visibilityState !== 'visible') return;
+    try {
+      await fetch(apiUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: JSON.stringify({action: 'mark_read'})
+      });
+    } catch (_) {}
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      loadMessages(false, true);
+      markRead();
+    }
+  });
 
   form.addEventListener('submit', async event => {
     event.preventDefault();
