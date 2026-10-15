@@ -4168,7 +4168,16 @@ def trip_chat(trip_id):
 
 
 def _can_access_trip_chat(client, trip, user_id):
-    if str(trip.get("user_id")) == str(user_id):
+    owner_rows = (
+        client.table("trips")
+        .select("user_id")
+        .eq("id", trip["id"])
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if owner_rows and str(owner_rows[0].get("user_id")) == str(user_id):
         return True
     rows = (
         client.table("trip_members")
