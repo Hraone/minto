@@ -4159,6 +4159,8 @@ def trip_detail(trip_id):
 @login_required
 def trip_chat(trip_id):
     """Render a trip chat only for a current, authorized trip member."""
+    if session.get("mode") != "trip":
+        return redirect(url_for("trip_home"))
     client = get_user_client()
     user_id = session["user_id"]
     trip = get_trip_or_none(client, user_id, trip_id)
@@ -4196,6 +4198,8 @@ def _can_access_trip_chat(client, trip, user_id):
 @app.route("/api/trips/<int:trip_id>/chat", methods=["GET", "POST"])
 @login_required
 def trip_chat_api(trip_id):
+    if session.get("mode") != "trip":
+        return jsonify({"error": "Switch to Trip Mode to use trip chat."}), 403
     client = get_user_client()
     user_id = session["user_id"]
     trip = get_trip_or_none(client, user_id, trip_id)
