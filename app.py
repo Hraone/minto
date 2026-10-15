@@ -4195,6 +4195,36 @@ def _can_access_trip_chat(client, trip, user_id):
     return bool(rows)
 
 
+def _trip_chat_unread_count(client, trip_id, user_id):
+    """Return the current user's unread count without loading chat history."""
+    try:
+        read_rows = (
+            client.table("trip_chat_reads")
+            .select("last_read_at")
+            .eq("trip_id", trip_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+            .data
+            or []
+        )
+        last_read_at = read_rows[0].get("last_read_at") if read_rows else None
+        unread_query = (
+            client.table("trip_chat_messages")
+            .select("id", count="exact")
+            .eq("trip_id", trip_id)
+            .neq("sender_user_id", user_id)
+        )
+        if last_read_at:
+            unread_query = unread_query.gt("created_at", last_read_at)
+        result = unread_query.limit(1).execute()
+        return int(getattr(result, "count", 0) or 0)
+    except Exception:
+        # Keep the trip/chat usable if the read-marker migration is pending.
+        app.logger.exception("Could not calculate trip chat unread count")
+        return 0
+
+
 @app.route("/api/trips/<int:trip_id>/chat", methods=["GET", "POST"])
 @login_required
 def trip_chat_api(trip_id):
@@ -4270,32 +4300,14 @@ def trip_chat_api(trip_id):
             return jsonify({"error": "Message could not be saved. Please retry. If it keeps failing, share the time of this attempt with support."}), 503
 
     try:
+        # The chat history endpoint should not wait on exact unread-count queries.
+        # The trip page requests unread_only=1 separately for its badge.
+        if request.args.get("unread_only") == "1":
+            return jsonify({"unread_count": _trip_chat_unread_count(client, trip_id, user_id)})
+
         unread_count = 0
-        try:
-            read_rows = (
-                client.table("trip_chat_reads")
-                .select("last_read_at")
-                .eq("trip_id", trip_id)
-                .eq("user_id", user_id)
-                .limit(1)
-                .execute()
-                .data
-                or []
-            )
-            last_read_at = read_rows[0].get("last_read_at") if read_rows else None
-            unread_query = (
-                client.table("trip_chat_messages")
-                .select("id", count="exact")
-                .eq("trip_id", trip_id)
-                .neq("sender_user_id", user_id)
-            )
-            if last_read_at:
-                unread_query = unread_query.gt("created_at", last_read_at)
-            unread_result = unread_query.limit(1).execute()
-            unread_count = int(getattr(unread_result, "count", 0) or 0)
-        except Exception:
-            # Chat history should remain usable while the read-marker migration is pending.
-            app.logger.exception("Could not calculate trip chat unread count")
+        if request.args.get("messages_only") != "1":
+            unread_count = _trip_chat_unread_count(client, trip_id, user_id)
         limit = 25
         before = (request.args.get("before") or "").strip()
         before_id = (request.args.get("before_id") or "").strip()
