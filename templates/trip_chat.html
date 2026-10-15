@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}{{ trip.name }} Chat · Minto{% endblock %}
+{% block content %}
+<style>
+.chat-wrap{max-width:900px;margin:8px auto 36px}
+.chat-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:16px}
+.chat-head h1{font-size:25px;margin:0;overflow-wrap:anywhere}
+.chat-head p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.chat-panel{height:min(68vh,680px);min-height:360px;display:flex;flex-direction:column;border:1px solid var(--border);border-radius:16px;background:var(--surface-translucent);overflow:hidden}
+.chat-history{flex:1;overflow:auto;padding:18px;display:flex;flex-direction:column;gap:12px}
+.chat-message{max-width:min(82%,620px);align-self:flex-start;border:1px solid var(--border);border-radius:14px;padding:10px 12px;background:var(--surface);overflow-wrap:anywhere}
+.chat-message.mine{align-self:flex-end}
+.chat-meta{display:flex;gap:10px;align-items:center;font-size:11px;color:var(--muted);margin-bottom:5px}
+.chat-body{white-space:pre-wrap;line-height:1.45;font-size:14px}
+.chat-composer{border-top:1px solid var(--border);padding:12px;display:flex;align-items:flex-end;gap:10px}
+.chat-composer textarea{flex:1;min-height:44px;max-height:130px;resize:vertical;margin:0}
+.chat-composer button{width:auto;min-width:82px;margin:0}
+.chat-status{padding:9px 16px;color:var(--muted);font-size:12px;min-height:36px}
+.chat-empty{margin:auto;text-align:center;color:var(--muted);padding:24px}
+.chat-load-older{align-self:center;width:auto;margin:0;padding:8px 12px}
+@media(max-width:600px){.chat-panel{height:calc(100dvh - 250px);min-height:300px}.chat-history{padding:12px}.chat-message{max-width:92%}.chat-head h1{font-size:21px}}
+</style>
+<div class="chat-wrap">
+  <div class="chat-head">
+    <div><h1>{{ trip.name }} · Chat</h1><p>Private conversation for current members of this trip</p></div>
+    <a class="mini-btn" href="{{ url_for('trip_detail', trip_id=trip.id) }}">Back to trip</a>
+  </div>
+  <section class="chat-panel" aria-label="Trip chat">
+    <div class="chat-history" id="chat-history" aria-live="polite" aria-label="Messages"><div class="chat-empty" id="chat-empty">Loading messages…</div></div>
+    <div class="chat-status" id="chat-status" role="status"></div>
+    <form class="chat-composer" id="chat-form">
+      <label for="chat-input" style="position:absolute;left:-10000px">Message</label>
+      <textarea id="chat-input" maxlength="4000" rows="1" placeholder="Write a message…" required></textarea>
+      <button type="submit" id="chat-send">Send</button>
+    </form>
+  </section>
+</div>
+<script>
+(() => {
+  const apiUrl = {{ url_for('trip_chat_api', trip_id=trip.id)|tojson }};
+  const currentUser = {{ session.get('user_id')|tojson }};
+  const history = document.getElementById('chat-history');
+  const status = document.getElementById('chat-status');
+  const form = document.getElementById('chat-form');
+  const input = document.getElementById('chat-input');
+  const send = document.getElementById('chat-send');
+  const seen = new Set();
+  let loading = false;
+  let nextBefore = null;
+
+  function renderMessage(message, prepend = false) {
+    const key = String(message.id);
+    if (seen.has(key)) return;
+    seen.add(key);
+    const empty = document.getElementById('chat-empty');
+    if (empty) empty.remove();
+    const article = document.createElement('article');
+    article.className = 'chat-message' + (String(message.sender_user_id) === String(currentUser) ? ' mine' : '');
+    const meta = document.createElement('div');
+    meta.className = 'chat-meta';
+    const sender = document.createElement('span');
+    sender.textContent = message.sender_name || 'Trip member';
+    const time = document.createElement('time');
+    const parsed = new Date(message.created_at);
+    time.dateTime = message.created_at || '';
+    time.textContent = Number.isNaN(parsed.getTime()) ? '' : parsed.toLocaleString();
+    meta.append(sender, time);
+    const body = document.createElement('div');
+    body.className = 'chat-body';
+    body.textContent = message.body || '';
+    article.append(meta, body);
+    if (prepend) {
+      const firstMessage = [...history.children].find(el => el.classList.contains('chat-message'));
+      if (firstMessage) history.insertBefore(article, firstMessage);
+      else history.appendChild(article);
+    } else history.appendChild(article);
+  }
+
+  async function loadMessages(older = false) {
+    if (loading) return;
+    loading = true;
+    try {
+      const url = new URL(apiUrl, window.location.origin);
+      if (older && nextBefore) url.searchParams.set('before', nextBefore);
+      const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Could not load messages.');
+      const beforeHeight = history.scrollHeight;
+      const oldTop = history.scrollTop;
+      if (older) {
+        [...data.messages].reverse().forEach(message => renderMessage(message, true));
+        history.scrollTop = oldTop + history.scrollHeight - beforeHeight;
+      } else {
+        data.messages.forEach(message => renderMessage(message));
+        if (!data.messages.length && !seen.size) {
+          const empty = document.createElement('div');
+          empty.id = 'chat-empty';
+          empty.className = 'chat-empty';
+          empty.textContent = 'No messages yet. Start the conversation.';
+          history.appendChild(empty);
+        }
+        history.scrollTop = history.scrollHeight;
+      }
+      nextBefore = data.next_before || null;
+      let olderButton = document.getElementById('chat-load-older');
+      if (data.has_more && nextBefore && !olderButton) {
+        olderButton = document.createElement('button');
+        olderButton.type = 'button';
+        olderButton.id = 'chat-load-older';
+        olderButton.className = 'chat-load-older mini-btn';
+        olderButton.textContent = 'Load older messages';
+        olderButton.addEventListener('click', () => loadMessages(true));
+        history.prepend(olderButton);
+      } else if (!data.has_more && olderButton) olderButton.remove();
+      status.textContent = '';
+    } catch (error) {
+      status.textContent = error.message || 'Chat could not be loaded. Please retry.';
+      const empty = document.getElementById('chat-empty');
+      if (empty && !seen.size) empty.textContent = 'Messages could not be loaded. Please retry.';
+    } finally { loading = false; }
+  }
+
+  form.addEventListener('submit', async event => {
+    event.preventDefault();
+    const body = input.value.trim();
+    if (!body || send.disabled) return;
+    send.disabled = true;
+    status.textContent = 'Sending…';
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
+        body: JSON.stringify({body})
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Message could not be sent.');
+      renderMessage(data.message);
+      input.value = '';
+      history.scrollTop = history.scrollHeight;
+      status.textContent = '';
+    } catch (error) {
+      status.textContent = error.message || 'Message could not be sent. Please retry.';
+    } finally { send.disabled = false; input.focus(); }
+  });
+
+  loadMessages();
+  window.setInterval(() => loadMessages(), 12000);
+})();
+</script>
+{% endblock %}
