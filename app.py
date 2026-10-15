@@ -154,7 +154,7 @@ LEGACY_PROFILE_EMOJI_MAP = {
 # Trip mode by default instead of leaking personal finances onto a screen
 # that's being shared around a group.
 TRIP_MODE_ENDPOINTS = {
-    "trips", "trip_detail", "trip_home", "friends", "update_trip", "add_trip_friends", "remove_trip_friend",
+    "trips", "trip_detail", "trip_home", "trip_chat", "trip_chat_api", "friends", "update_trip", "add_trip_friends", "remove_trip_friend",
     "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "delete_trip",
     "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
     "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
@@ -4152,6 +4152,122 @@ def trip_detail(trip_id):
     )
     log_trip_detail_stage("template_render", stage_started)
     return response
+
+
+
+@app.route("/trips/<int:trip_id>/chat")
+@login_required
+def trip_chat(trip_id):
+    """Render a trip chat only for a current, authorized trip member."""
+    if session.get("mode") != "trip":
+        return redirect(url_for("trip_home"))
+    client = get_user_client()
+    user_id = session["user_id"]
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip or not _can_access_trip_chat(client, trip, user_id):
+        abort(404)
+    return render_template("trip_chat.html", trip=trip)
+
+
+def _can_access_trip_chat(client, trip, user_id):
+    owner_rows = (
+        client.table("trips")
+        .select("user_id")
+        .eq("id", trip["id"])
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    if owner_rows and str(owner_rows[0].get("user_id")) == str(user_id):
+        return True
+    rows = (
+        client.table("trip_members")
+        .select("id")
+        .eq("trip_id", trip["id"])
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .limit(1)
+        .execute()
+        .data
+        or []
+    )
+    return bool(rows)
+
+
+@app.route("/api/trips/<int:trip_id>/chat", methods=["GET", "POST"])
+@login_required
+def trip_chat_api(trip_id):
+    if session.get("mode") != "trip":
+        return jsonify({"error": "Switch to Trip Mode to use trip chat."}), 403
+    client = get_user_client()
+    user_id = session["user_id"]
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip or not _can_access_trip_chat(client, trip, user_id):
+        return jsonify({"error": "You no longer have access to this trip chat."}), 403
+
+    if request.method == "POST":
+        payload = request.get_json(silent=True) or {}
+        body = payload.get("body")
+        if not isinstance(body, str):
+            return jsonify({"error": "Enter a message."}), 400
+        body = body.strip()
+        if not body:
+            return jsonify({"error": "Enter a message before sending."}), 400
+        if len(body) > 4000:
+            return jsonify({"error": "Messages must be 4,000 characters or fewer."}), 400
+        try:
+            saved = (
+                client.table("trip_chat_messages")
+                .insert({"trip_id": trip_id, "sender_user_id": user_id, "body": body})
+                .execute()
+                .data
+                or []
+            )
+            if not saved:
+                return jsonify({"error": "The message could not be confirmed as saved. Please retry."}), 503
+            message = saved[0]
+            message["sender_name"] = (session.get("display_name") or "").strip() or (session.get("email") or "Trip member")
+            return jsonify({"message": message}), 201
+        except Exception:
+            app.logger.exception("Could not persist trip chat message")
+            return jsonify({"error": "Message could not be sent. Please try again."}), 503
+
+    try:
+        limit = 50
+        before = (request.args.get("before") or "").strip()
+        query = (
+            client.table("trip_chat_messages")
+            .select("id, trip_id, sender_user_id, body, created_at")
+            .eq("trip_id", trip_id)
+            .order("created_at", desc=True)
+            .order("id", desc=True)
+            .limit(limit + 1)
+        )
+        if before:
+            query = query.lt("created_at", before)
+        rows = query.execute().data or []
+        has_more = len(rows) > limit
+        rows = rows[:limit]
+        sender_ids = list({row.get("sender_user_id") for row in rows if row.get("sender_user_id")})
+        names = {}
+        if sender_ids:
+            profile_rows = (
+                client.table("profiles")
+                .select("id, display_name")
+                .in_("id", sender_ids)
+                .execute()
+                .data
+                or []
+            )
+            names = {str(row["id"]): (row.get("display_name") or "").strip() for row in profile_rows}
+        for row in rows:
+            row["sender_name"] = names.get(str(row.get("sender_user_id"))) or "Trip member"
+        rows.reverse()
+        return jsonify({"messages": rows, "has_more": has_more, "next_before": rows[0].get("created_at") if has_more and rows else None})
+    except Exception:
+        app.logger.exception("Could not load trip chat history")
+        return jsonify({"error": "Chat history could not be loaded. Please retry."}), 503
 
 
 @app.route("/withdraw-cash", methods=["GET", "POST"])
