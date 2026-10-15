@@ -321,9 +321,10 @@ document.addEventListener("DOMContentLoaded",toggleSplitBlocks);
   const badge = document.getElementById('trip-chat-unread');
   if (!badge) return;
   const apiUrl = {{ url_for('trip_chat_api', trip_id=trip.id)|tojson }};
+  const unreadUrl = apiUrl + '?unread_only=1';
   async function refreshUnreadCount() {
     try {
-      const response = await fetch(apiUrl, {
+      const response = await fetch(unreadUrl, {
         credentials: 'same-origin',
         cache: 'no-store',
         headers: {'Accept': 'application/json'}
