@@ -2725,6 +2725,10 @@ def pay_cc_bill():
                     "payment_date": datetime.now(APP_TZ).date().isoformat(),
                     "transfer_group": transfer_group,
                 }).execute()
+                if new_loan_outstanding <= 0:
+                    client.table("fixed_expenses").update({"active": False}).eq(
+                        "user_id", user_id
+                    ).eq("loan_id", selected_loan["id"]).execute()
 
         except Exception:
             app.logger.exception("Could not record card payment")
@@ -5233,28 +5237,6 @@ def pay_fixed_expense(fixed_expense_id):
             "due_month": month_start.isoformat(),
             "transaction_id": entry_id,
         }).execute()
-        if expense.get("loan_id"):
-            loan_rows = client.table("credit_card_loans").select(
-                "id, outstanding_amount, monthly_emi"
-            ).eq("id", expense["loan_id"]).eq("user_id", user_id).limit(1).execute().data
-            if loan_rows:
-                loan = loan_rows[0]
-                remaining = max(
-                    float(loan.get("outstanding_amount") or 0) - min(
-                        float(loan.get("monthly_emi") or expense["amount"]),
-                        float(loan.get("outstanding_amount") or 0),
-                    ),
-                    0.0,
-                )
-                client.table("credit_card_loans").update({
-                    "outstanding_amount": remaining,
-                    "active": remaining > 0,
-                    "updated_at": datetime.now(timezone.utc).isoformat(),
-                }).eq("id", expense["loan_id"]).eq("user_id", user_id).execute()
-                if remaining <= 0:
-                    client.table("fixed_expenses").update({"active": False}).eq(
-                        "id", fixed_expense_id
-                    ).eq("user_id", user_id).execute()
         destination = "investments" if is_investment else "expenses"
         flash(f"Marked {expense['name']} as paid and added it to your {destination}.")
     except Exception as e:
