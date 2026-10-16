@@ -4305,45 +4305,67 @@ def trip_chat_api(trip_id):
         if request.args.get("unread_only") == "1":
             return jsonify({"unread_count": _trip_chat_unread_count(client, trip_id, user_id)})
 
+        if request.args.get("sender_names") == "1":
+            requested_ids = list(dict.fromkeys(
+                value.strip()
+                for value in request.args.get("user_ids", "").split(",")
+                if value.strip()
+            ))[:100]
+            if not requested_ids:
+                return jsonify({"names": {}})
+            profile_rows = (
+                client.table("profiles")
+                .select("id, display_name")
+                .in_("id", requested_ids)
+                .execute()
+                .data
+                or []
+            )
+            return jsonify({
+                "names": {
+                    str(row["id"]): (row.get("display_name") or "").strip() or "Trip member"
+                    for row in profile_rows
+                }
+            })
+
         unread_count = 0
         if request.args.get("messages_only") != "1":
             unread_count = _trip_chat_unread_count(client, trip_id, user_id)
         limit = 25
         before = (request.args.get("before") or "").strip()
         before_id = (request.args.get("before_id") or "").strip()
+        after = (request.args.get("after") or "").strip()
+        after_id = (request.args.get("after_id") or "").strip()
+        is_delta = bool(after and after_id.isdigit() and not before)
         query = (
             client.table("trip_chat_messages")
             .select("id, trip_id, sender_user_id, body, created_at")
             .eq("trip_id", trip_id)
-            .order("created_at", desc=True)
-            .order("id", desc=True)
-            .limit(limit + 1)
         )
-        if before and before_id.isdigit():
-            # Stable compound cursor: multiple messages can share the same timestamp.
+        if is_delta:
+            # Poll only messages newer than the latest one already rendered.
             query = query.or_(
-                f"created_at.lt.{before},and(created_at.eq.{before},id.lt.{int(before_id)})"
+                f"created_at.gt.{after},and(created_at.eq.{after},id.gt.{int(after_id)})"
             )
-        elif before:
-            query = query.lt("created_at", before)
+            query = query.order("created_at").order("id").limit(100)
+        else:
+            query = query.order("created_at", desc=True).order("id", desc=True).limit(limit + 1)
+            if before and before_id.isdigit():
+                query = query.or_(
+                    f"created_at.lt.{before},and(created_at.eq.{before},id.lt.{int(before_id)})"
+                )
+            elif before:
+                query = query.lt("created_at", before)
         rows = query.execute().data or []
-        has_more = len(rows) > limit
-        rows = rows[:limit]
-        sender_ids = list({row.get("sender_user_id") for row in rows if row.get("sender_user_id")})
-        names = {}
-        if sender_ids:
-            profile_rows = (
-                client.table("profiles")
-                .select("id, display_name")
-                .in_("id", sender_ids)
-                .execute()
-                .data
-                or []
-            )
-            names = {str(row["id"]): (row.get("display_name") or "").strip() for row in profile_rows}
+        has_more = False if is_delta else len(rows) > limit
+        if not is_delta:
+            rows = rows[:limit]
+        # Return message rows immediately; sender names are resolved in a
+        # separate request so profile lookup latency does not block first paint.
         for row in rows:
-            row["sender_name"] = names.get(str(row.get("sender_user_id"))) or "Trip member"
-        rows.reverse()
+            row["sender_name"] = "Trip member"
+        if not is_delta:
+            rows.reverse()
         oldest = rows[0] if rows else None
         return jsonify({
             "messages": rows,
@@ -4351,6 +4373,7 @@ def trip_chat_api(trip_id):
             "next_before": oldest.get("created_at") if has_more and oldest else None,
             "next_before_id": oldest.get("id") if has_more and oldest else None,
             "unread_count": unread_count,
+            "delta": is_delta,
         })
     except Exception:
         app.logger.exception("Could not load trip chat history")

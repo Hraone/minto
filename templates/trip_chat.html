@@ -69,6 +69,10 @@
   const input = document.getElementById('chat-input');
   const send = document.getElementById('chat-send');
   const seen = new Set();
+  let latestMessage = null;
+  // If the chat starts empty, poll from page-open time rather than repeatedly
+  // fetching the latest 25 messages.
+  const emptyChatCursor = {id: 0, created_at: new Date().toISOString()};
 
   // Mobile browsers resize the visual viewport when the on-screen keyboard
   // opens. Keep the chat panel sized to that viewport and lift Trip navigation
@@ -105,6 +109,14 @@
     const key = String(message.id);
     if (seen.has(key)) return;
     seen.add(key);
+    if (!prepend && message.created_at) {
+      const messageId = Number(message.id);
+      const latestId = latestMessage ? Number(latestMessage.id) : -1;
+      if (!latestMessage || message.created_at > latestMessage.created_at ||
+          (message.created_at === latestMessage.created_at && messageId > latestId)) {
+        latestMessage = {id: message.id, created_at: message.created_at};
+      }
+    }
     const empty = document.getElementById('chat-empty');
     if (empty) empty.remove();
     const article = document.createElement('article');
@@ -112,6 +124,8 @@
     const meta = document.createElement('div');
     meta.className = 'chat-meta';
     const sender = document.createElement('span');
+    sender.className = 'chat-sender';
+    sender.dataset.userId = String(message.sender_user_id || '');
     sender.textContent = message.sender_name || 'Trip member';
     const time = document.createElement('time');
     const parsed = new Date(message.created_at);
@@ -129,6 +143,29 @@
     } else history.appendChild(article);
   }
 
+  async function resolveSenderNames(messages) {
+    const ids = [...new Set(messages.map(message => String(message.sender_user_id || '')).filter(Boolean))];
+    if (!ids.length) return;
+    try {
+      const url = new URL(apiUrl, window.location.origin);
+      url.searchParams.set('sender_names', '1');
+      url.searchParams.set('user_ids', ids.join(','));
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {'Accept': 'application/json'}
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      history.querySelectorAll('.chat-sender[data-user-id]').forEach(sender => {
+        const name = data.names && data.names[sender.dataset.userId];
+        if (name) sender.textContent = name;
+      });
+    } catch (_) {
+      // Message content remains usable if display-name lookup is temporarily unavailable.
+    }
+  }
+
   async function loadMessages(older = false, background = false) {
     if (loading) return;
     loading = true;
@@ -138,6 +175,12 @@
       if (older && nextBefore) {
         url.searchParams.set('before', nextBefore);
         if (nextBeforeId) url.searchParams.set('before_id', nextBeforeId);
+      } else if (background) {
+        // Fetch only messages newer than the latest rendered message. When
+        // the chat is empty, use the page-open cursor to avoid full reloads.
+        const cursor = latestMessage || emptyChatCursor;
+        url.searchParams.set('after', cursor.created_at);
+        url.searchParams.set('after_id', String(cursor.id));
       }
       const response = await fetch(url, {
         credentials: 'same-origin',
@@ -160,7 +203,8 @@
         history.scrollTop = oldTop + history.scrollHeight - beforeHeight;
       } else {
         data.messages.forEach(message => renderMessage(message));
-        if (!data.messages.length && !seen.size) {
+        if (data.messages.length) resolveSenderNames(data.messages);
+        if (!data.messages.length && !seen.size && !background) {
           const empty = document.createElement('div');
           empty.id = 'chat-empty';
           empty.className = 'chat-empty';
@@ -169,16 +213,13 @@
         }
         if (!background || wasNearBottom) history.scrollTop = history.scrollHeight;
       }
-      if (older) {
+      if (!background || older) {
         nextBefore = data.next_before || null;
         nextBeforeId = data.next_before_id || null;
-      } else {
-        nextBefore = data.next_before || null;
-        nextBeforeId = data.next_before_id || null;
+        hasOlder = Boolean(data.has_more && nextBefore && nextBeforeId);
+        updateOlderButton();
       }
-      hasOlder = Boolean(data.has_more && nextBefore && nextBeforeId);
       unreadCount = Number(data.unread_count || 0);
-      updateOlderButton();
       status.textContent = '';
       if (!background) markRead();
     } catch (error) {
