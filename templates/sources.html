@@ -691,6 +691,13 @@
                          value="{{ loan.start_date if loan else today }}" autocomplete="off" required>
                 </div>
               </div>
+              <div style="margin-top:10px;">
+                <label for="loan_end_{{ s.id }}">EMI end date</label>
+                <input type="date" id="loan_end_{{ s.id }}" name="end_date"
+                       class="minto-date-input"
+                       value="{{ loan.end_date if loan and loan.end_date else '' }}" min="{{ loan.start_date if loan and loan.start_date else today }}" autocomplete="off" required>
+                <small style="display:block;margin-top:4px;color:var(--muted-2);">The linked Fixed Expense expires on this date.</small>
+              </div>
               <button type="submit" class="cc-cycle-save">Save CC loan / EMI</button>
             </form>
 
