@@ -4305,6 +4305,29 @@ def trip_chat_api(trip_id):
         if request.args.get("unread_only") == "1":
             return jsonify({"unread_count": _trip_chat_unread_count(client, trip_id, user_id)})
 
+        if request.args.get("sender_names") == "1":
+            requested_ids = list(dict.fromkeys(
+                value.strip()
+                for value in request.args.get("user_ids", "").split(",")
+                if value.strip()
+            ))[:100]
+            if not requested_ids:
+                return jsonify({"names": {}})
+            profile_rows = (
+                client.table("profiles")
+                .select("id, display_name")
+                .in_("id", requested_ids)
+                .execute()
+                .data
+                or []
+            )
+            return jsonify({
+                "names": {
+                    str(row["id"]): (row.get("display_name") or "").strip() or "Trip member"
+                    for row in profile_rows
+                }
+            })
+
         unread_count = 0
         if request.args.get("messages_only") != "1":
             unread_count = _trip_chat_unread_count(client, trip_id, user_id)
@@ -4337,20 +4360,10 @@ def trip_chat_api(trip_id):
         has_more = False if is_delta else len(rows) > limit
         if not is_delta:
             rows = rows[:limit]
-        sender_ids = list({row.get("sender_user_id") for row in rows if row.get("sender_user_id")})
-        names = {}
-        if sender_ids:
-            profile_rows = (
-                client.table("profiles")
-                .select("id, display_name")
-                .in_("id", sender_ids)
-                .execute()
-                .data
-                or []
-            )
-            names = {str(row["id"]): (row.get("display_name") or "").strip() for row in profile_rows}
+        # Return message rows immediately; sender names are resolved in a
+        # separate request so profile lookup latency does not block first paint.
         for row in rows:
-            row["sender_name"] = names.get(str(row.get("sender_user_id"))) or "Trip member"
+            row["sender_name"] = "Trip member"
         if not is_delta:
             rows.reverse()
         oldest = rows[0] if rows else None
