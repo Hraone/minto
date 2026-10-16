@@ -69,6 +69,7 @@
   const input = document.getElementById('chat-input');
   const send = document.getElementById('chat-send');
   const seen = new Set();
+  let latestMessage = null;
 
   // Mobile browsers resize the visual viewport when the on-screen keyboard
   // opens. Keep the chat panel sized to that viewport and lift Trip navigation
@@ -105,6 +106,14 @@
     const key = String(message.id);
     if (seen.has(key)) return;
     seen.add(key);
+    if (!prepend && message.created_at) {
+      const messageId = Number(message.id);
+      const latestId = latestMessage ? Number(latestMessage.id) : -1;
+      if (!latestMessage || message.created_at > latestMessage.created_at ||
+          (message.created_at === latestMessage.created_at && messageId > latestId)) {
+        latestMessage = {id: message.id, created_at: message.created_at};
+      }
+    }
     const empty = document.getElementById('chat-empty');
     if (empty) empty.remove();
     const article = document.createElement('article');
@@ -138,6 +147,10 @@
       if (older && nextBefore) {
         url.searchParams.set('before', nextBefore);
         if (nextBeforeId) url.searchParams.set('before_id', nextBeforeId);
+      } else if (background && latestMessage) {
+        // Fetch only messages newer than the latest rendered message.
+        url.searchParams.set('after', latestMessage.created_at);
+        url.searchParams.set('after_id', String(latestMessage.id));
       }
       const response = await fetch(url, {
         credentials: 'same-origin',
@@ -160,7 +173,7 @@
         history.scrollTop = oldTop + history.scrollHeight - beforeHeight;
       } else {
         data.messages.forEach(message => renderMessage(message));
-        if (!data.messages.length && !seen.size) {
+        if (!data.messages.length && !seen.size && !background) {
           const empty = document.createElement('div');
           empty.id = 'chat-empty';
           empty.className = 'chat-empty';
@@ -169,16 +182,13 @@
         }
         if (!background || wasNearBottom) history.scrollTop = history.scrollHeight;
       }
-      if (older) {
+      if (!background || older) {
         nextBefore = data.next_before || null;
         nextBeforeId = data.next_before_id || null;
-      } else {
-        nextBefore = data.next_before || null;
-        nextBeforeId = data.next_before_id || null;
+        hasOlder = Boolean(data.has_more && nextBefore && nextBeforeId);
+        updateOlderButton();
       }
-      hasOlder = Boolean(data.has_more && nextBefore && nextBeforeId);
       unreadCount = Number(data.unread_count || 0);
-      updateOlderButton();
       status.textContent = '';
       if (!background) markRead();
     } catch (error) {
