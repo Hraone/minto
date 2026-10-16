@@ -124,6 +124,8 @@
     const meta = document.createElement('div');
     meta.className = 'chat-meta';
     const sender = document.createElement('span');
+    sender.className = 'chat-sender';
+    sender.dataset.userId = String(message.sender_user_id || '');
     sender.textContent = message.sender_name || 'Trip member';
     const time = document.createElement('time');
     const parsed = new Date(message.created_at);
@@ -139,6 +141,29 @@
       if (firstMessage) history.insertBefore(article, firstMessage);
       else history.appendChild(article);
     } else history.appendChild(article);
+  }
+
+  async function resolveSenderNames(messages) {
+    const ids = [...new Set(messages.map(message => String(message.sender_user_id || '')).filter(Boolean))];
+    if (!ids.length) return;
+    try {
+      const url = new URL(apiUrl, window.location.origin);
+      url.searchParams.set('sender_names', '1');
+      url.searchParams.set('user_ids', ids.join(','));
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        headers: {'Accept': 'application/json'}
+      });
+      if (!response.ok) return;
+      const data = await response.json();
+      history.querySelectorAll('.chat-sender[data-user-id]').forEach(sender => {
+        const name = data.names && data.names[sender.dataset.userId];
+        if (name) sender.textContent = name;
+      });
+    } catch (_) {
+      // Message content remains usable if display-name lookup is temporarily unavailable.
+    }
   }
 
   async function loadMessages(older = false, background = false) {
@@ -178,6 +203,7 @@
         history.scrollTop = oldTop + history.scrollHeight - beforeHeight;
       } else {
         data.messages.forEach(message => renderMessage(message));
+        if (data.messages.length) resolveSenderNames(data.messages);
         if (!data.messages.length && !seen.size && !background) {
           const empty = document.createElement('div');
           empty.id = 'chat-empty';
