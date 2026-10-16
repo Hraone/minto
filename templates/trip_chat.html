@@ -70,6 +70,9 @@
   const send = document.getElementById('chat-send');
   const seen = new Set();
   let latestMessage = null;
+  // If the chat starts empty, poll from page-open time rather than repeatedly
+  // fetching the latest 25 messages.
+  const emptyChatCursor = {id: 0, created_at: new Date().toISOString()};
 
   // Mobile browsers resize the visual viewport when the on-screen keyboard
   // opens. Keep the chat panel sized to that viewport and lift Trip navigation
@@ -147,10 +150,12 @@
       if (older && nextBefore) {
         url.searchParams.set('before', nextBefore);
         if (nextBeforeId) url.searchParams.set('before_id', nextBeforeId);
-      } else if (background && latestMessage) {
-        // Fetch only messages newer than the latest rendered message.
-        url.searchParams.set('after', latestMessage.created_at);
-        url.searchParams.set('after_id', String(latestMessage.id));
+      } else if (background) {
+        // Fetch only messages newer than the latest rendered message. When
+        // the chat is empty, use the page-open cursor to avoid full reloads.
+        const cursor = latestMessage || emptyChatCursor;
+        url.searchParams.set('after', cursor.created_at);
+        url.searchParams.set('after_id', String(cursor.id));
       }
       const response = await fetch(url, {
         credentials: 'same-origin',
