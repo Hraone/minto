@@ -1618,28 +1618,6 @@
 
     {% endif %}
 
-    {% if session.get('user_id') and app_mode == 'trip' %}
-      {% if trip is defined and trip.id is defined %}
-      <div class="nav-links">
-        <a class="nav-link {{ 'active' if request.endpoint == 'trip_chat' else '' }}" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat</a>
-      </div>
-      {% elif trips is defined and trips %}
-      <div class="nav-links">
-        <div class="nav-menu" id="navTripChat">
-          <a class="nav-link" href="{{ url_for('trip_home') }}" role="button" aria-haspopup="true" aria-expanded="false" aria-controls="navTripChatMenu" onclick="toggleNavTripChat(event)">
-            Chat
-            <svg class="nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
-          </a>
-          <div class="nav-dropdown" id="navTripChatMenu" role="menu" hidden>
-            {% for t in trips %}
-            <a role="menuitem" href="{{ url_for('trip_chat', trip_id=t.id) }}">{{ t.name }} chat</a>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-      {% endif %}
-    {% endif %}
-
   </div>
 
   <div class="nav-right">
@@ -1785,6 +1763,12 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg>
       Trips
     </a>
+    {% if trip is defined and trip.id is defined %}
+    <a class="tab-link {{ 'active' if request.endpoint == 'trip_chat' else '' }}" href="{{ url_for('trip_chat', trip_id=trip.id) }}" aria-label="Chat for {{ trip.name }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8A8.5 8.5 0 0 1 8.7 3.9a8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5z"></path></svg>
+      Chat
+    </a>
+    {% endif %}
     <a class="tab-link {{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="10" cy="7" r="4"></circle><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
       Friends
@@ -1921,30 +1905,6 @@
       if (t) t.setAttribute("aria-expanded", "false");
     }
 
-    function toggleNavTripChat(event) {
-      var menu = document.getElementById("navTripChatMenu");
-      var trigger = event.currentTarget;
-      if (!menu) return;
-      var opening = menu.hasAttribute("hidden");
-      if (!opening) return;
-      event.preventDefault();
-      event.stopPropagation();
-      closeNavTransfers();
-      closeNavAccounts();
-      closeNavProfile();
-      menu.removeAttribute("hidden");
-      trigger.setAttribute("aria-expanded", "true");
-    }
-
-    function closeNavTripChat() {
-      var wrap = document.getElementById("navTripChat");
-      var menu = document.getElementById("navTripChatMenu");
-      if (!wrap || !menu || menu.hasAttribute("hidden")) return;
-      menu.setAttribute("hidden", "");
-      var trigger = wrap.querySelector(".nav-link");
-      if (trigger) trigger.setAttribute("aria-expanded", "false");
-    }
-
     function toggleNavProfile(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -1953,7 +1913,6 @@
       var opening = menu.hasAttribute("hidden");
       closeNavTransfers();
       closeNavAccounts();
-      closeNavTripChat();
       if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
       trigger.setAttribute("aria-expanded", opening ? "true" : "false");
     }
