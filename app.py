@@ -5118,6 +5118,12 @@ def pay_fixed_expense(fixed_expense_id):
         if str(source_id) not in pay_ids:
             flash("Pick one of your bank or cash accounts.")
             return redirect(return_to)
+        already_paid = client.table("fixed_expense_payments").select("id").eq(
+            "fixed_expense_id", fixed_expense_id
+        ).eq("due_month", month_start.isoformat()).limit(1).execute().data
+        if already_paid:
+            flash("This fixed expense is already marked paid for this month.")
+            return redirect(return_to)
         amount = min(float(expense["amount"]), float(loan.get("outstanding_amount") or 0))
         if amount <= 0:
             flash("There is no remaining loan balance to pay.")
@@ -5170,6 +5176,12 @@ def pay_fixed_expense(fixed_expense_id):
                     "active": old_outstanding > 0,
                     "updated_at": datetime.now(timezone.utc).isoformat(),
                 }).eq("id", loan["id"]).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+            try:
+                client.table("credit_card_loan_payments").delete().eq(
+                    "transfer_group", transfer_group
+                ).eq("user_id", user_id).execute()
             except Exception:
                 pass
             try:
