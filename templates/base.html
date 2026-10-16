@@ -1618,6 +1618,28 @@
 
     {% endif %}
 
+    {% if session.get('user_id') and app_mode == 'trip' %}
+      {% if trip is defined and trip.id is defined %}
+      <div class="nav-links">
+        <a class="nav-link {{ 'active' if request.endpoint == 'trip_chat' else '' }}" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat</a>
+      </div>
+      {% elif trips is defined and trips %}
+      <div class="nav-links">
+        <div class="nav-menu" id="navTripChat">
+          <a class="nav-link" href="{{ url_for('trip_home') }}" role="button" aria-haspopup="true" aria-expanded="false" aria-controls="navTripChatMenu" onclick="toggleNavTripChat(event)">
+            Chat
+            <svg class="nav-caret" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </a>
+          <div class="nav-dropdown" id="navTripChatMenu" role="menu" hidden>
+            {% for t in trips %}
+            <a role="menuitem" href="{{ url_for('trip_chat', trip_id=t.id) }}">{{ t.name }} chat</a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+
   </div>
 
   <div class="nav-right">
@@ -1899,6 +1921,30 @@
       if (t) t.setAttribute("aria-expanded", "false");
     }
 
+    function toggleNavTripChat(event) {
+      var menu = document.getElementById("navTripChatMenu");
+      var trigger = event.currentTarget;
+      if (!menu) return;
+      var opening = menu.hasAttribute("hidden");
+      if (!opening) return;
+      event.preventDefault();
+      event.stopPropagation();
+      closeNavTransfers();
+      closeNavAccounts();
+      closeNavProfile();
+      menu.removeAttribute("hidden");
+      trigger.setAttribute("aria-expanded", "true");
+    }
+
+    function closeNavTripChat() {
+      var wrap = document.getElementById("navTripChat");
+      var menu = document.getElementById("navTripChatMenu");
+      if (!wrap || !menu || menu.hasAttribute("hidden")) return;
+      menu.setAttribute("hidden", "");
+      var trigger = wrap.querySelector(".nav-link");
+      if (trigger) trigger.setAttribute("aria-expanded", "false");
+    }
+
     function toggleNavProfile(event) {
       event.preventDefault();
       event.stopPropagation();
@@ -1907,6 +1953,7 @@
       var opening = menu.hasAttribute("hidden");
       closeNavTransfers();
       closeNavAccounts();
+      closeNavTripChat();
       if (opening) { menu.removeAttribute("hidden"); } else { menu.setAttribute("hidden", ""); }
       trigger.setAttribute("aria-expanded", opening ? "true" : "false");
     }
