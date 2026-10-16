@@ -319,9 +319,13 @@ create table if not exists public.fixed_expenses (
     due_day integer not null check (due_day between 1 and 31),
     category text not null default 'other',
     source_id integer references public.user_sources(id) on delete set null,
+    expiry_date date not null default date '2099-01-01',
     active boolean not null default true,
     created_at timestamp with time zone not null default now()
 );
+
+ALTER TABLE public.fixed_expenses
+ADD COLUMN IF NOT EXISTS expiry_date date NOT NULL DEFAULT date '2099-01-01';
 
 create table if not exists public.fixed_expense_payments (
     id bigserial primary key,
@@ -560,6 +564,8 @@ CREATE TABLE IF NOT EXISTS public.credit_card_loans (
 
     start_date date NOT NULL DEFAULT current_date,
 
+    end_date date,
+
     active boolean NOT NULL DEFAULT true,
 
     created_at timestamptz NOT NULL DEFAULT now(),
@@ -593,6 +599,16 @@ ON public.credit_card_loans (user_id, active);
 
 CREATE INDEX IF NOT EXISTS credit_card_loans_source_idx
 ON public.credit_card_loans (user_id, source_id);
+
+ALTER TABLE public.credit_card_loans
+ADD COLUMN IF NOT EXISTS end_date date;
+
+ALTER TABLE public.fixed_expenses
+ADD COLUMN IF NOT EXISTS loan_id bigint REFERENCES public.credit_card_loans(id) ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS fixed_expenses_user_loan_unique_idx
+ON public.fixed_expenses (user_id, loan_id)
+WHERE loan_id IS NOT NULL;
 
 
 -- Each CC loan payment is linked to the same bank -> card transfer group

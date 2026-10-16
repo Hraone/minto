@@ -2725,6 +2725,10 @@ def pay_cc_bill():
                     "payment_date": datetime.now(APP_TZ).date().isoformat(),
                     "transfer_group": transfer_group,
                 }).execute()
+                if new_loan_outstanding <= 0:
+                    client.table("fixed_expenses").update({"active": False}).eq(
+                        "user_id", user_id
+                    ).eq("loan_id", selected_loan["id"]).execute()
 
         except Exception:
             app.logger.exception("Could not record card payment")
@@ -4871,8 +4875,12 @@ def _get_fixed_expenses_for_month(client, user_id, year=None, month=None):
     result = []
     for row in rows:
         due = fixed_expense_due_date(year, month, row["due_day"])
+        expiry = parse_iso_date(row.get("expiry_date")) or date(2099, 1, 1)
+        if today > expiry or due > expiry:
+            continue
         paid = paid_by_id.get(row["id"])
         item = dict(row)
+        item["expiry_date"] = expiry
         item["due_date"] = due
         item["paid"] = bool(paid)
         item["payment"] = paid
@@ -4963,14 +4971,15 @@ def fixed_expenses():
             kind, picked = "expense", category
         category = picked
         source_id = request.form.get("source_id") or None
+        expiry_date = parse_iso_date(request.form.get("expiry_date")) or date(2099, 1, 1)
         try:
             due_day = int(request.form.get("due_day", "").strip())
         except ValueError:
             due_day = 0
         pay_ids = {r["id"] for r in client.table("user_sources").select("id, source_type")
                    .in_("source_type", ["savings", "cash"]).execute().data}
-        if not name or amount is None or not 1 <= due_day <= 31:
-            flash("Couldn't add that fixed expense. Check the name, amount and due day.")
+        if not name or amount is None or not 1 <= due_day <= 31 or expiry_date < datetime.now(APP_TZ).date():
+            flash("Couldn't add that fixed expense. Check the name, amount, due day and expiry date.")
         elif category not in (investment_categories if kind == "investment" else expense_categories):
             flash("Pick one of the listed categories.")
         elif source_id and (not source_id.isdigit() or int(source_id) not in pay_ids):
@@ -4984,6 +4993,7 @@ def fixed_expenses():
                 "category": category,
                 "kind": kind,
                 "source_id": int(source_id) if source_id else None,
+                "expiry_date": expiry_date.isoformat(),
             }
             try:
                 try:
@@ -5033,7 +5043,7 @@ def edit_fixed_expense(fixed_expense_id):
     client = get_user_client()
     user_id = session["user_id"]
     rows = (
-        client.table("fixed_expenses").select("id, name")
+        client.table("fixed_expenses").select("id, name, loan_id")
         .eq("id", fixed_expense_id).eq("user_id", user_id).eq("active", True)
         .limit(1).execute().data
     )
@@ -5046,17 +5056,18 @@ def edit_fixed_expense(fixed_expense_id):
         due_day = int(request.form.get("due_day", "").strip())
     except (TypeError, ValueError):
         due_day = 0
+    expiry_date = parse_iso_date(request.form.get("expiry_date"))
 
-    if amount is None or amount <= 0 or not 1 <= due_day <= 31:
-        flash("Enter a valid amount and a due day between 1 and 31.")
+    if amount is None or amount <= 0 or not 1 <= due_day <= 31 or expiry_date is None or expiry_date < datetime.now(APP_TZ).date():
+        flash("Enter a valid amount, due day and expiry date.")
         return redirect(url_for("fixed_expenses"))
 
     try:
-        client.table("fixed_expenses").update({
-            "amount": amount,
-            "due_day": due_day,
-        }).eq("id", fixed_expense_id).eq("user_id", user_id).execute()
-        flash("Updated amount and due date. This applies to future payments; past records are unchanged.")
+        update_row = {"amount": amount, "due_day": due_day}
+        if not rows[0].get("loan_id"):
+            update_row["expiry_date"] = expiry_date.isoformat()
+        client.table("fixed_expenses").update(update_row).eq("id", fixed_expense_id).eq("user_id", user_id).execute()
+        flash("Updated amount, due date and expiry. Changes apply to future payments; past records are unchanged.")
     except Exception:
         app.logger.exception("Could not edit fixed transaction")
         flash("Couldn't update that fixed transaction. Please try again.")
@@ -5091,6 +5102,98 @@ def pay_fixed_expense(fixed_expense_id):
     source_id = request.form.get("source_id") or expense.get("source_id")
     if not source_id:
         flash("Choose the account used to pay this expense.")
+        return redirect(return_to)
+    if expense.get("loan_id"):
+        loan_rows = client.table("credit_card_loans").select("*").eq(
+            "id", expense["loan_id"]
+        ).eq("user_id", user_id).eq("active", True).limit(1).execute().data
+        loan = loan_rows[0] if loan_rows else None
+        if not loan:
+            flash("This loan is already settled or inactive.")
+            return redirect(return_to)
+        card_rows = client.table("user_sources").select("id, source_type").eq(
+            "id", loan["source_id"]
+        ).eq("user_id", user_id).eq("active", True).limit(1).execute().data
+        if not card_rows or card_rows[0].get("source_type") != "credit_card":
+            flash("The credit card linked to this loan is unavailable.")
+            return redirect(return_to)
+        pay_ids = {str(r["id"]) for r in client.table("user_sources").select("id")
+                   .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data}
+        if str(source_id) not in pay_ids:
+            flash("Pick one of your bank or cash accounts.")
+            return redirect(return_to)
+        already_paid = client.table("fixed_expense_payments").select("id").eq(
+            "fixed_expense_id", fixed_expense_id
+        ).eq("due_month", month_start.isoformat()).limit(1).execute().data
+        if already_paid:
+            flash("This fixed expense is already marked paid for this month.")
+            return redirect(return_to)
+        amount = min(float(expense["amount"]), float(loan.get("outstanding_amount") or 0))
+        if amount <= 0:
+            flash("There is no remaining loan balance to pay.")
+            return redirect(return_to)
+        transfer_group = str(uuid.uuid4())
+        description = f"CC loan / EMI: {loan.get('name') or expense['name']}"
+        created_ids = []
+        old_outstanding = float(loan["outstanding_amount"])
+        new_outstanding = max(round(old_outstanding - amount, 2), 0.0)
+        try:
+            for direction, sid in (("out", int(source_id)), ("in", int(loan["source_id"]))):
+                created_ids.append(insert_entry_and_transaction(client, user_id, description, {
+                    "direction": direction,
+                    "category": "transfer",
+                    "source_id": sid,
+                    "amount": amount,
+                    "description": description,
+                    "raw_text": description,
+                    "transaction_date": today.isoformat(),
+                    "transfer_group": transfer_group,
+                }))
+            client.table("credit_card_loans").update({
+                "outstanding_amount": new_outstanding,
+                "active": new_outstanding > 0,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", loan["id"]).eq("user_id", user_id).execute()
+            client.table("credit_card_loan_payments").insert({
+                "loan_id": loan["id"],
+                "user_id": user_id,
+                "amount": amount,
+                "payment_date": today.isoformat(),
+                "transfer_group": transfer_group,
+            }).execute()
+            client.table("fixed_expense_payments").insert({
+                "fixed_expense_id": fixed_expense_id,
+                "user_id": user_id,
+                "due_month": month_start.isoformat(),
+                "transaction_id": created_ids[0],
+            }).execute()
+            if new_outstanding <= 0:
+                client.table("fixed_expenses").update({"active": False}).eq(
+                    "id", fixed_expense_id
+                ).eq("user_id", user_id).execute()
+            flash("EMI recorded as a bank-to-card transfer. Bank balance, card outstanding and loan balance updated.")
+        except Exception:
+            app.logger.exception("Could not record fixed expense loan EMI")
+            try:
+                client.table("credit_card_loans").update({
+                    "outstanding_amount": old_outstanding,
+                    "active": old_outstanding > 0,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", loan["id"]).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+            try:
+                client.table("credit_card_loan_payments").delete().eq(
+                    "transfer_group", transfer_group
+                ).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+            try:
+                if created_ids:
+                    client.table("entries").delete().in_("id", created_ids).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+            flash("Couldn't record the EMI. Please try again.")
         return redirect(return_to)
     pay_ids = {str(r["id"]) for r in client.table("user_sources").select("id")
                .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data}
@@ -5329,10 +5432,15 @@ def update_cc_loan(source_id):
 
     try:
         if action == "remove":
+            loans = client.table("credit_card_loans").select("id").eq("source_id", source_id).eq("user_id", user_id).eq("active", True).execute().data
             client.table("credit_card_loans").update({
                 "active": False,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
             }).eq("source_id", source_id).eq("user_id", user_id).eq("active", True).execute()
+            for loan in loans:
+                client.table("fixed_expenses").update({"active": False}).eq(
+                    "user_id", user_id
+                ).eq("loan_id", loan["id"]).execute()
             flash("CC loan / EMI removed.")
             return redirect(url_for("sources"))
 
@@ -5342,9 +5450,10 @@ def update_cc_loan(source_id):
         start_date = parse_iso_date(request.form.get("start_date"))
         if start_date is None:
             start_date = datetime.now(APP_TZ).date()
+        end_date = parse_iso_date(request.form.get("end_date"))
 
-        if original_amount is None or outstanding_amount is None or monthly_emi is None:
-            flash("Enter the original amount, current outstanding amount and monthly EMI.")
+        if original_amount is None or outstanding_amount is None or monthly_emi is None or end_date is None or end_date < start_date:
+            flash("Enter valid loan amounts, monthly EMI, start date and an end date on or after the start date.")
             return redirect(url_for("sources"))
 
         if outstanding_amount > original_amount:
@@ -5360,6 +5469,7 @@ def update_cc_loan(source_id):
             "outstanding_amount": outstanding_amount,
             "monthly_emi": monthly_emi,
             "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
             "active": outstanding_amount > 0,
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
@@ -5375,13 +5485,38 @@ def update_cc_loan(source_id):
         )
 
         if existing:
+            loan_id = int(existing[0]["id"])
             client.table("credit_card_loans").update(row).eq(
-                "id", existing[0]["id"]
+                "id", loan_id
             ).eq("user_id", user_id).execute()
         else:
-            client.table("credit_card_loans").insert(row).execute()
+            saved_loan = client.table("credit_card_loans").insert(row).execute().data
+            loan_id = int(saved_loan[0]["id"])
 
-        flash("CC loan / EMI details saved.")
+        linked = (
+            client.table("fixed_expenses").select("id")
+            .eq("user_id", user_id).eq("loan_id", loan_id).limit(1).execute().data
+        )
+        emi_row = {
+            "user_id": user_id,
+            "name": name or "Credit card loan",
+            "amount": monthly_emi,
+            "due_day": min(start_date.day, 28),
+            "category": "bills",
+            "kind": "expense",
+            "source_id": None,
+            "active": outstanding_amount > 0 and datetime.now(APP_TZ).date() <= end_date,
+            "expiry_date": end_date.isoformat(),
+            "loan_id": loan_id,
+        }
+        if linked:
+            client.table("fixed_expenses").update(emi_row).eq(
+                "id", linked[0]["id"]
+            ).eq("user_id", user_id).execute()
+        else:
+            client.table("fixed_expenses").insert(emi_row).execute()
+
+        flash("CC loan / EMI details saved and linked to Fixed Expenses.")
     except Exception:
         app.logger.exception("Could not save CC loan")
         flash("Couldn't save the CC loan details. Please run the database update first.")

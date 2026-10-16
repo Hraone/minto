@@ -291,6 +291,11 @@
           <label for="fx-edit-day-{{ x.id }}">Due day each month</label>
           <input type="number" id="fx-edit-day-{{ x.id }}" name="due_day" min="1" max="31" value="{{ x.due_day }}" required>
         </div>
+        <div>
+          <label for="fx-edit-expiry-{{ x.id }}">Expiry date</label>
+          <input type="date" id="fx-edit-expiry-{{ x.id }}" name="expiry_date" value="{{ x.expiry_date or '2099-01-01' }}" min="{{ today.isoformat() }}" {% if x.loan_id %}readonly aria-describedby="fx-edit-expiry-help-{{ x.id }}"{% else %}required{% endif %}>
+          {% if x.loan_id %}<small id="fx-edit-expiry-help-{{ x.id }}">Linked to the loan end date. Change it in Sources → CC loan / EMI.</small>{% endif %}
+        </div>
       </div>
       <button type="submit" class="fx-btn" style="margin-top:12px;">Save changes</button>
     </form>
@@ -421,6 +426,10 @@
               {% endfor %}
             </optgroup>
           </select>
+        </div>
+        <div>
+          <label for="fx-expiry">Expiry date</label>
+          <input type="date" id="fx-expiry" name="expiry_date" value="2099-01-01" min="{{ today.isoformat() }}" required>
         </div>
         <div>
           <label for="fx-source">Usually paid from</label>
