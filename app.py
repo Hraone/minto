@@ -5099,6 +5099,86 @@ def pay_fixed_expense(fixed_expense_id):
     if not source_id:
         flash("Choose the account used to pay this expense.")
         return redirect(return_to)
+    if expense.get("loan_id"):
+        loan_rows = client.table("credit_card_loans").select("*").eq(
+            "id", expense["loan_id"]
+        ).eq("user_id", user_id).eq("active", True).limit(1).execute().data
+        loan = loan_rows[0] if loan_rows else None
+        if not loan:
+            flash("This loan is already settled or inactive.")
+            return redirect(return_to)
+        card_rows = client.table("user_sources").select("id, source_type").eq(
+            "id", loan["source_id"]
+        ).eq("user_id", user_id).eq("active", True).limit(1).execute().data
+        if not card_rows or card_rows[0].get("source_type") != "credit_card":
+            flash("The credit card linked to this loan is unavailable.")
+            return redirect(return_to)
+        pay_ids = {str(r["id"]) for r in client.table("user_sources").select("id")
+                   .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data}
+        if str(source_id) not in pay_ids:
+            flash("Pick one of your bank or cash accounts.")
+            return redirect(return_to)
+        amount = min(float(expense["amount"]), float(loan.get("outstanding_amount") or 0))
+        if amount <= 0:
+            flash("There is no remaining loan balance to pay.")
+            return redirect(return_to)
+        transfer_group = str(uuid.uuid4())
+        description = f"CC loan / EMI: {loan.get('name') or expense['name']}"
+        created_ids = []
+        old_outstanding = float(loan["outstanding_amount"])
+        new_outstanding = max(round(old_outstanding - amount, 2), 0.0)
+        try:
+            for direction, sid in (("out", int(source_id)), ("in", int(loan["source_id"]))):
+                created_ids.append(insert_entry_and_transaction(client, user_id, description, {
+                    "direction": direction,
+                    "category": "transfer",
+                    "source_id": sid,
+                    "amount": amount,
+                    "description": description,
+                    "raw_text": description,
+                    "transaction_date": today.isoformat(),
+                    "transfer_group": transfer_group,
+                }))
+            client.table("credit_card_loans").update({
+                "outstanding_amount": new_outstanding,
+                "active": new_outstanding > 0,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }).eq("id", loan["id"]).eq("user_id", user_id).execute()
+            client.table("credit_card_loan_payments").insert({
+                "loan_id": loan["id"],
+                "user_id": user_id,
+                "amount": amount,
+                "payment_date": today.isoformat(),
+                "transfer_group": transfer_group,
+            }).execute()
+            client.table("fixed_expense_payments").insert({
+                "fixed_expense_id": fixed_expense_id,
+                "user_id": user_id,
+                "due_month": month_start.isoformat(),
+                "transaction_id": created_ids[0],
+            }).execute()
+            if new_outstanding <= 0:
+                client.table("fixed_expenses").update({"active": False}).eq(
+                    "id", fixed_expense_id
+                ).eq("user_id", user_id).execute()
+            flash("EMI recorded as a bank-to-card transfer. Bank balance, card outstanding and loan balance updated.")
+        except Exception:
+            app.logger.exception("Could not record fixed expense loan EMI")
+            try:
+                client.table("credit_card_loans").update({
+                    "outstanding_amount": old_outstanding,
+                    "active": old_outstanding > 0,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", loan["id"]).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+            try:
+                if created_ids:
+                    client.table("entries").delete().in_("id", created_ids).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+            flash("Couldn't record the EMI. Please try again.")
+        return redirect(return_to)
     pay_ids = {str(r["id"]) for r in client.table("user_sources").select("id")
                .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data}
     if str(source_id) not in pay_ids:
