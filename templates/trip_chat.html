@@ -2,7 +2,7 @@
 {% block title %}{{ trip.name }} Chat · Minto{% endblock %}
 {% block content %}
 <style>
-.chat-wrap{width:calc(100% - 32px);max-width:900px;margin:8px auto 36px;min-width:0}
+.chat-wrap{width:calc(100% - 32px);max-width:900px;margin:8px auto 36px;min-width:0;--chat-visual-height:100dvh}
 .chat-head{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;margin-bottom:16px}
 .chat-head>div{flex:1;min-width:0}
 .chat-head h1{font-size:25px;margin:0;overflow-wrap:anywhere;word-break:normal}
@@ -26,7 +26,8 @@
   .chat-head h1{font-size:19px;line-height:1.25}
   .chat-head p{font-size:12px}
   .chat-head .mini-btn{padding:8px 10px;font-size:12px}
-  .chat-panel{height:min(calc(100dvh - 225px),68vh);min-height:240px;border-radius:12px}
+  .chat-panel{height:calc(var(--chat-visual-height, 100dvh) - 205px);min-height:0;max-height:calc(var(--chat-visual-height, 100dvh) - 145px);border-radius:12px}
+  .trip-tab-bar{bottom:var(--chat-keyboard-offset, 0px)!important;transition:none!important}
   .chat-history{padding:10px;gap:9px}
   .chat-message{max-width:92%;padding:9px 10px}
   .chat-meta{font-size:10px}
@@ -40,7 +41,7 @@
   .chat-head{flex-wrap:wrap}
   .chat-head>div{flex-basis:100%}
   .chat-head .mini-btn{margin-left:auto}
-  .chat-panel{height:min(calc(100dvh - 245px),64vh)}
+  .chat-panel{height:calc(var(--chat-visual-height, 100dvh) - 220px);max-height:calc(var(--chat-visual-height, 100dvh) - 150px)}
 }
 </style>
 <div class="chat-wrap">
@@ -68,6 +69,31 @@
   const input = document.getElementById('chat-input');
   const send = document.getElementById('chat-send');
   const seen = new Set();
+
+  // Mobile browsers resize the visual viewport when the on-screen keyboard
+  // opens. Keep the chat panel sized to that viewport and lift Trip navigation
+  // above the keyboard instead of allowing it to cover the composer.
+  const visualViewport = window.visualViewport;
+  function syncChatViewport() {
+    if (window.matchMedia('(max-width: 600px)').matches) {
+      const viewportHeight = visualViewport ? visualViewport.height : window.innerHeight;
+      const viewportOffsetTop = visualViewport ? visualViewport.offsetTop : 0;
+      const keyboardOffset = Math.max(0, window.innerHeight - viewportHeight - viewportOffsetTop);
+      document.querySelector('.chat-wrap')?.style.setProperty('--chat-visual-height', viewportHeight + 'px');
+      document.documentElement.style.setProperty('--chat-keyboard-offset', keyboardOffset > 120 ? keyboardOffset + 'px' : '0px');
+    } else {
+      document.querySelector('.chat-wrap')?.style.removeProperty('--chat-visual-height');
+      document.documentElement.style.setProperty('--chat-keyboard-offset', '0px');
+    }
+  }
+  syncChatViewport();
+  window.addEventListener('resize', syncChatViewport, {passive: true});
+  window.addEventListener('orientationchange', syncChatViewport, {passive: true});
+  if (visualViewport) {
+    visualViewport.addEventListener('resize', syncChatViewport, {passive: true});
+    visualViewport.addEventListener('scroll', syncChatViewport, {passive: true});
+  }
+
   let loading = false;
   let nextBefore = null;
   let nextBeforeId = null;
