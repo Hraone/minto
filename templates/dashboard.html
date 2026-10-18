@@ -1245,6 +1245,15 @@
 
   /* Chart cards */
 
+  .chart-top-expense {
+    margin: -2px 0 10px;
+    color: var(--text-secondary);
+    font-size: 12px;
+    line-height: 1.5;
+    font-weight: 650;
+  }
+  .chart-top-expense:empty { display: none; }
+
   .chart-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1960,6 +1969,7 @@ document.addEventListener("DOMContentLoaded", function () {
     <div class="chart-card">
       <h2>Expenses by category</h2>
       {% if expense_labels %}
+      <p id="categoryChartTopExpense" class="chart-top-expense" aria-live="polite"></p>
       <canvas id="categoryChart" height="220" role="img" aria-label="Pie chart showing expenses by category. A text summary follows.">Expenses by category chart.</canvas>
       <ul class="chart-text-summary" aria-label="Expense totals by category" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">
         {% for label in expense_labels %}
@@ -2221,25 +2231,72 @@ document.addEventListener("DOMContentLoaded", function () {
   Chart.defaults.borderColor = chartGridColor;
   Chart.defaults.font.family = "Manrope, ui-sans-serif, system-ui, sans-serif";
 
-  var categoryPalette = isDarkTheme
-    ? ['#3fa980', '#e2857a', '#e0b25c', '#6fa0d8', '#c9c6bc', '#9c9a8e', '#6e6c63', '#adaa9f', '#f3f1ea']
-    : ['#1f6f50', '#a83b32', '#b8862f', '#3b6ea5', '#43454c', '#6f7180', '#9a9ba6', '#d8d4c8', '#17181d'];
-
+  // Assign vivid colors by spend rank, not by the original category order.
+  // This keeps the largest slice visually prominent and avoids dull grey shades.
+  var categoryPalette = [
+    '#E76F51', '#3A86FF', '#2A9D8F', '#E9C46A',
+    '#9B5DE5', '#F15BB5', '#00BBF9', '#90BE6D',
+    '#F4A261', '#577590', '#43AA8B', '#F94144',
+    '#277DA1', '#F8961E', '#A44A3F', '#7B2CBF'
+  ];
   var barColor = isDarkTheme ? '#3fa980' : '#1f6f50';
 
   {% if expense_labels %}
+  var rawCategoryLabels = {{ expense_labels|tojson }};
+  var rawCategoryValues = {{ expense_values|tojson }};
+  var rankedCategories = rawCategoryLabels.map(function (label, index) {
+    return { label: label, value: Number(rawCategoryValues[index]) || 0, originalIndex: index };
+  }).sort(function (a, b) {
+    return (b.value - a.value) || (a.originalIndex - b.originalIndex);
+  });
+  var rankedLabels = rankedCategories.map(function (item) { return item.label; });
+  var rankedValues = rankedCategories.map(function (item) { return item.value; });
+  var formatINR = function (value) {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency', currency: 'INR', maximumFractionDigits: 0
+    }).format(value);
+  };
+  var topExpense = rankedCategories[0];
+  var topExpenseSummary = document.getElementById('categoryChartTopExpense');
+  if (topExpense && topExpenseSummary) {
+    topExpenseSummary.textContent = 'Highest: ' + topExpense.label + ' · ' + formatINR(topExpense.value);
+  }
+
   new Chart(document.getElementById('categoryChart'), {
     type: 'pie',
     data: {
-      labels: {{ expense_labels|tojson }},
+      labels: rankedLabels,
       datasets: [{
-        data: {{ expense_values|tojson }},
-        backgroundColor: categoryPalette,
+        data: rankedValues,
+        backgroundColor: rankedCategories.map(function (_, index) {
+          return categoryPalette[index % categoryPalette.length];
+        }),
         borderColor: rootStyles.getPropertyValue('--surface').trim(),
-        borderWidth: 2
+        borderWidth: 2,
+        hoverOffset: 8
       }]
     },
-    options: { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, color: chartTextColor } } } }
+    options: {
+      animation: {
+        duration: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 1100,
+        easing: 'easeOutQuart',
+        animateRotate: true,
+        animateScale: true
+      },
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { boxWidth: 12, font: { size: 11 }, color: chartTextColor, padding: 12 }
+        },
+        tooltip: {
+          callbacks: {
+            label: function (context) {
+              return ' ' + context.label + ': ' + formatINR(context.parsed);
+            }
+          }
+        }
+      }
+    }
   });
   {% endif %}
 
