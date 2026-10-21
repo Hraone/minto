@@ -714,3 +714,8 @@ WITH CHECK (auth.uid() = user_id);
 
 CREATE INDEX IF NOT EXISTS category_budgets_user_month_idx
 ON public.category_budgets (user_id, month_start);
+
+
+-- Reconciliation support: generated balance adjustments can be voided without deletion.
+ALTER TABLE public.transactions
+    ADD COLUMN IF NOT EXISTS affects_source_balance boolean NOT NULL DEFAULT TRUE;
