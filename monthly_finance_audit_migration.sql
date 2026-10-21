@@ -6,6 +6,11 @@
 
 BEGIN;
 
+-- Explicitly marks whether a transaction participates in account balance math.
+-- Reconciliation rows can be safely voided without deleting historical entries.
+ALTER TABLE public.transactions
+    ADD COLUMN IF NOT EXISTS affects_source_balance boolean NOT NULL DEFAULT TRUE;
+
 CREATE TABLE IF NOT EXISTS public.monthly_finance_audits (
     id bigserial PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
