@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Monthly Finance Audit · Minto{% endblock %}
+{% block content %}
+<style>
+.finance-audit{max-width:1050px;margin:0 auto;padding:26px 16px 60px;color:var(--text)}.finance-audit *{box-sizing:border-box}
+.finance-audit-head,.finance-audit-nav,.finance-audit-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.finance-audit h1{font-size:clamp(23px,4vw,30px);margin:0}.finance-audit p{color:var(--muted);line-height:1.55}
+.finance-audit-card{margin-top:16px;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--surface);min-width:0}
+.finance-audit-nav a,.finance-audit-link{color:var(--primary);font-weight:700;text-decoration:none}
+.finance-audit-row{padding:16px 0;border-top:1px solid var(--border)}.finance-audit-row:first-child{border-top:0}
+.finance-audit-name{font-weight:750;overflow-wrap:anywhere}.finance-audit-meta{font-size:12px;color:var(--muted);margin-top:4px}
+.finance-audit-values{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:14px 0}
+.finance-audit-value{padding:10px;border:1px solid var(--border);border-radius:10px;min-width:0}.finance-audit-value span{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.finance-audit-value strong{font-size:14px;overflow-wrap:anywhere}
+.finance-audit label{display:block;font-size:13px;font-weight:650;margin:10px 0 5px}.finance-audit input,.finance-audit textarea{width:100%;min-width:0;padding:11px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:inherit}.finance-audit textarea{resize:vertical;min-height:66px}
+.finance-audit button{width:auto;padding:10px 14px;margin:10px 6px 0 0;border:1px solid var(--border);border-radius:9px;background:var(--surface-subtle);color:var(--text);font:inherit;font-weight:700;cursor:pointer}.finance-audit button.primary{background:var(--positive);color:white;border-color:transparent}
+.finance-audit button:focus-visible,.finance-audit a:focus-visible,.finance-audit input:focus-visible{outline:2px solid var(--primary);outline-offset:3px}.finance-audit-status{font-size:12px;font-weight:750;color:var(--positive)}.finance-audit-empty{padding:20px;border:1px dashed var(--border);border-radius:12px}
+@media(max-width:640px){.finance-audit{padding:18px 12px 40px}.finance-audit-card{padding:14px}.finance-audit-values{grid-template-columns:1fr 1fr}.finance-audit-value:last-child{grid-column:1/-1}}
+</style>
+<section class="finance-audit">
+  <div class="finance-audit-head"><div><h1>Monthly Finance Audit</h1><p>Compare Minto's ledger with the actual balance from your bank, card, or cash count.</p></div><a class="finance-audit-link" href="{{ url_for('profile') }}">← Profile settings</a></div>
+  <div class="finance-audit-card"><div class="finance-audit-nav"><a href="{{ url_for('monthly_finance_audit', month=previous_month.isoformat()) }}">← Previous month</a><strong>{{ audit_month.strftime('%B %Y') }}</strong><a href="{{ url_for('monthly_finance_audit', month=next_month.isoformat()) }}">Next month →</a></div><p>Cutoff: {{ cutoff_date.strftime('%d %b %Y') }}. Expected balance uses the opening balance and posted transactions through this date. A reconciliation records a difference; it does not identify its cause.</p></div>
+  <div class="finance-audit-card"><h2 style="margin-top:0">Reminder preferences</h2><p>These settings apply only to {{ audit_month.strftime('%B %Y') }}. You can always open this page manually from Profile.</p><div class="finance-audit-meta">Current status: {{ (reminder.status or 'Not set')|replace('_',' ')|title }}{% if reminder.snooze_until %} · Snoozed until {{ reminder.snooze_until }}{% endif %}</div>
+    <form method="post" action="{{ url_for('monthly_finance_audit', month=audit_month.isoformat()) }}"><input type="hidden" name="audit_month" value="{{ audit_month.isoformat() }}"><button name="reminder_action" value="later">Remind me later (24 hours)</button><button name="reminder_action" value="suppress">Do not show for this month</button><button name="reminder_action" value="pending">Reset reminder</button></form>
+  </div>
+  <div class="finance-audit-card"><h2 style="margin-top:0">Accounts to reconcile</h2><p>Enter the actual balance and confirm to create or update the linked Balance Reconciliation entry. Editing reuses the existing adjustment.</p>
+    {% if audits %}{% for item in audits %}<article class="finance-audit-row">
+      <div class="finance-audit-row-head"><div><div class="finance-audit-name">{{ item.source.name }}</div><div class="finance-audit-meta">{{ item.source.source_type|replace('_',' ')|title }} · {{ item.audit.status|default('needs_actual_balance', true)|replace('_',' ')|title }}</div></div>{% if item.audit.adjustment_transaction_id %}<span class="finance-audit-status">Linked adjustment</span>{% endif %}</div>
+      <div class="finance-audit-values"><div class="finance-audit-value"><span>Expected balance</span><strong>{{ item.expected|inr }}</strong></div><div class="finance-audit-value"><span>Actual balance</span><strong>{% if item.audit.actual_balance is not none %}{{ item.audit.actual_balance|inr }}{% else %}Not entered{% endif %}</strong></div><div class="finance-audit-value"><span>Difference</span><strong>{% if item.difference is not none %}{{ item.difference|inr }}{% else %}—{% endif %}</strong></div></div>
+      <form method="post" action="{{ url_for('monthly_finance_audit', month=audit_month.isoformat()) }}"><input type="hidden" name="audit_month" value="{{ audit_month.isoformat() }}"><input type="hidden" name="source_id" value="{{ item.source.id }}"><input type="hidden" name="expected_balance" value="{{ '%.2f'|format(item.expected) }}">
+        <label for="actual-{{ item.source.id }}">Actual balance (₹)</label><input id="actual-{{ item.source.id }}" name="actual_balance" type="number" min="0" step="0.01" required value="{{ item.audit.actual_balance if item.audit.actual_balance is not none else '' }}" placeholder="Enter actual balance">
+        <label for="note-{{ item.source.id }}">Note (optional)</label><textarea id="note-{{ item.source.id }}" name="note" maxlength="1000" placeholder="Optional explanation or reference">{{ item.audit.note or '' }}</textarea><button class="primary" type="submit">{{ 'Save changes' if item.audit.actual_balance is not none else 'Match account' }}</button>
+      </form>
+    </article>{% endfor %}{% else %}<div class="finance-audit-empty">No active accounts found, or the database migration has not been installed.</div>{% endif %}
+  </div>
+  <div class="finance-audit-card"><h2 style="margin-top:0">Audit history</h2><p>Use the month navigation to review or edit earlier audits. Reconciliation entries affect account balances but should not count as ordinary income or expenses.</p></div>
+</section>
+{% endblock %}
