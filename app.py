@@ -1476,6 +1476,139 @@ def profile():
     return response
 
 
+@app.route("/profile/finance-audit", methods=["GET", "POST"])
+@login_required
+def monthly_finance_audit():
+    client = get_user_client()
+    user_id = session["user_id"]
+    today = datetime.now(APP_TZ).date()
+    requested_month = request.args.get("month") or request.form.get("audit_month")
+    try:
+        month_start = date.fromisoformat(requested_month) if requested_month else today.replace(day=1)
+        if month_start.day != 1:
+            raise ValueError("month must be the first day")
+    except (TypeError, ValueError):
+        flash("Choose a valid audit month.")
+        return redirect(url_for("monthly_finance_audit"))
+    cutoff = min(today, date(month_start.year, month_start.month, calendar.monthrange(month_start.year, month_start.month)[1]))
+    if month_start < today.replace(day=1):
+        cutoff = date(month_start.year, month_start.month, calendar.monthrange(month_start.year, month_start.month)[1])
+
+    if request.method == "POST":
+        action = request.form.get("reminder_action")
+        if action:
+            try:
+                client.rpc("set_monthly_finance_audit_reminder", {
+                    "p_reminder_month": month_start.isoformat(),
+                    "p_action": action,
+                    "p_snooze_hours": 24,
+                }).execute()
+                flash("Reminder preference saved.")
+            except Exception:
+                app.logger.exception("Monthly finance audit reminder update failed")
+                flash("Couldn't save the reminder preference. Please run the Monthly Finance Audit SQL migration.")
+            return redirect(url_for("monthly_finance_audit", month=month_start.isoformat()))
+        try:
+            source_id = int(request.form.get("source_id", ""))
+            actual_text = (request.form.get("actual_balance") or "").strip()
+            if not actual_text or not re.fullmatch(r"\d+(?:\.\d{1,2})?", actual_text):
+                raise ValueError("Enter an actual balance with up to two decimal places.")
+            actual = float(actual_text)
+            source_rows = client.table("user_sources").select(
+                "id,source_type,opening_balance"
+            ).eq("id", source_id).eq("user_id", user_id).eq("active", True).limit(1).execute().data or []
+            if not source_rows:
+                raise ValueError("Account not found or not accessible.")
+            selected_source = source_rows[0]
+            ledger_rows = client.table("transactions").select(
+                "amount,direction,affects_source_balance"
+            ).eq("user_id", user_id).eq("source_id", source_id).lte(
+                "transaction_date", cutoff.isoformat()
+            ).execute().data or []
+            total_in = total_out = 0.0
+            for ledger_row in ledger_rows:
+                if ledger_row.get("amount") is None or ledger_row.get("affects_source_balance") is False:
+                    continue
+                if ledger_row.get("direction") == "in":
+                    total_in += float(ledger_row["amount"])
+                elif ledger_row.get("direction") == "out":
+                    total_out += float(ledger_row["amount"])
+            opening = float(selected_source.get("opening_balance") or 0)
+            expected = max(opening + total_out - total_in, 0) if selected_source["source_type"] == "credit_card" else opening + total_in - total_out
+            client.rpc("save_monthly_finance_audit", {
+                "p_source_id": source_id,
+                "p_audit_month": month_start.isoformat(),
+                "p_cutoff_date": cutoff.isoformat(),
+                "p_expected_balance": expected,
+                "p_actual_balance": actual,
+                "p_note": (request.form.get("note") or "").strip() or None,
+            }).execute()
+            client.rpc("set_monthly_finance_audit_reminder", {
+                "p_reminder_month": month_start.isoformat(),
+                "p_action": "complete",
+                "p_snooze_hours": 24,
+            }).execute()
+            flash("Account reconciliation saved.")
+        except ValueError as exc:
+            flash(str(exc))
+        except Exception:
+            app.logger.exception("Monthly finance audit save failed")
+            flash("Couldn't save the audit. Confirm the database migration is installed and try again.")
+        return redirect(url_for("monthly_finance_audit", month=month_start.isoformat()))
+
+    try:
+        sources = client.table("user_sources").select(
+            "id,name,source_type,opening_balance,active"
+        ).eq("user_id", user_id).eq("active", True).order("name").execute().data or []
+        txns = client.table("transactions").select(
+            "source_id,amount,direction,transaction_date,affects_source_balance"
+        ).eq("user_id", user_id).lte("transaction_date", cutoff.isoformat()).execute().data or []
+        existing = client.table("monthly_finance_audits").select("*").eq(
+            "user_id", user_id
+        ).eq("audit_month", month_start.isoformat()).execute().data or []
+        reminder_rows = client.table("monthly_finance_audit_reminders").select("*").eq(
+            "user_id", user_id
+        ).eq("reminder_month", month_start.isoformat()).execute().data or []
+    except Exception:
+        app.logger.exception("Monthly finance audit data load failed")
+        flash("Monthly Finance Audit tables are unavailable. Run monthly_finance_audit_migration.sql in Supabase.")
+        sources, txns, existing, reminder_rows = [], [], [], []
+
+    flows = defaultdict(lambda: {"in": 0.0, "out": 0.0})
+    for txn in txns:
+        sid = txn.get("source_id")
+        if sid is None or txn.get("amount") is None or txn.get("affects_source_balance") is False:
+            continue
+        flows[sid][txn.get("direction")] += float(txn.get("amount") or 0)
+    audit_by_source = {row["source_id"]: row for row in existing}
+    audits = []
+    for source in sources:
+        f = flows[source["id"]]
+        opening = float(source.get("opening_balance") or 0)
+        if source["source_type"] == "credit_card":
+            expected = max(opening + f["out"] - f["in"], 0)
+        else:
+            expected = opening + f["in"] - f["out"]
+        old = audit_by_source.get(source["id"], {})
+        audits.append({
+            "source": source,
+            "expected": round(expected, 2),
+            "audit": old,
+            "difference": round(float(old.get("actual_balance") or 0) - expected, 2) if old.get("actual_balance") is not None else None,
+        })
+    reminder = reminder_rows[0] if reminder_rows else {}
+    return render_template(
+        "monthly_finance_audit.html",
+        audits=audits,
+        audit_month=month_start,
+        cutoff_date=cutoff,
+        previous_month=(month_start.replace(day=1) - timedelta(days=1)).replace(day=1),
+        next_month=(month_start.replace(day=28) + timedelta(days=4)).replace(day=1),
+        reminder=reminder,
+        today=today,
+    )
+
+
 @app.route("/profile/contact-sharing", methods=["POST"])
 @login_required
 def update_profile_contact_sharing():
