@@ -1514,10 +1514,27 @@ def monthly_finance_audit():
             if not actual_text or not re.fullmatch(r"\d+(?:\.\d{1,2})?", actual_text):
                 raise ValueError("Enter an actual balance with up to two decimal places.")
             actual = float(actual_text)
-            expected_text = (request.form.get("expected_balance") or "").strip()
-            if not re.fullmatch(r"-?\d+(?:\.\d{1,2})?", expected_text):
-                raise ValueError("Expected balance is invalid; reload the audit.")
-            expected = float(expected_text)
+            source_rows = client.table("user_sources").select(
+                "id,source_type,opening_balance"
+            ).eq("id", source_id).eq("user_id", user_id).eq("active", True).limit(1).execute().data or []
+            if not source_rows:
+                raise ValueError("Account not found or not accessible.")
+            selected_source = source_rows[0]
+            ledger_rows = client.table("transactions").select(
+                "amount,direction,affects_source_balance"
+            ).eq("user_id", user_id).eq("source_id", source_id).lte(
+                "transaction_date", cutoff.isoformat()
+            ).execute().data or []
+            total_in = total_out = 0.0
+            for ledger_row in ledger_rows:
+                if ledger_row.get("amount") is None or ledger_row.get("affects_source_balance") is False:
+                    continue
+                if ledger_row.get("direction") == "in":
+                    total_in += float(ledger_row["amount"])
+                elif ledger_row.get("direction") == "out":
+                    total_out += float(ledger_row["amount"])
+            opening = float(selected_source.get("opening_balance") or 0)
+            expected = max(opening + total_out - total_in, 0) if selected_source["source_type"] == "credit_card" else opening + total_in - total_out
             client.rpc("save_monthly_finance_audit", {
                 "p_source_id": source_id,
                 "p_audit_month": month_start.isoformat(),
