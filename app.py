@@ -1360,6 +1360,79 @@ def feedback():
     ), response_status
 
 
+@app.route("/wishlist", methods=["GET", "POST"])
+@login_required
+def wishlist():
+    client = get_user_client()
+    user_id = session["user_id"]
+    error = None
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        target = parse_money(request.form.get("target_amount") or "")
+        saved = parse_money(request.form.get("saved_amount") or "0")
+        target_date = (request.form.get("target_date") or "").strip() or None
+        priority = request.form.get("priority") or "medium"
+        notes = (request.form.get("notes") or "").strip() or None
+        if not name or len(name) > 120:
+            error = "Enter an item name up to 120 characters."
+        elif target is None or target <= 0 or saved is None or saved < 0:
+            error = "Enter valid target and saved amounts."
+        elif priority not in ("low", "medium", "high"):
+            error = "Choose a valid priority."
+        elif target_date and parse_iso_date(target_date) is None:
+            error = "Choose a valid target date."
+        else:
+            try:
+                client.table("wishlists").insert({"user_id": user_id, "name": name, "target_amount": target, "saved_amount": min(saved, target), "target_date": target_date, "priority": priority, "notes": notes, "status": "active"}).execute()
+                flash("Wishlist item added.", "success")
+                return redirect(url_for("wishlist"))
+            except Exception:
+                app.logger.exception("Could not create wishlist item")
+                error = "Could not save item. Run the wishlist SQL migration in Supabase and try again."
+    try:
+        items = client.table("wishlists").select("*").eq("user_id", user_id).order("created_at", desc=True).execute().data or []
+    except Exception:
+        app.logger.exception("Could not load wishlist")
+        items = []
+        error = error or "Wishlist is not available yet. Run the wishlist SQL migration in Supabase."
+    active = [item for item in items if item.get("status") == "active"]
+    total_target = sum(float(item.get("target_amount") or 0) for item in active)
+    total_saved = sum(float(item.get("saved_amount") or 0) for item in active)
+    return render_template("wishlist.html", items=items, total_target=total_target, total_saved=total_saved, error=error)
+
+
+@app.route("/wishlist/<int:item_id>/update", methods=["POST"])
+@login_required
+def update_wishlist_item(item_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    action = request.form.get("action") or "save"
+    try:
+        owned = client.table("wishlists").select("id").eq("id", item_id).eq("user_id", user_id).limit(1).execute().data or []
+        if not owned:
+            flash("Wishlist item not found.", "error")
+            return redirect(url_for("wishlist"))
+        query = client.table("wishlists").update({"updated_at": datetime.now(timezone.utc).isoformat()})
+        if action == "delete":
+            client.table("wishlists").delete().eq("id", item_id).eq("user_id", user_id).execute()
+            flash("Wishlist item deleted.", "success")
+        elif action in ("active", "paused", "purchased"):
+            client.table("wishlists").update({"status": action, "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", item_id).eq("user_id", user_id).execute()
+            flash("Wishlist status updated.", "success")
+        else:
+            target = parse_money(request.form.get("target_amount") or "")
+            saved = parse_money(request.form.get("saved_amount") or "")
+            if target is None or target <= 0 or saved is None or saved < 0:
+                flash("Enter valid target and saved amounts.", "error")
+            else:
+                client.table("wishlists").update({"target_amount": target, "saved_amount": min(saved, target), "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", item_id).eq("user_id", user_id).execute()
+                flash("Wishlist progress updated.", "success")
+    except Exception:
+        app.logger.exception("Could not update wishlist item")
+        flash("Could not update this item. Please try again.", "error")
+    return redirect(url_for("wishlist"))
+
+
 @app.route("/profile")
 @login_required
 def profile():
