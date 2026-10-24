@@ -1534,6 +1534,8 @@
     }
 </style>
 
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/minto-apple-theme.css') }}?v={{ asset_version }}">
+
 </head>
 
 <body class="{% if session.get('user_id') and app_mode != 'trip' %}has-avatar{% endif %}">
