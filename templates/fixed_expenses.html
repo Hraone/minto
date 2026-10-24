@@ -269,8 +269,8 @@
       <form method="post" action="{{ url_for('pay_fixed_expense', fixed_expense_id=x.id) }}">
         <select name="source_id" aria-label="Pay from" required>
           <option value="" disabled {{ '' if x.source_id else 'selected' }}>Pay from</option>
-          {% for s in sources %}
-          <option value="{{ s.id }}" {{ 'selected' if x.source_id == s.id else '' }}>{{ s.name }}</option>
+          {% for s in pay_sources %}
+          <option value="{{ s.id }}" {{ 'selected' if x.source_id == s.id else '' }}>{{ s.name }}{% if s.source_type == 'credit_card' %} · Credit Card{% else %} · Bank/Cash{% endif %}</option>
           {% endfor %}
         </select>
         <button type="submit" class="fx-btn">Mark Paid</button>
@@ -375,8 +375,8 @@
           <label for="fi-source">Usually received in</label>
           <select id="fi-source" name="source_id" required>
             <option value="">Choose account</option>
-            {% for s in sources %}
-            <option value="{{ s.id }}">{{ s.name }}</option>
+            {% for s in pay_sources %}
+            <option value="{{ s.id }}">{{ s.name }}{% if s.source_type == 'credit_card' %} · Credit Card{% else %} · Bank/Cash{% endif %}</option>
             {% endfor %}
           </select>
         </div>
