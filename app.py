@@ -5183,13 +5183,14 @@ def fixed_expenses():
         except ValueError:
             due_day = 0
         pay_ids = {r["id"] for r in client.table("user_sources").select("id, source_type")
-                   .in_("source_type", ["savings", "cash"]).execute().data}
+                   .eq("user_id", user_id).eq("active", True)
+                   .in_("source_type", ["savings", "cash", "credit_card"]).execute().data}
         if not name or amount is None or not 1 <= due_day <= 31 or expiry_date < datetime.now(APP_TZ).date():
             flash("Couldn't add that fixed expense. Check the name, amount, due day and expiry date.")
         elif category not in (investment_categories if kind == "investment" else expense_categories):
             flash("Pick one of the listed categories.")
         elif source_id and (not source_id.isdigit() or int(source_id) not in pay_ids):
-            flash("Pick one of your bank or cash accounts.")
+            flash("Pick one of your bank, cash or credit card accounts.")
         else:
             row = {
                 "user_id": user_id,
@@ -5220,21 +5221,24 @@ def fixed_expenses():
     today = datetime.now(APP_TZ).date()
     expenses = get_fixed_expenses_for_month(client, user_id, today.year, today.month)
     fixed_incomes = get_fixed_incomes_for_month(client, user_id, today.year, today.month)
-    sources = (
+    all_sources = (
         client.table("user_sources")
         .select("id, name, source_type")
         .eq("user_id", user_id)
         .eq("active", True)
-        .in_("source_type", ["savings", "cash"])
+        .in_("source_type", ["savings", "cash", "credit_card"])
         .order("name")
         .execute()
         .data
     )
+    sources = [s for s in all_sources if s.get("source_type") in ("savings", "cash")]
+    pay_sources = all_sources
     return render_template(
         "fixed_expenses.html",
         expenses=expenses,
         fixed_incomes=fixed_incomes,
         sources=sources,
+        pay_sources=pay_sources,
         categories=categories,
         expense_categories=expense_categories,
         investment_categories=investment_categories,
@@ -5402,9 +5406,10 @@ def pay_fixed_expense(fixed_expense_id):
             flash("Couldn't record the EMI. Please try again.")
         return redirect(return_to)
     pay_ids = {str(r["id"]) for r in client.table("user_sources").select("id")
-               .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data}
+               .eq("user_id", user_id).eq("active", True)
+               .in_("source_type", ["savings", "cash", "credit_card"]).execute().data}
     if str(source_id) not in pay_ids:
-        flash("Pick one of your bank or cash accounts.")
+        flash("Pick one of your bank, cash or credit card accounts.")
         return redirect(return_to)
 
     existing = (
