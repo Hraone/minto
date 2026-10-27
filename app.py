@@ -4046,13 +4046,11 @@ def update_trip_settlement_status(trip_id, settlement_id):
 def accept_trip_expense_share(trip_id, share_id):
     client = get_user_client()
     try:
-        raw_source = (request.form.get("source_id") or "").strip()
-        source_id = int(raw_source) if raw_source else None
-        trip_rpc(client, "accept_trip_expense_share", {"p_share_id": share_id, "p_source_id": source_id})
-        flash("Your share is now recorded as a personal expense. Account balances were not changed.")
+        trip_rpc(client, "accept_trip_expense_share", {"p_share_id": share_id})
+        flash("Share accepted. It will be added to Personal Expenses when you pay your share during settlement.")
     except Exception as e:
         app.logger.info("Trip share accept failed: %s", e)
-        flash(trip_action_error(e, "Couldn't accept that share. Choose an account and try again."))
+        flash(trip_action_error(e, "Couldn't accept that share. Please try again."))
     return redirect(url_for("trip_detail", trip_id=trip_id))
 
 
