@@ -1049,6 +1049,9 @@ def login():
             (time.perf_counter() - auth_started) * 1000,
         )
 
+        # Start from a clean session so no account-specific values (including
+        # the previous user's avatar) can survive an account switch.
+        session.clear()
         session.permanent = True  # survive browser restarts, not just the tab
         session["user_id"] = result.user.id
         session["email"] = result.user.email
@@ -1079,10 +1082,18 @@ def login():
             session["biometric_enabled"] = bool(profile_state.get("biometric_enabled", False))
             profile_source = "combined_query"
 
+        # Always fetch the avatar for the authenticated user at login.
+        # Do not reuse a value left in a session from another account.
+        avatar_started = time.perf_counter()
+        session["profile_avatar"] = load_profile_avatar(user_client, result.user.id)
         app.logger.info(
             "login_stage=profile_preferences source=%s elapsed_ms=%.1f",
             profile_source,
             (time.perf_counter() - profile_started) * 1000,
+        )
+        app.logger.info(
+            "login_stage=profile_avatar outcome=loaded elapsed_ms=%.1f",
+            (time.perf_counter() - avatar_started) * 1000,
         )
 
         # New users see Minto's short introduction once before entering the app.
@@ -1140,6 +1151,8 @@ def passkey_login():
     session["expires_at"] = _jwt_exp(access_token)
     session["verified_at"] = time.time()
     user_client = get_user_client()
+    # Passkey login follows the same fresh-avatar path as password login.
+    session["profile_avatar"] = load_profile_avatar(user_client, user.id)
     session["mode"] = load_saved_mode(user_client, user.id)
     session["theme"] = load_saved_theme(user_client, user.id)
     session["display_name"] = load_display_name(user_client, user.id)
