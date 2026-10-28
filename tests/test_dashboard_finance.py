@@ -110,6 +110,27 @@ class DashboardFinanceTests(unittest.TestCase):
             compute_safe_to_spend([{"balance": 40}], [{"amount": 45}]),
         )
 
+    def test_money_totals_use_decimal_arithmetic_and_round_to_cents(self):
+        summary = calculate_dashboard_flow([
+            {"amount": "0.10", "direction": "out", "category": "expense", "expense_category": "food"},
+            {"amount": "0.20", "direction": "out", "category": "expense", "expense_category": "food"},
+            {"amount": "0.30", "direction": "in", "category": "income"},
+        ])
+        self.assertEqual(0.30, summary["total_out"])
+        self.assertEqual(0.30, summary["total_in"])
+        self.assertEqual(0.0, summary["net"])
+        self.assertEqual({"food": 0.30}, summary["expense_by_category"])
+
+    def test_safe_to_spend_uses_decimal_arithmetic_for_money(self):
+        result = calculate_safe_to_spend(
+            [{"balance": "100.10", "minimum_balance": "20.05"}],
+            [{"amount": "0.10"}, {"amount": "0.20"}],
+        )
+        self.assertEqual(100.10, result["total_cash"])
+        self.assertEqual(20.05, result["minimum_reserve"])
+        self.assertEqual(0.30, result["committed"])
+        self.assertEqual(79.75, result["safe_to_spend"])
+
     def test_expense_category_only_counts_outgoing_transactions(self):
         summary = calculate_dashboard_flow([
             {"amount": 100, "direction": "out", "category": "expense", "expense_category": "food"},
