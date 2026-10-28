@@ -106,12 +106,9 @@ def calculate_safe_to_spend(savings, commitments):
     total_cash = sum(max(float(source.get("balance") or 0), 0.0) for source in savings)
     minimum_reserve = sum(max(float(source.get("minimum_balance") or 0), 0.0) for source in savings)
     account_shortfalls = []
-    spendable_before_commitments = 0.0
     for source in savings:
         balance = max(float(source.get("balance") or 0), 0.0)
         minimum = max(float(source.get("minimum_balance") or 0), 0.0)
-        surplus = max(balance - minimum, 0.0)
-        spendable_before_commitments += surplus
         shortfall = max(minimum - balance, 0.0)
         if shortfall > 0:
             account_shortfalls.append({
@@ -122,6 +119,9 @@ def calculate_safe_to_spend(savings, commitments):
                 "shortfall": round(shortfall, 2),
             })
 
+    # Preserve the full sum of required minimums across accounts. A surplus in
+    # one account should not hide a shortfall in another account's minimum.
+    spendable_before_commitments = max(total_cash - minimum_reserve, 0.0)
     committed = sum(max(float(item.get("amount") or 0), 0.0) for item in commitments)
     return {
         "total_cash": round(total_cash, 2),
