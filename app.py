@@ -1298,6 +1298,23 @@ def save_friend_sharing_preferences():
     return redirect(url_for("friends"))
 
 
+@app.route("/friends/<username>/wishlist/data")
+@login_required
+def friend_wishlist_data(username):
+    """Return only wishlist rows the owner has explicitly shared with this friend."""
+    username = (username or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
+        abort(404)
+    try:
+        result = get_user_client().rpc(
+            "get_minto_friend_shared_wishlist", {"p_username": username}
+        ).execute().data or []
+        return jsonify({"items": result})
+    except Exception:
+        app.logger.exception("Could not load a friend's shared wishlist modal")
+        return jsonify({"error": "Couldn't load this wishlist. It may not be shared with you."}), 503
+
+
 @app.route("/friends/<username>/wishlist")
 @login_required
 def view_friend_wishlist(username):
