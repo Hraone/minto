@@ -91,7 +91,9 @@ def filter_commitments_through_date(commitments, cutoff_date):
     """Keep unpaid commitments due on or before a supplied planning horizon."""
     return [
         item for item in commitments
-        if item.get("due_date") and item["due_date"] <= cutoff_date
+        if item.get("due_date")
+        and item["due_date"] <= cutoff_date
+        and not item.get("paid", False)
         and float(item.get("amount") or 0) > 0
     ]
 
