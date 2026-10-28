@@ -873,8 +873,10 @@
   }
 
   .cc-list[hidden] { display:none !important; }
-  .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:8px 0; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--text) !important; font:inherit; text-align:left; cursor:pointer; box-shadow:none !important; outline-offset:4px; transition:color .18s ease; }
-  .cc-toggle:hover,.cc-toggle:focus-visible { background:transparent !important; color:var(--primary) !important; box-shadow:none !important; transform:none !important; }
+  .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:8px 0; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--text) !important; font:inherit; text-align:left; cursor:pointer; box-shadow:none !important; outline:none; transition:color .18s ease; }
+  .cc-toggle:hover { background:transparent !important; color:var(--text) !important; box-shadow:none !important; transform:none !important; }
+  .cc-toggle:focus-visible { outline:2px solid var(--primary); outline-offset:4px; border-radius:4px; }
+  .cc-toggle:active { background:transparent !important; color:var(--text) !important; }
   /* Give this section heading the same clear hierarchy as the dashboard's main section titles. */
   .cc-section .cc-toggle .cc-toggle-title {
     display: block;
