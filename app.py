@@ -832,12 +832,17 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
                 "due_date": due,
             })
 
-    # Load the current month first, then the following month so the
-    # upcoming-commitments list works across a month boundary.
-    current_month = today.replace(day=1)
-    next_month = (current_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    # Load every calendar month intersecting the planning horizon. A fixed
+    # two-month list misses commitments when a 31-day horizon crosses into a
+    # third month (for example, January 31 through March 3).
+    month_anchor = today.replace(day=1)
+    last_month = cutoff.replace(day=1)
+    month_anchors = []
+    while month_anchor <= last_month:
+        month_anchors.append(month_anchor)
+        month_anchor = (month_anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
 
-    for month_anchor in (current_month, next_month):
+    for month_anchor in month_anchors:
         try:
             fixed = get_fixed_expenses_for_month(client, user_id, month_anchor.year, month_anchor.month)
         except Exception:
