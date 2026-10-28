@@ -1,6 +1,25 @@
 """Pure financial calculations used by the dashboard route."""
 
 from datetime import datetime, timedelta
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+
+
+_CENT = Decimal("0.01")
+
+
+def _decimal_amount(value):
+    """Convert a stored monetary value without introducing binary-float noise."""
+    if value in (None, ""):
+        return Decimal("0")
+    try:
+        return Decimal(str(value))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+
+def _money(value):
+    """Round a monetary result to cents using conventional half-up rounding."""
+    return float(_decimal_amount(value).quantize(_CENT, rounding=ROUND_HALF_UP))
 
 
 _NON_FLOW_CATEGORIES = (
@@ -26,8 +45,8 @@ def get_dashboard_period_start(period, now):
 
 def calculate_dashboard_flow(transactions):
     """Summarize income and outgoing activity without double-counting movements."""
-    total_in = 0.0
-    total_out = 0.0
+    total_in = Decimal("0")
+    total_out = Decimal("0")
     expense_by_category = {}
     outgoing_by_category = {}
     spend_by_source = {}
@@ -38,14 +57,14 @@ def calculate_dashboard_flow(transactions):
         category = transaction.get("category")
 
         if direction == "in" and amount and category not in _NON_FLOW_CATEGORIES:
-            total_in += float(amount)
+            total_in += _decimal_amount(amount)
         if direction == "out" and amount and category not in _NON_FLOW_CATEGORIES:
-            total_out += float(amount)
+            total_out += _decimal_amount(amount)
 
         if category == "expense" and direction == "out" and amount:
             expense_category = transaction.get("expense_category") or "other"
             expense_by_category[expense_category] = (
-                expense_by_category.get(expense_category, 0.0) + float(amount)
+                _decimal_amount(expense_by_category.get(expense_category, 0)) + _decimal_amount(amount)
             )
 
         if direction == "out" and amount and category not in _NON_FLOW_CATEGORIES:
@@ -58,20 +77,20 @@ def calculate_dashboard_flow(transactions):
                 label = "Investment · " + detail.replace("_", " ").title()
             else:
                 label = "Other · " + normalized_category.replace("_", " ").title()
-            outgoing_by_category[label] = outgoing_by_category.get(label, 0.0) + float(amount)
+            outgoing_by_category[label] = _decimal_amount(outgoing_by_category.get(label, 0)) + _decimal_amount(amount)
 
         source = transaction.get("user_sources")
         if source and amount and direction == "out" and category not in _NON_FLOW_CATEGORIES:
             source_name = source["name"]
-            spend_by_source[source_name] = spend_by_source.get(source_name, 0.0) + float(amount)
+            spend_by_source[source_name] = _decimal_amount(spend_by_source.get(source_name, 0)) + _decimal_amount(amount)
 
     return {
-        "total_in": total_in,
-        "total_out": total_out,
-        "net": total_in - total_out,
-        "expense_by_category": expense_by_category,
-        "outgoing_by_category": outgoing_by_category,
-        "spend_by_source": spend_by_source,
+        "total_in": _money(total_in),
+        "total_out": _money(total_out),
+        "net": _money(total_in - total_out),
+        "expense_by_category": {key: _money(value) for key, value in expense_by_category.items()},
+        "outgoing_by_category": {key: _money(value) for key, value in outgoing_by_category.items()},
+        "spend_by_source": {key: _money(value) for key, value in spend_by_source.items()},
     }
 
 
@@ -106,34 +125,34 @@ def calculate_safe_to_spend(savings, commitments):
     restore each account's required minimum.
     """
     # Keep signed balances: an overdrawn account reduces available cash.
-    total_cash = sum(float(source.get("balance") or 0) for source in savings)
-    minimum_reserve = sum(max(float(source.get("minimum_balance") or 0), 0.0) for source in savings)
+    total_cash = sum((_decimal_amount(source.get("balance")) for source in savings), Decimal("0"))
+    minimum_reserve = sum((max(_decimal_amount(source.get("minimum_balance")), Decimal("0")) for source in savings), Decimal("0"))
     account_shortfalls = []
     for source in savings:
-        balance = float(source.get("balance") or 0)
-        minimum = max(float(source.get("minimum_balance") or 0), 0.0)
-        shortfall = max(minimum - balance, 0.0)
+        balance = _decimal_amount(source.get("balance"))
+        minimum = max(_decimal_amount(source.get("minimum_balance")), Decimal("0"))
+        shortfall = max(minimum - balance, Decimal("0"))
         if shortfall > 0:
             account_shortfalls.append({
                 "id": source.get("id"),
                 "name": source.get("name") or "Account",
-                "balance": round(balance, 2),
-                "minimum_balance": round(minimum, 2),
-                "shortfall": round(shortfall, 2),
+                "balance": _money(balance),
+                "minimum_balance": _money(minimum),
+                "shortfall": _money(shortfall),
             })
 
     # Preserve the full sum of required minimums across accounts. A surplus in
     # one account should not hide a shortfall in another account's minimum.
-    spendable_before_commitments = max(total_cash - minimum_reserve, 0.0)
-    committed = sum(max(float(item.get("amount") or 0), 0.0) for item in commitments)
+    spendable_before_commitments = max(total_cash - minimum_reserve, Decimal("0"))
+    committed = sum((max(_decimal_amount(item.get("amount")), Decimal("0")) for item in commitments), Decimal("0"))
     return {
-        "total_cash": round(total_cash, 2),
-        "minimum_reserve": round(minimum_reserve, 2),
-        "spendable_before_commitments": round(spendable_before_commitments, 2),
-        "committed": round(committed, 2),
-        "safe_to_spend": max(round(spendable_before_commitments - committed, 2), 0.0),
-        "commitment_shortfall": max(round(committed - spendable_before_commitments, 2), 0.0),
-        "minimum_balance_shortfall": round(sum(x["shortfall"] for x in account_shortfalls), 2),
+        "total_cash": _money(total_cash),
+        "minimum_reserve": _money(minimum_reserve),
+        "spendable_before_commitments": _money(spendable_before_commitments),
+        "committed": _money(committed),
+        "safe_to_spend": _money(max(spendable_before_commitments - committed, Decimal("0"))),
+        "commitment_shortfall": _money(max(committed - spendable_before_commitments, Decimal("0"))),
+        "minimum_balance_shortfall": _money(sum((_decimal_amount(x["shortfall"]) for x in account_shortfalls), Decimal("0"))),
         "minimum_balance_accounts": account_shortfalls,
     }
 
