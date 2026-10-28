@@ -1453,6 +1453,26 @@ def update_wishlist_item(item_id):
     return redirect(url_for("wishlist"))
 
 
+@app.route("/profile/reset-password", methods=["POST"])
+@login_required
+def profile_reset_password():
+    email = (session.get("email") or "").strip()
+    if not email:
+        flash("Your account email is unavailable. Please sign in again.")
+        return redirect(url_for("profile"))
+
+    try:
+        # Supabase sends the recovery email using the project's configured
+        # password-reset redirect URL and email template.
+        get_client().auth.reset_password_for_email(email)
+        flash("Password reset email sent. Check your inbox and spam folder.")
+    except Exception:
+        app.logger.exception("Profile password reset email request failed")
+        flash("Couldn't send the password reset email. Please try again later.")
+
+    return redirect(url_for("profile"))
+
+
 @app.route("/profile")
 @login_required
 def profile():
