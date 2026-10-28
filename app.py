@@ -6057,8 +6057,8 @@ def dashboard():
         float(c.get("expected_bill") or 0) for c in card_forecasts
     )
 
-    # Credit-card overview: aggregate utilization and group each known upcoming
-    # statement by its actual due month. Future spending is not invented.
+    # Credit-card overview. Utilization is based only on recorded card balances;
+    # loan principal/EMIs are never added to outstanding a second time.
     total_cc_limit = sum(float(c.get("limit") or 0) for c in credit_cards)
     total_cc_used = sum(float(c.get("outstanding") or 0) for c in credit_cards)
     credit_card_overview = {
@@ -6068,19 +6068,65 @@ def dashboard():
         "utilization_pct": round(total_cc_used / total_cc_limit * 100, 1) if total_cc_limit else None,
         "cards_count": len(credit_cards),
     }
+
+    # Build due-month forecasts for this month and the next two months.
+    # The first statement uses current-cycle spending + one EMI. Later
+    # statements forecast only the EMI; future card purchases are unknown.
     current_month = today.replace(day=1)
     credit_card_due_periods = []
-    month_anchor = current_month
-    for offset in range(3):
-        if offset:
-            month_anchor = (month_anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
-        month_after = (month_anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
-        period_cards = [
-            c for c in card_forecasts
-            if c.get("due_date")
-            and month_anchor <= c["due_date"] < month_after
-            and float(c.get("expected_bill") or 0) > 0
-        ]
+    month_anchors = []
+    anchor = current_month
+    for _ in range(3):
+        month_anchors.append(anchor)
+        anchor = (anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+    def _add_months(day_value, months):
+        month_index = day_value.month - 1 + months
+        year_value = day_value.year + month_index // 12
+        month_value = month_index % 12 + 1
+        return date(year_value, month_value, min(day_value.day, calendar.monthrange(year_value, month_value)[1]))
+
+    period_cards_by_month = {m: [] for m in month_anchors}
+    period_end = (month_anchors[-1].replace(day=28) + timedelta(days=4)).replace(day=1)
+    for forecast in card_forecasts:
+        card_id = int(forecast["id"])
+        cycle = get_card_cycle_dates(forecast.get("statement_day"), today)
+        if not cycle or not forecast.get("cycle_configured"):
+            continue
+
+        loan = cc_loans.get(card_id)
+        loan_remaining = max(float(loan.get("outstanding_amount") or 0), 0.0) if loan else 0.0
+        monthly_emi = max(float(loan.get("monthly_emi") or 0), 0.0) if loan else 0.0
+        statement_date = cycle["next_statement_date"]
+        due_days = int(forecast.get("payment_due_days") or 0)
+
+        for cycle_index in range(6):
+            due_date = statement_date + timedelta(days=due_days)
+            if due_date >= period_end:
+                break
+
+            is_next_statement = due_date == forecast.get("due_date")
+            if is_next_statement:
+                amount = max(float(forecast.get("expected_bill") or 0), 0.0)
+            else:
+                amount = min(monthly_emi, loan_remaining) if monthly_emi > 0 else 0.0
+
+            if loan and monthly_emi > 0 and amount > 0:
+                loan_remaining = max(loan_remaining - min(monthly_emi, loan_remaining), 0.0)
+
+            month_key = due_date.replace(day=1)
+            if month_key in period_cards_by_month and amount > 0:
+                period_cards_by_month[month_key].append({
+                    **forecast,
+                    "expected_bill": round(amount, 2),
+                    "due_date": due_date,
+                    "forecast_type": "next_statement" if is_next_statement else "emi_projection",
+                })
+
+            statement_date = _add_months(statement_date, 1)
+
+    for month_anchor in month_anchors:
+        period_cards = period_cards_by_month[month_anchor]
         credit_card_due_periods.append({
             "label": month_anchor.strftime("%B %Y"),
             "total": round(sum(float(c.get("expected_bill") or 0) for c in period_cards), 2),
