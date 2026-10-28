@@ -164,7 +164,7 @@ TRIP_MODE_ENDPOINTS = {
     # Friends is available in Trip mode, so its form handlers must also be
     # allowed here; otherwise POSTs silently redirect to trip_home before
     # the username or friend-request changes can be saved.
-    "update_profile_username", "send_friend_request", "respond_friend_request", "remove_minto_friend",
+    "update_profile_username", "send_friend_request", "respond_friend_request", "remove_minto_friend", "save_friend_sharing_preferences",
     "logout", "login", "signup", "favicon", "health", "static",
     "service_worker", "web_manifest",
 }
@@ -1233,6 +1233,22 @@ def load_friend_center(client, query=""):
                 person["email"] = contact.get("email")
         except Exception:
             app.logger.exception("Could not load opted-in friend contact details")
+        try:
+            preferences = client.rpc("list_minto_friend_sharing_preferences").execute().data or []
+            preference_by_username = {item.get("username"): item for item in preferences}
+            for person in empty["friends"]:
+                preference = preference_by_username.get(person.get("username"), {})
+                person["share_email"] = bool(preference.get("share_email", False))
+                person["share_phone"] = bool(preference.get("share_phone", False))
+                person["share_wishlist"] = bool(preference.get("share_wishlist", False))
+                person["shared_wishlist_available"] = bool(preference.get("shared_wishlist_available", False))
+        except Exception:
+            app.logger.exception("Could not load per-friend sharing preferences")
+            for person in empty["friends"]:
+                person.setdefault("share_email", False)
+                person.setdefault("share_phone", False)
+                person.setdefault("share_wishlist", False)
+                person.setdefault("shared_wishlist_available", False)
         empty["incoming_requests"] = client.rpc(
             "list_minto_friend_requests", {"p_direction": "incoming"}
         ).execute().data or []
@@ -1258,6 +1274,49 @@ def load_friend_center(client, query=""):
         # An unapplied migration should not make Profile or Personal Mode fail.
         app.logger.exception("Could not load the Minto Friends section")
     return empty
+
+
+@app.route("/friends/sharing", methods=["POST"])
+@login_required
+def save_friend_sharing_preferences():
+    username = (request.form.get("username") or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
+        flash("Choose a valid friend.")
+        return redirect(url_for("friends"))
+    preferences = {
+        "p_username": username,
+        "p_share_email": request.form.get("share_email") == "on",
+        "p_share_phone": request.form.get("share_phone") == "on",
+        "p_share_wishlist": request.form.get("share_wishlist") == "on",
+    }
+    try:
+        get_user_client().rpc("set_minto_friend_sharing_preferences", preferences).execute()
+        flash("Sharing preferences saved for @" + username + ".")
+    except Exception:
+        app.logger.exception("Could not save friend sharing preferences")
+        flash("Couldn't save sharing preferences. Check that the latest friend-sharing SQL migration has been applied.")
+    return redirect(url_for("friends"))
+
+
+@app.route("/friends/<username>/wishlist")
+@login_required
+def view_friend_wishlist(username):
+    username = (username or "").strip().lower()
+    if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
+        abort(404)
+    try:
+        result = get_user_client().rpc(
+            "get_minto_friend_shared_wishlist", {"p_username": username}
+        ).execute().data or []
+    except Exception:
+        app.logger.exception("Could not load a friend's shared wishlist")
+        flash("Couldn't load this wishlist. It may not be shared with you.")
+        return redirect(url_for("friends"))
+    if not result:
+        flash("This friend hasn't shared their wishlist with you.")
+        return redirect(url_for("friends"))
+    return render_template("friend_wishlist.html", friend_name=result[0].get("display_name") or username,
+                           friend_username=username, wishlist=result)
 
 
 @app.route("/friends")

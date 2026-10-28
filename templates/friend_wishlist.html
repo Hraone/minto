@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}{{ friend_name }}'s Wishlist · Minto{% endblock %}
+{% block content %}
+<style>
+  .shared-wishlist-page { max-width:900px; margin:0 auto; padding:28px 16px 64px; }
+  .shared-wishlist-header { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin-bottom:20px; }
+  .shared-wishlist-header h1 { margin:0 0 6px; font-size:27px; letter-spacing:-.03em; }
+  .shared-wishlist-header p { margin:0; color:var(--muted); font-size:13px; line-height:1.5; }
+  .shared-wishlist-back { flex:none; display:inline-flex; align-items:center; min-height:38px; padding:8px 12px; border:1px solid var(--border); border-radius:10px; color:var(--text); text-decoration:none; font-size:12px; font-weight:700; }
+  .shared-wishlist-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .shared-wishlist-item { min-width:0; padding:17px; border:1px solid var(--border); border-radius:15px; background:var(--surface); }
+  .shared-wishlist-item h2 { margin:0 0 9px; font-size:16px; overflow-wrap:anywhere; }
+  .shared-wishlist-amount { font-size:21px; font-weight:750; color:var(--text); }
+  .shared-wishlist-progress { height:6px; margin:10px 0 8px; border-radius:4px; background:var(--surface-subtle); overflow:hidden; }
+  .shared-wishlist-progress span { display:block; height:100%; background:var(--positive); }
+  .shared-wishlist-meta { display:flex; flex-wrap:wrap; gap:6px 12px; color:var(--muted); font-size:12px; }
+  .shared-wishlist-notes { margin:11px 0 0; color:var(--muted); font-size:13px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .shared-wishlist-empty { padding:22px; border:1px dashed var(--border); border-radius:14px; color:var(--muted); text-align:center; font-size:13px; }
+  @media(max-width:600px) { .shared-wishlist-page { padding:18px 0 44px; } .shared-wishlist-header h1 { font-size:23px; } .shared-wishlist-list { grid-template-columns:1fr; } }
+</style>
+<main class="shared-wishlist-page">
+  <header class="shared-wishlist-header">
+    <div><h1>{{ friend_name }}'s Wishlist</h1><p>Read-only view. Only wishlist items shared with you are shown.</p></div>
+    <a class="shared-wishlist-back" href="{{ url_for('friends') }}">Back to friends</a>
+  </header>
+  {% if wishlist %}
+  <div class="shared-wishlist-list">
+    {% for item in wishlist %}
+    <article class="shared-wishlist-item">
+      <h2>{{ item.name }}</h2>
+      <div class="shared-wishlist-amount">{{ item.saved_amount|default(0,true)|float|round(2) }} / {{ item.target_amount|float|round(2) }}</div>
+      {% set target = item.target_amount|float %}
+      {% set saved = item.saved_amount|default(0,true)|float %}
+      {% set pct = (saved / target * 100) if target > 0 else 0 %}
+      <div class="shared-wishlist-progress" aria-label="{{ pct|round|int }}% saved"><span style="width:{{ [pct,100]|min }}%"></span></div>
+      <div class="shared-wishlist-meta"><span>{{ item.priority|title }} priority</span><span>{{ item.status|title }}</span>{% if item.target_date %}<span>Target {{ item.target_date }}</span>{% endif %}</div>
+      {% if item.notes %}<p class="shared-wishlist-notes">{{ item.notes }}</p>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<p class="shared-wishlist-empty">There are no wishlist items to show.</p>{% endif %}
+</main>
+{% endblock %}
