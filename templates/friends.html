@@ -74,6 +74,60 @@
     .friend-action-form { margin-left:auto; }
     .friend-status { margin-left:auto; }
   }
+  /* Friend cards stay inside the content column at desktop and mobile widths. */
+  .friends-page, .friends-page * { box-sizing:border-box; }
+  .friends-page { width:100%; max-width:1040px; min-width:0; }
+  .friend-list-managed { min-width:0; }
+  .friend-row-managed { display:grid; grid-template-columns:46px minmax(0,1fr) auto auto; align-items:center; gap:12px; }
+  .friend-row-managed .friend-copy { min-width:0; width:auto; }
+  .friend-sharing-summary { display:block; margin-top:5px; color:var(--muted); font-size:12px; line-height:1.45; overflow-wrap:anywhere; }
+  .friend-actions-managed { display:flex; width:auto; padding:0; gap:8px; }
+  .friend-actions-managed button, .friend-remove-form button { width:auto; }
+  .friend-remove-form { min-width:0; margin:0; }
+  .friend-modal-backdrop { position:fixed; inset:0; z-index:10000; display:none; align-items:center; justify-content:center; padding:20px; background:rgba(16,20,18,.52); }
+  .friend-modal-backdrop.is-open { display:flex; }
+  .friend-modal { width:min(100%,560px); max-height:min(86vh,760px); overflow:auto; overscroll-behavior:contain; border:1px solid var(--border); border-radius:18px; background:var(--surface); color:var(--text); box-shadow:0 24px 80px rgba(0,0,0,.24); }
+  .friend-modal-header { position:sticky; top:0; z-index:1; display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:18px 20px; border-bottom:1px solid var(--border); background:var(--surface); }
+  .friend-modal-header h2 { margin:0; font-size:20px; line-height:1.3; overflow-wrap:anywhere; }
+  .friend-modal-header p { margin:4px 0 0; color:var(--muted); font-size:12px; }
+  .friend-modal-close { flex:none; width:36px; height:36px; display:grid; place-items:center; margin:0; padding:0; border:1px solid var(--border); border-radius:9px; background:var(--surface-subtle); color:var(--text); font-size:20px; }
+  .friend-modal-body { padding:20px; min-width:0; }
+  .friend-modal-section + .friend-modal-section { margin-top:22px; padding-top:20px; border-top:1px solid var(--border); }
+  .friend-modal-section h3 { margin:0 0 12px; font-size:14px; }
+  .friend-modal-contact { display:grid; gap:9px; }
+  .friend-modal-contact a, .friend-modal-contact .no-contact { display:block; min-width:0; padding:11px 12px; border:1px solid var(--border); border-radius:10px; color:var(--text); background:var(--surface-subtle); text-decoration:none; overflow-wrap:anywhere; word-break:break-word; }
+  .friend-modal-contact .no-contact { color:var(--muted); font-size:13px; }
+  .friend-modal-options { display:grid; gap:12px; }
+  .friend-modal-options label { display:flex; align-items:flex-start; gap:10px; margin:0; padding:11px 12px; border:1px solid var(--border); border-radius:10px; font-weight:500; line-height:1.4; }
+  .friend-modal-options input { flex:none; width:17px; height:17px; margin:1px 0 0; accent-color:var(--positive); }
+  .friend-modal-save { width:100%; min-height:44px; margin:16px 0 0; }
+  .friend-wishlist-items { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+  .friend-wishlist-item { min-width:0; padding:13px; border:1px solid var(--border); border-radius:12px; background:var(--surface-subtle); }
+  .friend-wishlist-item h3 { margin:0 0 8px; font-size:14px; overflow-wrap:anywhere; }
+  .friend-wishlist-amount { font-size:15px; font-weight:750; overflow-wrap:anywhere; }
+  .friend-wishlist-progress { height:6px; margin:9px 0; overflow:hidden; border-radius:4px; background:var(--border); }
+  .friend-wishlist-progress span { display:block; height:100%; background:var(--positive); }
+  .friend-wishlist-meta { display:flex; flex-wrap:wrap; gap:5px 9px; color:var(--muted); font-size:11px; }
+  .friend-wishlist-notes { margin:9px 0 0; color:var(--muted); font-size:12px; line-height:1.5; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .friend-modal-message { margin:0; padding:14px; border:1px dashed var(--border); border-radius:10px; color:var(--muted); font-size:13px; line-height:1.5; }
+  body.friend-modal-open { overflow:hidden; }
+  @media(max-width:760px) {
+    .friend-row-managed { grid-template-columns:42px minmax(0,1fr); align-items:start; gap:10px; }
+    .friend-row-managed .friend-avatar { width:42px; height:42px; }
+    .friend-actions-managed { grid-column:1 / -1; width:100%; padding:0; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
+    .friend-actions-managed button { width:100%; white-space:normal; }
+    .friend-remove-form { grid-column:1 / -1; width:100%; }
+    .friend-remove-form button { width:100%; }
+    .friend-wishlist-items { grid-template-columns:1fr; }
+    .friend-modal-backdrop { padding:10px; align-items:flex-end; }
+    .friend-modal { width:100%; max-height:90vh; border-radius:18px 18px 12px 12px; }
+    .friend-modal-header { padding:15px 16px; }
+    .friend-modal-body { padding:16px; }
+  }
+  @media(min-width:761px) and (max-width:980px) {
+    .friend-row-managed { grid-template-columns:42px minmax(0,1fr) auto; }
+    .friend-remove-form { grid-column:2 / -1; justify-self:end; }
+  }
 </style>
 <div class="friends-page">
   <div class="friends-user-card">
@@ -181,23 +235,33 @@
 
     {% if friends %}
     <div class="friend-section"><h4 class="friend-section-title"><span>Your friends</span><span class="friend-count">{{ friends|length }}</span></h4>
-    <div class="friend-list">
+    <div class="friend-list friend-list-managed">
       {% for person in friends %}
-      <div class="friend-row friend-row-managed"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_avatar if person.profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
-        {% if person.email or person.phone %}<span class="friend-contact">{% if person.email %}<a href="mailto:{{ person.email|urlencode }}">✉ Email · {{ person.email }}</a>{% endif %}{% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">☎ Call · {{ person.phone }}</a>{% endif %}</span>{% endif %}
-        {% if person.shared_wishlist_available %}<span class="friend-contact"><a href="{{ url_for('view_friend_wishlist', username=person.username) }}">View shared wishlist</a></span>{% endif %}
-      </div>
-      <div class="friend-sharing">
-        <strong>Share with this friend</strong>
-        <form method="post" action="{{ url_for('save_friend_sharing_preferences') }}">
+      <article class="friend-row friend-row-managed"
+        data-friend-username="{{ person.username }}"
+        data-friend-name="{{ person.display_name }}"
+        data-friend-email="{{ person.email or '' }}"
+        data-friend-phone="{{ person.phone or '' }}"
+        data-share-email="{{ 'true' if person.share_email else 'false' }}"
+        data-share-phone="{{ 'true' if person.share_phone else 'false' }}"
+        data-share-wishlist="{{ 'true' if person.share_wishlist else 'false' }}"
+        data-wishlist-available="{{ 'true' if person.shared_wishlist_available else 'false' }}"
+        data-wishlist-url="{{ url_for('friend_wishlist_data', username=person.username) }}">
+        <span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_avatar if person.profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
+        <div class="friend-copy">
+          <strong>{{ person.display_name }}</strong>
+          <small>@{{ person.username }}</small>
+          <span class="friend-sharing-summary">{% if person.email or person.phone %}Contact details shared{% else %}Contact details hidden{% endif %}{% if person.shared_wishlist_available %} · Wishlist available{% endif %}</span>
+        </div>
+        <div class="friend-actions friend-actions-managed">
+          <button type="button" class="friend-action secondary js-show-friend-details">Show details</button>
+          <button type="button" class="friend-action js-show-friend-wishlist">Wishlist</button>
+        </div>
+        <form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-remove-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');">
           <input type="hidden" name="username" value="{{ person.username }}">
-          <label><input type="checkbox" name="share_email" {% if person.share_email %}checked{% endif %}> Email</label>
-          <label><input type="checkbox" name="share_phone" {% if person.share_phone %}checked{% endif %}> Phone number</label>
-          <label><input type="checkbox" name="share_wishlist" {% if person.share_wishlist %}checked{% endif %}> Wishlist</label>
-          <button type="submit" class="friend-action">Save</button>
+          <button type="submit" class="friend-action secondary">Remove</button>
         </form>
-      </div>
-      <form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
+      </article>
       {% endfor %}
     </div>
     </div>
@@ -205,8 +269,175 @@
 </section>
 </div>
 
+
+<div class="friend-modal-backdrop" id="friend-details-backdrop" aria-hidden="true">
+  <section class="friend-modal" role="dialog" aria-modal="true" aria-labelledby="friend-details-title">
+    <header class="friend-modal-header"><div><h2 id="friend-details-title">Friend details</h2><p id="friend-details-subtitle"></p></div><button type="button" class="friend-modal-close" data-close-friend-modal aria-label="Close">×</button></header>
+    <div class="friend-modal-body">
+      <section class="friend-modal-section"><h3>Contact details</h3><div class="friend-modal-contact" id="friend-details-contact"></div></section>
+      <section class="friend-modal-section"><h3>Sharing preferences</h3>
+        <form method="post" action="{{ url_for('save_friend_sharing_preferences') }}" id="friend-details-form">
+          <input type="hidden" name="username" id="friend-details-username">
+          <div class="friend-modal-options">
+            <label><input type="checkbox" name="share_email" id="friend-share-email"> <span>Share email address with this friend</span></label>
+            <label><input type="checkbox" name="share_phone" id="friend-share-phone"> <span>Share phone number with this friend</span></label>
+            <label><input type="checkbox" name="share_wishlist" id="friend-share-wishlist"> <span>Share wishlist with this friend</span></label>
+          </div>
+          <button type="submit" class="friend-action friend-modal-save">Save sharing settings</button>
+        </form>
+      </section>
+    </div>
+  </section>
+</div>
+<div class="friend-modal-backdrop" id="friend-wishlist-backdrop" aria-hidden="true">
+  <section class="friend-modal" role="dialog" aria-modal="true" aria-labelledby="friend-wishlist-title">
+    <header class="friend-modal-header"><div><h2 id="friend-wishlist-title">Shared wishlist</h2><p id="friend-wishlist-subtitle">Read-only wishlist items shared with you.</p></div><button type="button" class="friend-modal-close" data-close-friend-modal aria-label="Close">×</button></header>
+    <div class="friend-modal-body"><div id="friend-wishlist-content"><p class="friend-modal-message">Loading wishlist…</p></div></div>
+  </section>
+</div>
+
 <script>
 (() => {
+  const detailsBackdrop = document.getElementById("friend-details-backdrop");
+  const wishlistBackdrop = document.getElementById("friend-wishlist-backdrop");
+  let lastModalTrigger = null;
+
+  function openModal(backdrop, trigger) {
+    lastModalTrigger = trigger || document.activeElement;
+    backdrop.classList.add("is-open");
+    backdrop.setAttribute("aria-hidden", "false");
+    document.body.classList.add("friend-modal-open");
+    const closeButton = backdrop.querySelector("[data-close-friend-modal]");
+    if (closeButton) closeButton.focus();
+  }
+  function closeModal(backdrop) {
+    if (!backdrop) return;
+    backdrop.classList.remove("is-open");
+    backdrop.setAttribute("aria-hidden", "true");
+    if (!document.querySelector(".friend-modal-backdrop.is-open")) document.body.classList.remove("friend-modal-open");
+    if (lastModalTrigger && typeof lastModalTrigger.focus === "function") lastModalTrigger.focus();
+  }
+  document.querySelectorAll("[data-close-friend-modal]").forEach(button => {
+    button.addEventListener("click", () => closeModal(button.closest(".friend-modal-backdrop")));
+  });
+  [detailsBackdrop, wishlistBackdrop].forEach(backdrop => {
+    backdrop.addEventListener("click", event => { if (event.target === backdrop) closeModal(backdrop); });
+  });
+  document.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      const open = document.querySelector(".friend-modal-backdrop.is-open");
+      if (open) closeModal(open);
+    }
+  });
+
+  document.querySelectorAll(".js-show-friend-details").forEach(button => {
+    button.addEventListener("click", () => {
+      const card = button.closest(".friend-row-managed");
+      if (!card) return;
+      const username = card.dataset.friendUsername || "";
+      const name = card.dataset.friendName || username;
+      document.getElementById("friend-details-title").textContent = name;
+      document.getElementById("friend-details-subtitle").textContent = "@" + username;
+      document.getElementById("friend-details-username").value = username;
+      document.getElementById("friend-share-email").checked = card.dataset.shareEmail === "true";
+      document.getElementById("friend-share-phone").checked = card.dataset.sharePhone === "true";
+      document.getElementById("friend-share-wishlist").checked = card.dataset.shareWishlist === "true";
+      const contact = document.getElementById("friend-details-contact");
+      contact.replaceChildren();
+      const email = card.dataset.friendEmail || "";
+      const phone = card.dataset.friendPhone || "";
+      if (email) {
+        const link = document.createElement("a");
+        link.href = "mailto:" + email;
+        link.textContent = "Email · " + email;
+        contact.appendChild(link);
+      }
+      if (phone) {
+        const link = document.createElement("a");
+        link.href = "tel:" + phone.replace(/\s+/g, "");
+        link.textContent = "Phone · " + phone;
+        contact.appendChild(link);
+      }
+      if (!email && !phone) {
+        const empty = document.createElement("div");
+        empty.className = "no-contact";
+        empty.textContent = "This friend has not shared contact details with you.";
+        contact.appendChild(empty);
+      }
+      openModal(detailsBackdrop, button);
+    });
+  });
+
+  function money(value) {
+    const amount = Number(value || 0);
+    return new Intl.NumberFormat(undefined, {style:"currency", currency:"INR", maximumFractionDigits:2}).format(Number.isFinite(amount) ? amount : 0);
+  }
+  function renderFriendWishlist(items, content) {
+    content.replaceChildren();
+    if (!items.length) {
+      const message = document.createElement("p");
+      message.className = "friend-modal-message";
+      message.textContent = "This friend has not shared a wishlist with you, or their shared wishlist is empty.";
+      content.appendChild(message);
+      return;
+    }
+    const grid = document.createElement("div");
+    grid.className = "friend-wishlist-items";
+    items.forEach(item => {
+      const card = document.createElement("article");
+      card.className = "friend-wishlist-item";
+      const title = document.createElement("h3");
+      title.textContent = item.name || "Wishlist item";
+      card.appendChild(title);
+      const amount = document.createElement("div");
+      amount.className = "friend-wishlist-amount";
+      amount.textContent = money(item.saved_amount) + " saved of " + money(item.target_amount);
+      card.appendChild(amount);
+      const target = Number(item.target_amount || 0);
+      const saved = Number(item.saved_amount || 0);
+      const progress = document.createElement("div");
+      progress.className = "friend-wishlist-progress";
+      progress.setAttribute("aria-label", (target > 0 ? Math.round(Math.min(saved / target * 100, 100)) : 0) + "% saved");
+      const bar = document.createElement("span");
+      bar.style.width = (target > 0 ? Math.max(0, Math.min(saved / target * 100, 100)) : 0) + "%";
+      progress.appendChild(bar);
+      card.appendChild(progress);
+      const meta = document.createElement("div");
+      meta.className = "friend-wishlist-meta";
+      [item.priority ? item.priority.charAt(0).toUpperCase() + item.priority.slice(1) + " priority" : "", item.status ? item.status.charAt(0).toUpperCase() + item.status.slice(1) : "", item.target_date ? "Target " + item.target_date : ""].filter(Boolean).forEach(value => {
+        const span = document.createElement("span"); span.textContent = value; meta.appendChild(span);
+      });
+      card.appendChild(meta);
+      if (item.notes) {
+        const notes = document.createElement("p"); notes.className = "friend-wishlist-notes"; notes.textContent = item.notes; card.appendChild(notes);
+      }
+      grid.appendChild(card);
+    });
+    content.appendChild(grid);
+  }
+  document.querySelectorAll(".js-show-friend-wishlist").forEach(button => {
+    button.addEventListener("click", async () => {
+      const card = button.closest(".friend-row-managed");
+      if (!card) return;
+      document.getElementById("friend-wishlist-title").textContent = (card.dataset.friendName || card.dataset.friendUsername || "Friend") + "'s wishlist";
+      const content = document.getElementById("friend-wishlist-content");
+      content.innerHTML = '<p class="friend-modal-message">Loading wishlist…</p>';
+      openModal(wishlistBackdrop, button);
+      try {
+        const response = await fetch(card.dataset.wishlistUrl, {headers: {"Accept":"application/json"}, credentials:"same-origin"});
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || "Could not load this wishlist.");
+        renderFriendWishlist(Array.isArray(payload.items) ? payload.items : [], content);
+      } catch (error) {
+        content.replaceChildren();
+        const message = document.createElement("p");
+        message.className = "friend-modal-message";
+        message.textContent = error.message || "Could not load this wishlist. Please try again.";
+        content.appendChild(message);
+      }
+    });
+  });
+
   const edit = document.getElementById("edit-minto-username");
   const cancel = document.getElementById("cancel-minto-username");
   const form = document.getElementById("minto-username-form");
