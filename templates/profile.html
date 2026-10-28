@@ -1085,6 +1085,14 @@
     </form></div>
   </details>
 
+  <section class="profile-card" aria-labelledby="profile-security-title">
+    <h2 id="profile-security-title" style="margin:0 0 6px;font-size:17px;">Account security</h2>
+    <p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.5;">Need to change your password? We'll email a secure password reset link to your registered email address.</p>
+    <form method="post" action="{{ url_for('profile_reset_password') }}">
+      <button type="submit" style="width:auto;margin:0;">Send password reset email</button>
+    </form>
+  </section>
+
   <div class="profile-card">
     <div class="profile-links">
       <a href="{{ url_for('reports') }}">Download a report</a>
