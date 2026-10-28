@@ -5,7 +5,9 @@ from datetime import date, datetime
 
 from dashboard_finance import (
     calculate_dashboard_flow,
+    calculate_safe_to_spend,
     compute_safe_to_spend,
+    filter_commitments_through_date,
     filter_commitments_to_current_month,
     get_dashboard_period_start,
 )
@@ -106,6 +108,75 @@ class DashboardFinanceTests(unittest.TestCase):
         self.assertEqual(
             0.0,
             compute_safe_to_spend([{"balance": 40}], [{"amount": 45}]),
+        )
+
+    def test_money_totals_use_decimal_arithmetic_and_round_to_cents(self):
+        summary = calculate_dashboard_flow([
+            {"amount": "0.10", "direction": "out", "category": "expense", "expense_category": "food"},
+            {"amount": "0.20", "direction": "out", "category": "expense", "expense_category": "food"},
+            {"amount": "0.30", "direction": "in", "category": "income"},
+        ])
+        self.assertEqual(0.30, summary["total_out"])
+        self.assertEqual(0.30, summary["total_in"])
+        self.assertEqual(0.0, summary["net"])
+        self.assertEqual({"food": 0.30}, summary["expense_by_category"])
+
+    def test_safe_to_spend_uses_decimal_arithmetic_for_money(self):
+        result = calculate_safe_to_spend(
+            [{"balance": "100.10", "minimum_balance": "20.05"}],
+            [{"amount": "0.10"}, {"amount": "0.20"}],
+        )
+        self.assertEqual(100.10, result["total_cash"])
+        self.assertEqual(20.05, result["minimum_reserve"])
+        self.assertEqual(0.30, result["committed"])
+        self.assertEqual(79.75, result["safe_to_spend"])
+
+    def test_expense_category_only_counts_outgoing_transactions(self):
+        summary = calculate_dashboard_flow([
+            {"amount": 100, "direction": "out", "category": "expense", "expense_category": "food"},
+            {"amount": 25, "direction": "in", "category": "expense", "expense_category": "food"},
+        ])
+        self.assertEqual({"food": 100.0}, summary["expense_by_category"])
+
+    def test_safe_to_spend_accounts_for_negative_balances(self):
+        result = calculate_safe_to_spend([
+            {"name": "Bank A", "balance": 10000, "minimum_balance": 0},
+            {"name": "Bank B", "balance": -2000, "minimum_balance": 0},
+        ], [])
+        self.assertEqual(8000.0, result["total_cash"])
+        self.assertEqual(8000.0, result["safe_to_spend"])
+
+    def test_safe_to_spend_reports_minimum_balance_shortfalls_per_account(self):
+        result = calculate_safe_to_spend([
+            {"id": 1, "name": "HDFC", "balance": 849.72, "minimum_balance": 10000},
+            {"id": 2, "name": "ICICI", "balance": 5000, "minimum_balance": 5000},
+        ], [])
+        self.assertEqual(15000.0, result["minimum_reserve"])
+        self.assertEqual(9150.28, result["minimum_balance_shortfall"])
+        self.assertEqual(["HDFC"], [x["name"] for x in result["minimum_balance_accounts"]])
+
+    def test_through_date_filter_excludes_paid_and_nonpositive_commitments(self):
+        cutoff = date(2026, 10, 31)
+        commitments = [
+            {"name": "Unpaid", "due_date": date(2026, 10, 20), "amount": 100},
+            {"name": "Paid", "due_date": date(2026, 10, 20), "amount": 200, "paid": True},
+            {"name": "Zero", "due_date": date(2026, 10, 20), "amount": 0},
+            {"name": "After cutoff", "due_date": date(2026, 11, 1), "amount": 300},
+        ]
+        self.assertEqual(
+            ["Unpaid"],
+            [x["name"] for x in filter_commitments_through_date(commitments, cutoff)],
+        )
+
+    def test_through_date_filter_handles_third_month_horizon(self):
+        cutoff = date(2026, 3, 3)
+        commitments = [
+            {"name": "March 1", "due_date": date(2026, 3, 1), "amount": 100},
+            {"name": "March 4", "due_date": date(2026, 3, 4), "amount": 100},
+        ]
+        self.assertEqual(
+            ["March 1"],
+            [x["name"] for x in filter_commitments_through_date(commitments, cutoff)],
         )
 
     def test_current_month_filter_includes_month_end_and_excludes_next_month(self):
