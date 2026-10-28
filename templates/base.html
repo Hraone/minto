@@ -685,6 +685,31 @@
         box-shadow 0.2s ease;
     }
 
+    /* Default look for submit buttons that have no page-specific class.
+       :where() keeps specificity at zero, so any component class still wins,
+       and login/signup keep their own button styles. */
+    :where(button[type="submit"]:not(.login-button):not(.signup-button), form button:not([type]):not(.login-button):not(.signup-button)) {
+      min-height: 44px;
+      padding: 12px 20px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: var(--primary);
+      color: var(--primary-contrast);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.2;
+      cursor: pointer;
+      transition: background .18s ease;
+    }
+    :where(button[type="submit"]:not(.login-button):not(.signup-button):hover, form button:not([type]):not(.login-button):not(.signup-button):hover) {
+      background: var(--primary-hover);
+    }
+    :where(button[type="submit"]:disabled, form button:not([type]):disabled) {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+
     /* Consistent, accessible default styling for form submit controls. */
     :where(button[type="submit"], input[type="submit"]) {
       display: inline-flex;
