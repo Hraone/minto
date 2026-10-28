@@ -1858,7 +1858,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       {% endfor %}
     </div>
-    <p class="period-note">Payment totals use each card's configured billing cycle and estimated next statement. Future purchases are not included, so later months may show ₹0 until a due date can be forecast.</p>
+    <p class="period-note">The next due amount uses current-cycle transactions and the active loan EMI. Later months include projected active-loan EMIs only; future purchases are not included. These are estimates, not confirmed statements.</p>
     <div class="cc-list">
       {% for card in card_forecasts %}
       <div class="cc-row">
