@@ -685,6 +685,58 @@
         box-shadow 0.2s ease;
     }
 
+    /* Consistent, accessible default styling for form submit controls. */
+    button[type="submit"],
+    input[type="submit"] {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: auto;
+      min-width: 112px;
+      min-height: 44px;
+      margin-top: 0;
+      padding: 12px 18px;
+      border: 1px solid var(--primary);
+      border-radius: 10px;
+      background: var(--primary);
+      color: var(--primary-contrast);
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 1.2;
+      text-align: center;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    }
+
+    :where(.login-form, .signup-form) button[type="submit"] {
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    button[type="submit"]:hover,
+    input[type="submit"]:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px var(--shadow-lift);
+    }
+
+    button[type="submit"]:active,
+    input[type="submit"]:active {
+      transform: translateY(0);
+    }
+
+    button[type="submit"]:disabled,
+    input[type="submit"]:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
     button:hover {
       background: var(--primary-hover);
 
