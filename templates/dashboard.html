@@ -818,10 +818,13 @@
 
   .cc-summary-grid {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
     margin-top: 14px;
   }
+
+  .cc-due-period-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
 
   .cc-summary-card {
     display: flex;
@@ -890,7 +893,7 @@
 
   @media (max-width: 700px) {
     .net-worth-locked { padding: 22px 20px; }
-    .cc-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .cc-summary-grid, .cc-due-period-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
     .cc-summary-card { min-height: 82px; padding: 13px; }
     .cc-row { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
     .cc-row .cc-due { grid-column: 1 / -1; }
@@ -1830,18 +1833,32 @@ document.addEventListener("DOMContentLoaded", function () {
     <div id="cc-details" hidden>
     <div class="cc-summary-grid">
       <div class="cc-summary-card">
-        <small>Outstanding</small>
-        <strong class="tnum">{{ (wealth.total_cc_debt if wealth_unlocked else (card_forecasts|sum(attribute='outstanding')))|inr }}</strong>
+        <small>Total credit limit</small>
+        <strong class="tnum">{{ credit_card_overview.total_limit|inr }}</strong>
       </div>
       <div class="cc-summary-card">
-        <small>Expected next bills</small>
-        <strong class="tnum">{{ expected_cc_total|inr }}</strong>
+        <small>Total used</small>
+        <strong class="tnum">{{ credit_card_overview.total_used|inr }}</strong>
       </div>
       <div class="cc-summary-card">
-        <small>Configured cards</small>
-        <strong>{{ card_forecasts|selectattr('cycle_configured')|list|length }}/{{ card_forecasts|length }}</strong>
+        <small>Credit utilization</small>
+        <strong>{{ (credit_card_overview.utilization_pct|string + '%') if credit_card_overview.utilization_pct is not none else 'Set limits' }}</strong>
+      </div>
+      <div class="cc-summary-card">
+        <small>Available credit</small>
+        <strong class="tnum">{{ credit_card_overview.available_credit|inr }}</strong>
       </div>
     </div>
+    <div class="cc-summary-grid cc-due-period-grid">
+      {% for due_period in credit_card_due_periods %}
+      <div class="cc-summary-card">
+        <small>Due {{ due_period.label }}</small>
+        <strong class="tnum">{{ due_period.total|inr }}</strong>
+        <small>{{ due_period.cards|length }} card{{ '' if due_period.cards|length == 1 else 's' }} with a forecast due</small>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="period-note">Payment totals use each card's configured billing cycle and estimated next statement. Future purchases are not included, so later months may show ₹0 until a due date can be forecast.</p>
     <div class="cc-list">
       {% for card in card_forecasts %}
       <div class="cc-row">
