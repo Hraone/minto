@@ -27,7 +27,9 @@ from report_pdf import build_report_pdf
 from trip_accounting import calculate_trip_balances, suggested_settlements, trip_payables_for_user
 from dashboard_finance import (
     calculate_dashboard_flow,
+    calculate_safe_to_spend,
     compute_safe_to_spend,
+    filter_commitments_through_date,
     filter_commitments_to_current_month,
     get_dashboard_period_start,
 )
@@ -6001,8 +6003,11 @@ def dashboard():
         reminder_days_before,
     )
 
-    # Safe to Spend reserves only commitments due in the current calendar month.
-    safe_spend_commitments = filter_commitments_to_current_month(upcoming_commitments, today)
+    # Safe to Spend covers commitments due in the next 31 days, including
+    # items that fall just over a calendar-month boundary.
+    safe_spend_commitments = filter_commitments_through_date(
+        upcoming_commitments, today + timedelta(days=31)
+    )
 
     stage_started = time.perf_counter()
     try:
@@ -6026,10 +6031,15 @@ def dashboard():
     fixed_bank_cash = float(wealth["total_savings"])
     fixed_remaining = max(round(fixed_bank_cash - fixed_commitments_total, 2), 0.0)
     fixed_shortfall = max(round(fixed_commitments_total - fixed_bank_cash, 2), 0.0)
-    safe_to_spend = compute_safe_to_spend(savings, safe_spend_commitments)
-    safe_spend_bank_cash = sum(float(s.get("balance") or 0) for s in savings)
-    safe_spend_committed = sum(float(x.get("amount") or 0) for x in safe_spend_commitments)
-    safe_spend_shortfall = max(round(safe_spend_committed - safe_spend_bank_cash, 2), 0.0)
+    safe_spend_calculation = calculate_safe_to_spend(savings, safe_spend_commitments)
+    safe_to_spend = safe_spend_calculation["safe_to_spend"]
+    safe_spend_bank_cash = safe_spend_calculation["total_cash"]
+    safe_spend_committed = safe_spend_calculation["committed"]
+    safe_spend_shortfall = safe_spend_calculation["commitment_shortfall"]
+    safe_spend_minimum_reserve = safe_spend_calculation["minimum_reserve"]
+    safe_spend_minimum_shortfall = safe_spend_calculation["minimum_balance_shortfall"]
+    safe_spend_minimum_accounts = safe_spend_calculation["minimum_balance_accounts"]
+    safe_spend_before_commitments = safe_spend_calculation["spendable_before_commitments"]
     safe_to_spend_after_salary = (
         round(safe_to_spend + salary_cycle["monthly_salary"], 2)
         if salary_cycle else None
@@ -6179,6 +6189,10 @@ def dashboard():
         fixed_shortfall=fixed_shortfall,
         safe_spend_bank_cash=safe_spend_bank_cash,
         safe_spend_shortfall=safe_spend_shortfall,
+        safe_spend_minimum_reserve=safe_spend_minimum_reserve,
+        safe_spend_minimum_shortfall=safe_spend_minimum_shortfall,
+        safe_spend_minimum_accounts=safe_spend_minimum_accounts,
+        safe_spend_before_commitments=safe_spend_before_commitments,
         safe_spend_fixed=safe_spend_fixed,
         safe_spend_investments=safe_spend_investments,
         safe_spend_cc=safe_spend_cc,
