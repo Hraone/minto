@@ -6056,6 +6056,36 @@ def dashboard():
     expected_cc_total = sum(
         float(c.get("expected_bill") or 0) for c in card_forecasts
     )
+
+    # Credit-card overview: aggregate utilization and group each known upcoming
+    # statement by its actual due month. Future spending is not invented.
+    total_cc_limit = sum(float(c.get("limit") or 0) for c in credit_cards)
+    total_cc_used = sum(float(c.get("outstanding") or 0) for c in credit_cards)
+    credit_card_overview = {
+        "total_limit": total_cc_limit,
+        "total_used": total_cc_used,
+        "available_credit": max(total_cc_limit - total_cc_used, 0.0),
+        "utilization_pct": round(total_cc_used / total_cc_limit * 100, 1) if total_cc_limit else None,
+        "cards_count": len(credit_cards),
+    }
+    current_month = today.replace(day=1)
+    credit_card_due_periods = []
+    month_anchor = current_month
+    for offset in range(3):
+        if offset:
+            month_anchor = (month_anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
+        month_after = (month_anchor.replace(day=28) + timedelta(days=4)).replace(day=1)
+        period_cards = [
+            c for c in card_forecasts
+            if c.get("due_date")
+            and month_anchor <= c["due_date"] < month_after
+            and float(c.get("expected_bill") or 0) > 0
+        ]
+        credit_card_due_periods.append({
+            "label": month_anchor.strftime("%B %Y"),
+            "total": round(sum(float(c.get("expected_bill") or 0) for c in period_cards), 2),
+            "cards": period_cards,
+        })
     if expected_cc_total > 0:
         alerts.append({
             "kind": "info",
@@ -6094,6 +6124,8 @@ def dashboard():
         fixed_paid_total=fixed_paid_total,
         card_forecasts=card_forecasts,
         expected_cc_total=expected_cc_total,
+        credit_card_overview=credit_card_overview,
+        credit_card_due_periods=credit_card_due_periods,
         upcoming_commitments=upcoming_commitments,
         safe_to_spend=safe_to_spend,
         fixed_commitments_total=fixed_commitments_total,
