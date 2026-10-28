@@ -1410,7 +1410,7 @@ def wishlist():
                 app.logger.exception("Could not create wishlist item")
                 error = "Could not save item. Run the wishlist SQL migration in Supabase and try again."
     try:
-        items = client.table("wishlists").select("*").eq("user_id", user_id).order("created_at", desc=True).execute().data or []
+        items = client.table("wishlists").select("*").eq("user_id", user_id).order("created_at", desc=False).execute().data or []
     except Exception:
         app.logger.exception("Could not load wishlist")
         items = []
