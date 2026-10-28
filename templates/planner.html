@@ -5,7 +5,7 @@
 {% block content %}
 <style>
   .planner-wrap {
-    max-width: 1280px;
+    max-width: 1220px;
     margin: 0 auto;
     padding: 6px 0 56px;
   }
@@ -19,7 +19,7 @@
     flex-wrap: wrap;
   }
 
-  .planner-header h2 {
+  .planner-header h1 {
     margin: 0;
     font-size: 28px;
     font-weight: 800;
@@ -201,7 +201,7 @@
   }
 
   .planner-empty {
-    padding: 13px;
+    padding: 10px 13px;
     border-radius: 12px;
     background: var(--surface-subtle);
     color: var(--muted);
@@ -258,7 +258,7 @@
 
   @media (max-width: 430px) {
     .planner-wrap { padding-left: 6px; padding-right: 6px; }
-    .planner-header h2 { font-size: 24px; }
+    .planner-header h1 { font-size: 24px; }
     .planner-hero { padding: 20px; }
     .planner-remaining { font-size: 32px; }
   }
@@ -267,7 +267,7 @@
 <div class="planner-wrap">
   <div class="planner-header">
     <div>
-      <h2>{{ month_label }} plan</h2>
+      <h1>{{ month_label }} plan</h1>
       <p>Reserve what is committed, then plan what is left for everyday spending.</p>
     </div>
     <a class="planner-link" href="{{ url_for('dashboard') }}">Back to Overview</a>
