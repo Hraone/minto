@@ -856,7 +856,23 @@
   .cc-list[hidden] { display:none !important; }
   .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:8px 0; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--text) !important; font:inherit; text-align:left; cursor:pointer; box-shadow:none !important; outline-offset:4px; transition:color .18s ease; }
   .cc-toggle:hover,.cc-toggle:focus-visible { background:transparent !important; color:var(--primary) !important; box-shadow:none !important; transform:none !important; }
-  .cc-toggle-title { display:block; font-size:clamp(21px, 2vw, 26px); font-weight:750; line-height:1.25; letter-spacing:-.45px; }
+  /* Give this section heading the same clear hierarchy as the dashboard's main section titles. */
+  .cc-section .cc-toggle .cc-toggle-title {
+    display: block;
+    font-size: 24px !important;
+    font-weight: 750 !important;
+    line-height: 1.25;
+    letter-spacing: -.45px;
+    color: var(--text);
+  }
+  .cc-section .section-heading-row { align-items: center; gap: 18px; }
+  .cc-section .cc-toggle { flex: 1 1 auto; min-width: 0; padding: 10px 0; }
+  .cc-section .section-heading-row > .tnum {
+    flex: 0 0 auto;
+    max-width: 45%;
+    text-align: right;
+    line-height: 1.45;
+  }
   .cc-toggle-icon { width:22px; height:22px; flex:0 0 22px; color:var(--muted); transform:rotate(0deg); transition:transform .28s cubic-bezier(.2,.7,.2,1), color .18s ease; }
   .cc-section.is-open .cc-toggle-icon { transform:rotate(180deg); color:var(--text); }
   #cc-details[hidden] { display:none !important; }
