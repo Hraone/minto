@@ -45,6 +45,12 @@
   .friend-actions form,.friend-action-form { width:auto; margin:0; }
   .friend-action { width:auto; min-height:36px; margin:0; padding:8px 12px; border:1px solid var(--border); border-radius:10px; background:var(--positive); color:#fff; font-size:12px; font-weight:700; white-space:nowrap; }
   .friend-action.secondary { background:var(--surface); color:var(--text); }
+  .friend-sharing { flex:1 0 100%; min-width:0; padding:12px; border:1px solid var(--border); border-radius:12px; background:var(--surface); }
+  .friend-sharing > strong { display:block; margin-bottom:9px; color:var(--text); font-size:12px; }
+  .friend-sharing form { display:flex; flex-wrap:wrap; align-items:center; gap:10px 16px; }
+  .friend-sharing label { display:flex; align-items:center; gap:7px; margin:0; font-weight:500; }
+  .friend-sharing input[type="checkbox"] { width:16px; height:16px; margin:0; accent-color:var(--positive); }
+  .friend-sharing button { min-height:34px; margin:0 0 0 auto; padding:7px 12px; }
   .friend-empty { padding:18px; border:1px dashed var(--border); border-radius:12px; color:var(--muted); font-size:13px; text-align:center; line-height:1.5; }
   .friends-page .profile-email { color:var(--muted); }
   @media (max-width:600px) {
@@ -58,6 +64,8 @@
     .friends-page .field-row { grid-template-columns:minmax(0,1fr); }
     .friends-page .field-row button.profile-save { width:100% !important; }
     .friend-row { align-items:flex-start; flex-wrap:wrap; }
+    .friend-sharing { flex-basis:100%; }
+    .friend-sharing button { width:100%; margin-left:0; }
     .friend-avatar { width:42px; height:42px; }
     .friend-copy { width:calc(100% - 60px); }
     .friend-actions { width:100%; padding-left:54px; }
@@ -175,9 +183,21 @@
     <div class="friend-section"><h4 class="friend-section-title"><span>Your friends</span><span class="friend-count">{{ friends|length }}</span></h4>
     <div class="friend-list">
       {% for person in friends %}
-      <div class="friend-row"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_avatar if person.profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
+      <div class="friend-row friend-row-managed"><span class="friend-avatar"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (person.profile_avatar if person.profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span><div class="friend-copy"><strong>{{ person.display_name }}</strong><small>@{{ person.username }}</small>
         {% if person.email or person.phone %}<span class="friend-contact">{% if person.email %}<a href="mailto:{{ person.email|urlencode }}">✉ Email · {{ person.email }}</a>{% endif %}{% if person.phone %}<a href="tel:{{ person.phone|replace(' ', '') }}">☎ Call · {{ person.phone }}</a>{% endif %}</span>{% endif %}
-      </div><form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
+        {% if person.shared_wishlist_available %}<span class="friend-contact"><a href="{{ url_for('view_friend_wishlist', username=person.username) }}">View shared wishlist</a></span>{% endif %}
+      </div>
+      <div class="friend-sharing">
+        <strong>Share with this friend</strong>
+        <form method="post" action="{{ url_for('save_friend_sharing_preferences') }}">
+          <input type="hidden" name="username" value="{{ person.username }}">
+          <label><input type="checkbox" name="share_email" {% if person.share_email %}checked{% endif %}> Email</label>
+          <label><input type="checkbox" name="share_phone" {% if person.share_phone %}checked{% endif %}> Phone number</label>
+          <label><input type="checkbox" name="share_wishlist" {% if person.share_wishlist %}checked{% endif %}> Wishlist</label>
+          <button type="submit" class="friend-action">Save</button>
+        </form>
+      </div>
+      <form method="post" action="{{ url_for('remove_minto_friend') }}" class="friend-action-form" onsubmit="return confirm('Remove {{ person.username }} as a friend? Their trip history will stay.');"><input type="hidden" name="username" value="{{ person.username }}"><button type="submit" class="friend-action secondary">Remove</button></form></div>
       {% endfor %}
     </div>
     </div>
