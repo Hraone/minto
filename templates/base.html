@@ -686,8 +686,7 @@
     }
 
     /* Consistent, accessible default styling for form submit controls. */
-    button[type="submit"],
-    input[type="submit"] {
+    :where(button[type="submit"], input[type="submit"]) {
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -716,21 +715,18 @@
       margin-top: 20px;
     }
 
-    button[type="submit"]:hover,
-    input[type="submit"]:hover {
+    :where(button[type="submit"], input[type="submit"]):hover {
       background: var(--primary-hover);
       border-color: var(--primary-hover);
       transform: translateY(-1px);
       box-shadow: 0 8px 20px var(--shadow-lift);
     }
 
-    button[type="submit"]:active,
-    input[type="submit"]:active {
+    :where(button[type="submit"], input[type="submit"]):active {
       transform: translateY(0);
     }
 
-    button[type="submit"]:disabled,
-    input[type="submit"]:disabled {
+    :where(button[type="submit"], input[type="submit"]):disabled {
       opacity: 0.55;
       cursor: not-allowed;
       transform: none;
