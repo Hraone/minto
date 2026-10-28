@@ -7,7 +7,7 @@
   .trip-wrapper{max-width: 1180px;margin:0 auto;padding:6px 0 50px}
   .back-link{display:inline-block;margin-bottom:14px;font-size:13px;font-weight:650;color:var(--muted);text-decoration:none}
   .trip-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:18px}
-  .trip-head h2{margin:0;font-size:29px;font-weight:800;letter-spacing:-.7px;overflow-wrap:anywhere}
+  .trip-head h1{margin:0;font-size:29px;font-weight:800;letter-spacing:-.7px;overflow-wrap:anywhere}
   .trip-sub{margin:5px 0 0;font-size:13px;line-height:1.55}
   .trip-head form{width:auto;flex-shrink:0}
   .head-actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
@@ -91,7 +91,7 @@
   .icon-btn.danger:hover{background:var(--danger-bg);color:var(--negative)}
   .icon-btn svg{width:15px;height:15px}
   .empty-note{margin:0;padding:18px 0 4px;text-align:center;color:var(--muted-2);font-size:13px}
-  @media (max-width:700px){.stat-row{grid-template-columns:repeat(2,1fr)}.field-row{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr}.toolbar{display:grid;grid-template-columns:1fr}.toolbar .control,.toolbar .control.search{min-width:0}.toolbar button{width:100%}.head-actions{justify-content:flex-start}.trip-head h2{font-size:25px}}
+  @media (max-width:700px){.stat-row{grid-template-columns:repeat(2,1fr)}.field-row{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr}.toolbar{display:grid;grid-template-columns:1fr}.toolbar .control,.toolbar .control.search{min-width:0}.toolbar button{width:100%}.head-actions{justify-content:flex-start}.trip-head h1{font-size:25px}}
   @media (max-width:500px){.section-card{padding:21px 17px}.stat{padding:15px}.stat-value{font-size:18px}.balance-table thead{display:none}.balance-table,.balance-table tbody,.balance-table tr,.balance-table td{display:block;width:100%}.balance-table tr{padding:10px 0;border-top:1px solid var(--surface-subtle-border)}.balance-table tr:first-child{border-top:0}.balance-table td{padding:3px 0;border:0}.balance-table td:first-child{font-size:15px;padding-bottom:4px}.balance-table td:not(:first-child){display:flex;justify-content:space-between}.balance-table td:not(:first-child)::before{content:attr(data-label);color:var(--muted-2);font-weight:650}.settlement-row{align-items:flex-start;flex-wrap:wrap}.settlement-row>div:last-child{width:100%;justify-content:flex-start!important}.expense-item{flex-wrap:wrap}.expense-main{flex-basis:100%}.expense-actions{margin-left:auto}}
 </style>
 
@@ -101,7 +101,7 @@
   <div class="trip-head">
     <div>
       <div style="margin-bottom:7px;"><span class="pill {{ trip.status }}">{{ trip.status_label }}</span></div>
-      <h2>{{ trip.name }}</h2>
+      <h1>{{ trip.name }}</h1>
       <p class="trip-sub">
         {% if trip.destination %}{{ trip.destination }}{% endif %}
         {% if trip.destination and date_summary.start %} · {% endif %}

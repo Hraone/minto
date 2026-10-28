@@ -5,7 +5,7 @@
 {% block content %}
 <style>
   .trips-wrapper { max-width: 1180px; margin: 0 auto; padding: 6px 0 50px; }
-  .trips-header h2 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.7px; }
+  .trips-header h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.7px; }
   .trips-header p { margin: 6px 0 24px; font-size: 14px; }
   .trip-card { padding: 26px; margin-bottom: 22px; background: var(--surface-translucent); border: 1px solid var(--shadow-card); border-radius: 20px; box-shadow: 0 12px 34px var(--shadow-soft); }
   .trip-card h3 { margin: 0 0 4px; font-size: 16px; font-weight: 700; }
@@ -25,7 +25,7 @@
   .pill.active { color:var(--positive); }
   .trip-owner-pill { max-width:100%; white-space:normal; overflow-wrap:anywhere; }
   .trip-empty { padding:24px 0 4px; text-align:center; color:var(--muted-2); font-size:13px; }
-  @media (max-width:600px){ .trip-card{padding:22px 18px}.trips-header h2{font-size:25px}.field-row{grid-template-columns:1fr}.trip-link{align-items:flex-start}.trip-right{min-width:95px} }
+  @media (max-width:600px){ .trip-card{padding:22px 18px}.trips-header h1{font-size:25px}.field-row{grid-template-columns:1fr}.trip-link{align-items:flex-start}.trip-right{min-width:95px} }
   @media (min-width: 881px) {
     .trips-wrapper {
       display: grid;
@@ -45,7 +45,7 @@
 
 <div class="trips-wrapper">
   <div class="trips-header">
-    <h2>Trips</h2>
+    <h1>Trips</h1>
     <p>Plan the trip, record spending, and settle shared costs without mixing them into your personal finances.</p>
   </div>
 

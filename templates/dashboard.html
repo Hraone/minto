@@ -135,7 +135,7 @@
   @media (max-width:420px) {
     .dashboard-actions > .net-worth-action, .dashboard-actions > .download-report-btn { flex:1 1 calc(50% - 4px); }
     .dashboard-actions .period-tabs { gap:2px; padding:3px; }
-    .dashboard-actions .period-tab { padding:8px 4px; font-size:11px; }
+    .dashboard-actions .period-tab { padding:8px 4px; font-size:12px; min-height:44px; min-width:44px; }
   }
 
   .net-worth-action {
@@ -363,6 +363,7 @@
   .wealth-reveal-chevron { margin-left:auto; color:var(--muted); transition:transform .25s ease; }
   .wealth-reveal-toggle[aria-expanded="true"] .wealth-reveal-chevron { transform:rotate(180deg); }
   .wealth-section[hidden] { display:none !important; }
+  .dash-wrapper > .wealth-reveal-toggle { grid-column: 1 / -1; }
   .wealth-section {
     margin-bottom: 34px;
     padding-bottom: 30px;
@@ -1326,7 +1327,7 @@
   }
 
   .chart-empty {
-    padding: 30px 0;
+    padding: 14px 0;
     text-align: center;
     color: var(--muted-2);
     font-size: 13px;
@@ -2016,8 +2017,8 @@ document.addEventListener("DOMContentLoaded", function () {
       <div class="flow-overview-bar-expense" style="width: {{ (total_out / flow_total * 100) if flow_total > 0 else 0 }}%;"></div>
     </div>
     <div class="flow-overview-legend">
-      <span>Income · {{ ('%.3f'|format(total_in / flow_total * 100)) if flow_total > 0 else '0.000' }}%</span>
-      <span>Outgoing · {{ ('%.3f'|format(total_out / flow_total * 100)) if flow_total > 0 else '0.000' }}%</span>
+      <span>Income · {{ ('%.1f'|format(total_in / flow_total * 100)) ~ '%' if flow_total > 0 else '—' }}</span>
+      <span>Outgoing · {{ ('%.1f'|format(total_out / flow_total * 100)) ~ '%' if flow_total > 0 else '—' }}</span>
     </div>
 
     <div class="flow-breakdown-disclosure">
@@ -2038,9 +2039,9 @@ document.addEventListener("DOMContentLoaded", function () {
       {% for label in flow_labels %}
       <div class="flow-breakdown-item">
         <span class="flow-breakdown-name">{{ label }}</span>
-        <strong class="flow-breakdown-amount" data-flow-percent="{{ ('%.3f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) if category_outgoing_total > 0 else '0.000' }}%" data-flow-amount="{{ flow_values[loop.index0]|inr }}">{{ ('%.3f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) if category_outgoing_total > 0 else '0.000' }}%</strong>
+        <strong class="flow-breakdown-amount" data-flow-percent="{{ ('%.1f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) ~ '%' if category_outgoing_total > 0 else '—' }}" data-flow-amount="{{ flow_values[loop.index0]|inr }}">{{ ('%.1f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) ~ '%' if category_outgoing_total > 0 else '—' }}</strong>
         <span class="flow-breakdown-share" data-flow-share="percent">of outgoing</span>
-        <span class="flow-breakdown-share" data-flow-share="amount" hidden>{{ ('%.3f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) if category_outgoing_total > 0 else '0.000' }}% of outgoing</span>
+        <span class="flow-breakdown-share" data-flow-share="amount" hidden>{{ ('%.1f'|format(flow_values[loop.index0] / category_outgoing_total * 100)) ~ '%' if category_outgoing_total > 0 else '—' }} of outgoing</span>
       </div>
       {% endfor %}
     </div>

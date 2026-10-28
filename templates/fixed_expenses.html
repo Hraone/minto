@@ -10,7 +10,7 @@
     padding: 28px 16px 60px;
   }
 
-  .fx-head h2 {
+  .fx-head h1 {
     margin: 0 0 4px;
     font-size: 26px;
     color: var(--text);
@@ -226,7 +226,7 @@
   {% set paid_total = expenses|selectattr('paid')|sum(attribute='amount') %}
 
   <div class="fx-head">
-    <h2>Fixed transactions</h2>
+    <h1>Fixed transactions</h1>
     <p>Monthly bills, investments, and income. Minto reminds you when a due transaction has not yet been recorded.</p>
   </div>
 
