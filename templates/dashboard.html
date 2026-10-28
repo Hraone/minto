@@ -815,6 +815,25 @@
     font-size: 12px;
     color: var(--muted-2);
   }
+  .safe-spend-minimum-alert {
+    margin-top: 14px;
+    padding: 13px 14px;
+    border: 1px solid color-mix(in srgb, var(--negative) 28%, var(--border));
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--negative) 5%, var(--surface));
+  }
+  .safe-spend-minimum-alert > strong { display:block; font-size:13px; }
+  .safe-spend-minimum-alert > p { margin:4px 0 10px; color:var(--muted); font-size:12px; line-height:1.45; }
+  .safe-spend-minimum-list { display:flex; flex-direction:column; gap:9px; }
+  .safe-spend-minimum-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .safe-spend-minimum-row > div { min-width:0; }
+  .safe-spend-minimum-row > div > strong { display:block; font-size:12px; }
+  .safe-spend-minimum-row small { display:block; color:var(--muted); font-size:11px; margin-top:2px; }
+  .safe-spend-minimum-row > strong { flex:0 0 auto; color:var(--negative); font-size:12px; text-align:right; }
+  @media (max-width:480px) {
+    .safe-spend-minimum-row { align-items:flex-start; }
+    .safe-spend-minimum-row > strong { max-width:42%; }
+  }
 
   .cc-summary-grid {
     display: grid;
@@ -1797,12 +1816,16 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="safe-spend-card">
     <div class="safe-spend-label">Safe to spend</div>
     <div class="safe-spend-value tnum">{{ safe_to_spend|inr }}</div>
-    <div class="safe-spend-note">Available bank/cash balance after unpaid commitments due this month.</div>
+    <div class="safe-spend-note">Cash available after protecting each account's minimum balance and reserving unpaid commitments due in the next 31 days.</div>
 
     <div class="safe-spend-breakdown" aria-label="Safe to spend calculation">
       <div>
-        <span>Bank / cash</span>
+        <span>Total bank / cash</span>
         <strong class="tnum">{{ safe_spend_bank_cash|inr }}</strong>
+      </div>
+      <div>
+        <span>Minimum balance reserve</span>
+        <strong class="tnum">−{{ safe_spend_minimum_reserve|inr }}</strong>
       </div>
       <div>
         <span>Fixed expenses</span>
@@ -1818,11 +1841,35 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       {% if safe_spend_shortfall > 0 %}
       <div class="safe-spend-shortfall">
-        <span>Shortfall</span>
+        <span>Commitment funding gap</span>
         <strong class="tnum">{{ safe_spend_shortfall|inr }}</strong>
       </div>
       {% endif %}
+      {% if safe_spend_minimum_shortfall > 0 %}
+      <div class="safe-spend-shortfall">
+        <span>Needed to restore account minimums</span>
+        <strong class="tnum">{{ safe_spend_minimum_shortfall|inr }}</strong>
+      </div>
+      {% endif %}
     </div>
+
+    {% if safe_spend_minimum_accounts %}
+    <div class="safe-spend-minimum-alert" role="status">
+      <strong>Minimum balance needs attention</strong>
+      <p>Save or transfer the amounts below to bring each account back to its configured minimum.</p>
+      <div class="safe-spend-minimum-list">
+        {% for account in safe_spend_minimum_accounts %}
+        <div class="safe-spend-minimum-row">
+          <div>
+            <strong>{{ account.name }}</strong>
+            <small>Balance {{ account.balance|inr }} · Minimum {{ account.minimum_balance|inr }}</small>
+          </div>
+          <strong class="tnum">{{ account.shortfall|inr }} needed</strong>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
   </div>
   <div class="summary-grid">
     <div class="summary-card">

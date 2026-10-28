@@ -80,18 +80,62 @@ def filter_commitments_to_current_month(commitments, today):
     month_end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
     return [
         commitment for commitment in commitments
-        if (
-            commitment.get("due_date")
-            and commitment["due_date"].year == today.year
-            and commitment["due_date"].month == today.month
-            and commitment["due_date"] <= month_end
-        )
+        if commitment.get("due_date")
+        and commitment["due_date"].year == today.year
+        and commitment["due_date"].month == today.month
+        and commitment["due_date"] <= month_end
     ]
 
 
+def filter_commitments_through_date(commitments, cutoff_date):
+    """Keep unpaid commitments due on or before a supplied planning horizon."""
+    return [
+        item for item in commitments
+        if item.get("due_date") and item["due_date"] <= cutoff_date
+        and float(item.get("amount") or 0) > 0
+    ]
+
+
+def calculate_safe_to_spend(savings, commitments):
+    """Calculate spendable cash after commitments and per-account minimum reserves.
+
+    Balances below their configured minimum are not treated as discretionary
+    cash. Their shortfalls are reported separately so the user can save to
+    restore each account's required minimum.
+    """
+    total_cash = sum(max(float(source.get("balance") or 0), 0.0) for source in savings)
+    minimum_reserve = sum(max(float(source.get("minimum_balance") or 0), 0.0) for source in savings)
+    account_shortfalls = []
+    for source in savings:
+        balance = max(float(source.get("balance") or 0), 0.0)
+        minimum = max(float(source.get("minimum_balance") or 0), 0.0)
+        shortfall = max(minimum - balance, 0.0)
+        if shortfall > 0:
+            account_shortfalls.append({
+                "id": source.get("id"),
+                "name": source.get("name") or "Account",
+                "balance": round(balance, 2),
+                "minimum_balance": round(minimum, 2),
+                "shortfall": round(shortfall, 2),
+            })
+
+    # Preserve the full sum of required minimums across accounts. A surplus in
+    # one account should not hide a shortfall in another account's minimum.
+    spendable_before_commitments = max(total_cash - minimum_reserve, 0.0)
+    committed = sum(max(float(item.get("amount") or 0), 0.0) for item in commitments)
+    return {
+        "total_cash": round(total_cash, 2),
+        "minimum_reserve": round(minimum_reserve, 2),
+        "spendable_before_commitments": round(spendable_before_commitments, 2),
+        "committed": round(committed, 2),
+        "safe_to_spend": max(round(spendable_before_commitments - committed, 2), 0.0),
+        "commitment_shortfall": max(round(committed - spendable_before_commitments, 2), 0.0),
+        "minimum_balance_shortfall": round(sum(x["shortfall"] for x in account_shortfalls), 2),
+        "minimum_balance_accounts": account_shortfalls,
+    }
+
+
 def compute_safe_to_spend(savings, commitments):
-    """Return liquid savings remaining after commitments, never below zero."""
-    liquid = sum(float(source.get("balance") or 0) for source in savings)
-    committed = sum(float(item.get("amount") or 0) for item in commitments)
-    return max(round(liquid - committed, 2), 0.0)
+    """Backward-compatible wrapper returning only the safe-to-spend amount."""
+    return calculate_safe_to_spend(savings, commitments)["safe_to_spend"]
 
