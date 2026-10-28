@@ -854,13 +854,15 @@
   }
 
   .cc-list[hidden] { display:none !important; }
-  .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:12px; padding:8px 0; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--text) !important; font:inherit; text-align:left; cursor:pointer; box-shadow:none !important; outline-offset:4px; transition:color .18s ease; }
+  .cc-toggle { width:100%; display:flex; align-items:center; justify-content:space-between; gap:14px; padding:8px 0; border:0 !important; border-radius:0 !important; background:transparent !important; color:var(--text) !important; font:inherit; text-align:left; cursor:pointer; box-shadow:none !important; outline-offset:4px; transition:color .18s ease; }
   .cc-toggle:hover,.cc-toggle:focus-visible { background:transparent !important; color:var(--primary) !important; box-shadow:none !important; transform:none !important; }
-  .cc-toggle-chevron { color:var(--muted); font-size:12px; }
+  .cc-toggle-title { display:block; font-size:clamp(21px, 2vw, 26px); font-weight:750; line-height:1.25; letter-spacing:-.45px; }
+  .cc-toggle-icon { width:22px; height:22px; flex:0 0 22px; color:var(--muted); transform:rotate(0deg); transition:transform .28s cubic-bezier(.2,.7,.2,1), color .18s ease; }
+  .cc-section.is-open .cc-toggle-icon { transform:rotate(180deg); color:var(--text); }
   #cc-details[hidden] { display:none !important; }
-  #cc-details { animation:cc-details-in .22s ease both; }
-  @keyframes cc-details-in { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }
-  @media(prefers-reduced-motion:reduce) { #cc-details { animation:none; } }
+  #cc-details { overflow:hidden; height:0; opacity:0; transform:translateY(-5px); transition:height .32s cubic-bezier(.2,.7,.2,1), opacity .22s ease, transform .32s cubic-bezier(.2,.7,.2,1); }
+  #cc-details.cc-details-open { opacity:1; transform:translateY(0); }
+  @media(prefers-reduced-motion:reduce) { .cc-toggle-icon, #cc-details { transition:none !important; } }
   .cc-list {
     margin-top: 14px;
     display: flex;
@@ -1826,7 +1828,10 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="commitments-section cc-section" id="cc-section">
     <div class="section-heading-row">
       <button type="button" class="cc-toggle" id="cc-toggle" aria-expanded="false" aria-controls="cc-details">
-        <span role="heading" aria-level="2">Credit cards</span>
+        <span class="cc-toggle-title" role="heading" aria-level="2">Credit cards</span>
+        <svg class="cc-toggle-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none">
+          <path d="m7 10 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
       </button>
       <span class="tnum">Expected bills {{ expected_cc_total|inr }}</span>
     </div>
@@ -1858,7 +1863,7 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
       {% endfor %}
     </div>
-    <p class="period-note">Payment totals use each card's configured billing cycle and estimated next statement. Future purchases are not included, so later months may show ₹0 until a due date can be forecast.</p>
+    <p class="period-note">The next due amount uses current-cycle transactions and the active loan EMI. Later months include projected active-loan EMIs only; future purchases are not included. These are estimates, not confirmed statements.</p>
     <div class="cc-list">
       {% for card in card_forecasts %}
       <div class="cc-row">
@@ -2113,12 +2118,41 @@ document.addEventListener("DOMContentLoaded", function () {
   var ccButton = document.getElementById("cc-toggle");
   var ccDetails = document.getElementById("cc-details");
   var ccSection = document.getElementById("cc-section");
-  if (ccButton && ccDetails) ccButton.addEventListener("click", function () {
-    var open = ccDetails.hidden;
-    ccDetails.hidden = !open;
-    ccButton.setAttribute("aria-expanded", String(open));
-    if (ccSection) ccSection.classList.toggle("is-open", open);
-  });
+  if (ccButton && ccDetails) {
+    ccDetails.style.height = "0px";
+    ccButton.addEventListener("click", function () {
+      var open = ccDetails.hidden || ccButton.getAttribute("aria-expanded") !== "true";
+      ccButton.setAttribute("aria-expanded", String(open));
+      if (ccSection) ccSection.classList.toggle("is-open", open);
+
+      if (open) {
+        ccDetails.hidden = false;
+        ccDetails.classList.remove("cc-details-open");
+        ccDetails.style.height = "0px";
+        // Measure after becoming visible so the panel can animate from zero.
+        requestAnimationFrame(function () {
+          ccDetails.style.height = ccDetails.scrollHeight + "px";
+          ccDetails.classList.add("cc-details-open");
+        });
+        ccDetails.addEventListener("transitionend", function onOpenEnd(event) {
+          if (event.propertyName !== "height" || ccButton.getAttribute("aria-expanded") !== "true") return;
+          ccDetails.style.height = "auto";
+          ccDetails.removeEventListener("transitionend", onOpenEnd);
+        });
+      } else {
+        ccDetails.style.height = ccDetails.scrollHeight + "px";
+        // Force layout before transitioning to zero.
+        void ccDetails.offsetHeight;
+        ccDetails.classList.remove("cc-details-open");
+        ccDetails.style.height = "0px";
+        ccDetails.addEventListener("transitionend", function onCloseEnd(event) {
+          if (event.propertyName !== "height" || ccButton.getAttribute("aria-expanded") !== "false") return;
+          ccDetails.hidden = true;
+          ccDetails.removeEventListener("transitionend", onCloseEnd);
+        });
+      }
+    });
+  }
 
   var overlay = document.getElementById("csv-filter-overlay");
   var openCsv = document.getElementById("open-csv-filters");
