@@ -42,7 +42,7 @@ def calculate_dashboard_flow(transactions):
         if direction == "out" and amount and category not in _NON_FLOW_CATEGORIES:
             total_out += float(amount)
 
-        if category == "expense" and amount:
+        if category == "expense" and direction == "out" and amount:
             expense_category = transaction.get("expense_category") or "other"
             expense_by_category[expense_category] = (
                 expense_by_category.get(expense_category, 0.0) + float(amount)
@@ -105,11 +105,12 @@ def calculate_safe_to_spend(savings, commitments):
     cash. Their shortfalls are reported separately so the user can save to
     restore each account's required minimum.
     """
-    total_cash = sum(max(float(source.get("balance") or 0), 0.0) for source in savings)
+    # Keep signed balances: an overdrawn account reduces available cash.
+    total_cash = sum(float(source.get("balance") or 0) for source in savings)
     minimum_reserve = sum(max(float(source.get("minimum_balance") or 0), 0.0) for source in savings)
     account_shortfalls = []
     for source in savings:
-        balance = max(float(source.get("balance") or 0), 0.0)
+        balance = float(source.get("balance") or 0)
         minimum = max(float(source.get("minimum_balance") or 0), 0.0)
         shortfall = max(minimum - balance, 0.0)
         if shortfall > 0:
