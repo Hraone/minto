@@ -841,7 +841,7 @@
       </div>
     </div>
 
-    <dialog class="profile-modal" id="profile-name-editor" aria-labelledby="profile-name-modal-title"><div class="profile-modal-head"><div><h2 id="profile-name-modal-title">Edit display name</h2><p>Choose how your name appears across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div><div class="profile-modal-body">
+    <dialog class="profile-modal" id="profile-name-editor" aria-labelledby="profile-name-modal-title"><div class="profile-modal-head"><div><h2 id="profile-name-modal-title">Edit display name</h2><p>Choose how your name appears across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div><div class="profile-modal-body">
       <form method="post" action="{{ url_for('update_profile_name') }}" class="profile-inline-form">
         <input
           type="text"
@@ -857,7 +857,7 @@
       </form>
       </div></dialog>
 
-    <dialog class="profile-modal" id="profile-emoji-editor" aria-labelledby="profile-avatar-modal-title"><div class="profile-modal-head"><div><h2 id="profile-avatar-modal-title">Choose your avatar</h2><p>Select an illustration to represent your profile.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div><div class="profile-modal-body">
+    <dialog class="profile-modal" id="profile-emoji-editor" aria-labelledby="profile-avatar-modal-title"><div class="profile-modal-head"><div><h2 id="profile-avatar-modal-title">Choose your avatar</h2><p>Select an illustration to represent your profile.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div><div class="profile-modal-body">
       <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
         <div class="avatar-picker" aria-label="Choose a profile avatar">
           {% for avatar in profile_avatars %}
@@ -942,7 +942,7 @@
     <button type="button" class="section-action" data-open-profile-modal="theme-modal">Customize theme</button>
   </section>
   <dialog class="profile-modal" id="theme-modal" aria-labelledby="theme-modal-title">
-    <div class="profile-modal-head"><div><h2 id="theme-modal-title">Choose a theme</h2><p>Select an accent colour. Your choice applies across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div>
+    <div class="profile-modal-head"><div><h2 id="theme-modal-title">Choose a theme</h2><p>Select an accent colour. Your choice applies across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
     <div class="profile-modal-body">
       <div class="palette-options" role="radiogroup" aria-label="Choose a theme">
         {% for palette_id, palette_name, palette_note, palette_color in [
@@ -1207,7 +1207,7 @@
     <button type="button" class="section-action" data-open-profile-modal="password-modal">Change password</button>
   </section>
   <dialog class="profile-modal" id="password-modal" aria-labelledby="password-modal-title">
-    <div class="profile-modal-head"><div><h2 id="password-modal-title">Change password</h2><p>Enter your current password, then choose a new password with at least 8 characters.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div>
+    <div class="profile-modal-head"><div><h2 id="password-modal-title">Change password</h2><p>Enter your current password, then choose a new password with at least 8 characters.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
     <div class="profile-modal-body"><form method="post" action="{{ url_for('profile_change_password') }}">
       <label for="current_password">Current password</label><input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
       <label for="new_password">New password</label><input id="new_password" name="new_password" type="password" minlength="8" autocomplete="new-password" required>
