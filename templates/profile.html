@@ -550,6 +550,26 @@
   .profile-modal-body input:focus,.profile-modal-body select:focus { outline:2px solid var(--theme-accent); outline-offset:1px; }
   .profile-modal-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:6px; }
   .profile-modal-actions .profile-save { min-height:44px; margin:0; padding:11px 18px; border-radius:10px; }
+  .profile-card-footer {
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    margin:18px 0 16px; padding:16px 20px;
+    border-top:1px solid var(--border);
+  }
+  .profile-card-footer p { margin:0; color:var(--muted); font-size:12px; line-height:1.5; }
+  .security-option {
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:16px 0; border-bottom:1px solid var(--border);
+  }
+  .security-option:first-child { padding-top:0; }
+  .security-option:last-child { padding-bottom:0; border-bottom:0; }
+  .security-option h3 { margin:0; font-size:15px; line-height:1.35; }
+  .security-option p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
+  .security-option form { flex:none; }
+  @media (max-width:600px) {
+    .profile-card-footer { align-items:flex-start; flex-direction:column; padding:14px 4px; }
+    .security-option { align-items:stretch; flex-direction:column; }
+    .security-option .section-action { width:100%; }
+  }
   .profile-settings-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .profile-settings-row h2 { margin:0; font-size:16px; line-height:1.35; }
 
@@ -1292,9 +1312,32 @@
   </details>
 
   <section class="profile-card profile-settings-row" aria-labelledby="profile-security-title">
-    <div><h2 id="profile-security-title">Account security</h2><p class="section-description">Manage your password and keep your account secure.</p></div>
-    <button type="button" class="section-action" data-open-profile-modal="password-modal">Change password</button>
+    <div>
+      <h2 id="profile-security-title">Account security</h2>
+      <p class="section-description">Manage your password and keep your account secure.</p>
+    </div>
+    <button type="button" class="section-action" data-open-profile-modal="account-security-modal">Account security <span aria-hidden="true">→</span></button>
   </section>
+
+  <dialog class="profile-modal" id="account-security-modal" aria-labelledby="account-security-modal-title">
+    <div class="profile-modal-head">
+      <div><h2 id="account-security-modal-title">Account security</h2><p>Manage how you access your Minto account.</p></div>
+      <button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button>
+    </div>
+    <div class="profile-modal-body">
+      <div class="security-option">
+        <div><h3>Change password</h3><p>Update your password using your current password.</p></div>
+        <button type="button" class="section-action" data-open-profile-modal="password-modal">Change password</button>
+      </div>
+      <div class="security-option">
+        <div><h3>Forgot password?</h3><p>Use this option if you cannot remember your current password. Email-based recovery is not available until SMTP is configured.</p></div>
+        <form method="post" action="{{ url_for('profile_reset_password') }}">
+          <button type="submit" class="section-action">Password recovery status</button>
+        </form>
+      </div>
+    </div>
+  </dialog>
+
   <dialog class="profile-modal" id="password-modal" aria-labelledby="password-modal-title">
     <div class="profile-modal-head"><div><h2 id="password-modal-title">Change password</h2><p>Enter your current password, then choose a new password with at least 8 characters.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
     <div class="profile-modal-body"><form method="post" action="{{ url_for('profile_change_password') }}">
@@ -1303,7 +1346,7 @@
       <label for="confirm_password">Confirm new password</label><input id="confirm_password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
       <div class="profile-modal-actions"><button type="submit" class="profile-save">Update password</button></div>
     </form></div>
-  </dialog>
+  </dialog>>
 
   <div class="profile-card">
     <div class="profile-links">
