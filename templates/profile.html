@@ -616,16 +616,15 @@
   .profile-modal-actions .profile-save { min-height:44px; margin:0; padding:11px 18px; border-radius:10px; }
   .profile-card-footer {
     display:flex; align-items:center; justify-content:space-between; gap:16px;
+    width:100%; min-width:0;
     margin:18px 0 16px; padding:16px 20px;
     border-top:1px solid var(--border);
   }
-  .profile-card-footer > p { flex:1 1 auto; min-width:0; margin:0; color:var(--muted); font-size:12px; line-height:1.5; text-align:left; }
-  .profile-card-footer > form { flex:0 0 auto; margin-left:auto; }
-  .profile-card-footer .section-action { white-space:nowrap; }
+  .profile-card-footer > p { flex:1 1 0; min-width:0; max-width:70%; margin:0; color:var(--muted); font-size:12px; line-height:1.5; text-align:left; overflow-wrap:normal; }
+  .profile-card-footer > .section-action { flex:0 0 auto; margin-left:auto; white-space:nowrap; }
   @media (max-width:600px) {
-    .profile-card-footer { align-items:flex-start; flex-direction:row; justify-content:space-between; padding:14px 4px; gap:12px; }
-    .profile-card-footer > p { flex:1 1 0; }
-    .profile-card-footer > form { margin-left:auto; }
+    .profile-card-footer { align-items:center; flex-direction:row; justify-content:space-between; padding:14px 4px; gap:12px; }
+    .profile-card-footer > p { flex:1 1 0; max-width:65%; }
   }
   .profile-settings-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .profile-settings-row h2 { margin:0; font-size:16px; line-height:1.35; }
@@ -1073,9 +1072,7 @@
 
     <div class="profile-card-footer">
       <p>Your profile details and preferences help personalize your Minto experience.</p>
-      <form method="post" action="{{ url_for('profile_reset_password') }}">
-        <button type="submit" class="section-action">Reset password</button>
-      </form>
+      <button type="button" class="section-action" data-open-profile-modal="password-modal">Reset password</button>
     </div>
   </div>
 
