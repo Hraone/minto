@@ -1056,15 +1056,7 @@
 
     <dialog class="profile-modal" id="profile-name-editor" aria-labelledby="profile-name-modal-title"><div class="profile-modal-head"><div><h2 id="profile-name-modal-title">Edit display name</h2><p>Choose how your name appears across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div><div class="profile-modal-body">
       <form method="post" action="{{ url_for('update_profile_name') }}" class="profile-inline-form">
-        <input
-          type="text"
-          name="display_name"
-          maxlength="40"
-          value="{{ display_name if has_custom_name else '' }}"
-          placeholder="{{ display_name }}"
-          autocomplete="name"
-          aria-label="Display name"
-        >
+        <input type="text" name="display_name" maxlength="40" value="{{ display_name if has_custom_name else '' }}" placeholder="{{ display_name }}" autocomplete="name" aria-label="Display name">
         <button type="submit" class="profile-inline-save">Save</button>
         <button type="button" class="profile-inline-cancel" id="profile-name-cancel">Cancel</button>
       </form>
@@ -1119,12 +1111,7 @@
         <div class="theme-toggle-wrap">
           <span class="theme-icon" aria-hidden="true">☀️</span>
           <label class="theme-switch" aria-label="Toggle dark mode">
-            <input
-              type="checkbox"
-              id="theme-toggle"
-              {% if theme == 'dark' %}checked{% endif %}
-              aria-label="Toggle dark mode"
-            >
+            <input type="checkbox" id="theme-toggle" {% if theme == 'dark' %}checked{% endif %} aria-label="Toggle dark mode">
             <span class="theme-slider"></span>
           </label>
           <span class="theme-icon" aria-hidden="true">🌙</span>
