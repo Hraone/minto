@@ -50,6 +50,20 @@
     .profile-page .profile-stats {
       gap: 8px;
     }
+    .profile-page .profile-preferences {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 12px;
+    }
+    .profile-page .profile-preference-card {
+      min-height: 88px;
+      padding: 17px 18px;
+    }
+    .profile-page .preference-head {
+      gap: 12px;
+    }
+    .profile-page .preference-title {
+      flex: 1 1 auto;
+    }
   }
 
   .profile-card {
@@ -293,53 +307,70 @@
 
   .profile-preferences {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 14px;
     margin-bottom: 16px;
   }
 
   .profile-preference-card {
+    min-width: 0;
+    min-height: 92px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
     margin-bottom: 0;
-    padding: 15px 17px;
+    padding: 18px 20px;
   }
 
   .preference-head {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 14px;
-    min-height: 34px;
+    gap: 20px;
+    width: 100%;
+    min-height: 40px;
   }
 
   .preference-title {
     min-width: 0;
+    flex: 1 1 auto;
   }
 
   .profile-preference-card h3 {
     margin: 0;
-    font-size: 14px;
-    line-height: 1.25;
+    font-size: 16px;
+    line-height: 1.35;
+    font-weight: 700;
   }
 
   .preference-label {
     display: block;
-    margin-top: 3px;
+    margin-top: 6px;
     color: var(--muted-2);
-    font-size: 10.5px;
-    line-height: 1.2;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .preference-status {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.35;
   }
 
   .theme-toggle-wrap,
   .style-control {
-    width: 120px;
-    min-width: 120px;
-    height: 30px;
-    min-height: 30px;
+    width: auto;
+    min-width: 0;
+    height: 34px;
+    min-height: 34px;
     box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    flex: 0 0 120px;
+    flex: 0 0 auto;
   }
 
   .theme-toggle-wrap {
@@ -901,8 +932,8 @@
           </label>
           <span class="style-side {% if genz_mode %}selected{% endif %}" id="style-casual-label">Casual</span>
         </div>
-        <p id="style-save-status" class="preference-label" role="status" aria-live="polite" style="margin:8px 0 0;" hidden></p>
       </div>
+      <p id="style-save-status" class="preference-status" role="status" aria-live="polite" hidden></p>
     </div>
   </div>
 
