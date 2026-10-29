@@ -154,6 +154,55 @@
     color: var(--muted-2);
   }
 
+  .profile-identity-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 24px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface-subtle);
+  }
+
+  .profile-identity-main {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+  }
+
+  .profile-identity-copy { min-width: 0; }
+  .profile-identity-name-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+  .profile-identity-meta {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 18px;
+    min-width: 170px;
+    padding-left: 22px;
+    border-left: 1px solid var(--border);
+  }
+  .profile-meta-label { color:var(--muted-2); font-size:12px; line-height:1.4; }
+  .profile-meta-value { color:var(--text); font-size:13px; line-height:1.4; font-weight:650; text-align:right; }
+  .profile-access-badge {
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    padding:5px 9px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:var(--surface);
+    color:var(--text-secondary,var(--text));
+    font-size:11px;
+    line-height:1.2;
+    font-weight:700;
+    white-space:nowrap;
+  }
+  .profile-access-badge.is-admin { border-color:var(--theme-accent); background:var(--theme-accent-soft); color:var(--text); }
+  .profile-access-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); }
+  .profile-access-badge.is-admin .profile-access-dot { background:var(--theme-accent); }
+
   .profile-avatar-button {
     flex: none;
     width: 64px;
@@ -854,19 +903,31 @@
 <div class="profile-page">
 
   <div class="profile-card">
-    <h1 class="profile-page-title" style="margin:0 0 16px;font-size:28px;font-weight:800;letter-spacing:-.6px;">Profile</h1>
-    <div class="profile-head">
-      <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile avatar">
-        <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
-      </button>
-
-      <div style="min-width:0; flex:1;">
-        <button type="button" class="profile-edit-trigger" id="profile-name-trigger" aria-expanded="false">
-          <span class="profile-name">{{ display_name }}</span>
-          <span class="profile-edit-icon" aria-hidden="true">✎</span>
+    <h1 class="profile-page-title" style="margin:0 0 18px;font-size:28px;font-weight:800;letter-spacing:-.6px;">Profile</h1>
+    <div class="profile-identity-layout">
+      <div class="profile-identity-main">
+        <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile avatar">
+          <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
         </button>
-        <p class="profile-email">{{ email }}</p>
+        <div class="profile-identity-copy">
+          <div class="profile-identity-name-row">
+            <button type="button" class="profile-edit-trigger" id="profile-name-trigger" aria-expanded="false">
+              <span class="profile-name">{{ display_name }}</span>
+              <span class="profile-edit-icon" aria-hidden="true">✎</span>
+            </button>
+            <span class="profile-access-badge {% if is_admin_user %}is-admin{% endif %}">
+              <span class="profile-access-dot" aria-hidden="true"></span>{{ 'Admin' if is_admin_user else 'Normal user' }}
+            </span>
+          </div>
+          <p class="profile-email">{{ email }}</p>
+        </div>
       </div>
+      <aside class="profile-identity-meta" aria-label="Account details">
+        <span class="profile-meta-label">Member since</span>
+        <span class="profile-meta-value">{{ member_since or 'Not available' }}</span>
+        <span class="profile-meta-label">Access type</span>
+        <span class="profile-meta-value">{{ 'Administrator' if is_admin_user else 'Standard' }}</span>
+      </aside>
     </div>
 
     <dialog class="profile-modal" id="profile-name-editor" aria-labelledby="profile-name-modal-title"><div class="profile-modal-head"><div><h2 id="profile-name-modal-title">Edit display name</h2><p>Choose how your name appears across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div><div class="profile-modal-body">
