@@ -960,8 +960,10 @@
 
   .profile-links {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0;
   }
 
   .profile-password-action {
@@ -997,15 +999,38 @@
 
 
   .profile-links a {
-    padding: 12px 4px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 12px;
     color: var(--text);
     text-decoration: none;
     font-size: 14.5px;
     font-weight: 600;
+    white-space: nowrap;
   }
 
-  .profile-links a + a {
-    border-top: 1px solid var(--border);
+  .profile-links a + a::before {
+    content: "|";
+    color: var(--muted);
+    font-weight: 400;
+    margin-right: 2px;
+  }
+
+  .profile-links a:hover {
+    color: var(--theme-accent);
+  }
+
+  @media (max-width: 600px) {
+    .profile-links {
+      column-gap: 0;
+      row-gap: 2px;
+    }
+    .profile-links a {
+      padding: 9px 7px;
+      font-size: 13px;
+      white-space: normal;
+    }
   }
 
   .profile-contact-details { padding:0; overflow:hidden; }
