@@ -210,7 +210,15 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                     flash("User soft-deleted. Their database records have not been physically removed.")
         except Exception as exc:
             app.logger.exception("Admin soft-delete failed for target %s", target_id)
-            flash("The user could not be soft-deleted. No success was reported; please retry.")
+            error_text = str(exc).lower()
+            if "supabase_service_role_key is not configured" in error_text or "service role" in error_text or "service_role" in error_text:
+                flash("Soft delete failed: configure SUPABASE_SERVICE_ROLE_KEY in Railway variables, then redeploy.")
+            elif "is_deleted" in error_text and any(term in error_text for term in ("column", "schema cache", "does not exist", "could not find")):
+                flash("Soft delete failed: the profiles.is_deleted column is missing. Run the soft-delete SQL migration in Supabase, then retry.")
+            elif "permission" in error_text or "row-level security" in error_text or "rls" in error_text or "42501" in error_text:
+                flash("Soft delete failed because the database denied the update. Check that the server is using the Supabase service-role key and that the key is current.")
+            else:
+                flash("Soft delete failed. Open Railway → service → Logs and check the 'Admin soft-delete failed' entry for the exact cause.")
         return redirect(url_for("admin_users", q=request.form.get("q", ""), role=request.form.get("role", "all"), page=request.form.get("page", "1")))
 
     @app.route("/admin/users/<uuid:target_user_id>/role", methods=["POST"])
