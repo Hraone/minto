@@ -1087,9 +1087,15 @@
 
   <section class="profile-card" aria-labelledby="profile-security-title">
     <h2 id="profile-security-title" style="margin:0 0 6px;font-size:17px;">Account security</h2>
-    <p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.5;">Need to change your password? We'll email a secure password reset link to your registered email address.</p>
-    <form method="post" action="{{ url_for('profile_reset_password') }}">
-      <button type="submit" style="width:auto;margin:0;">Send password reset email</button>
+    <p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.5;">Change your password directly without email. Enter your current password to verify your identity.</p>
+    <form method="post" action="{{ url_for('profile_change_password') }}" style="display:grid;gap:10px;max-width:460px;">
+      <label for="current_password">Current password</label>
+      <input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
+      <label for="new_password">New password</label>
+      <input id="new_password" name="new_password" type="password" minlength="8" autocomplete="new-password" required>
+      <label for="confirm_password">Confirm new password</label>
+      <input id="confirm_password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
+      <button type="submit" style="width:auto;margin:8px 0 0;justify-self:start;">Update password</button>
     </form>
   </section>
 

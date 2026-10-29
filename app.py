@@ -1529,23 +1529,42 @@ def update_wishlist_item(item_id):
     return redirect(url_for("wishlist"))
 
 
-@app.route("/profile/reset-password", methods=["POST"])
+@app.route("/profile/change-password", methods=["POST"])
 @login_required
-def profile_reset_password():
+def profile_change_password():
+    current_password = request.form.get("current_password", "")
+    new_password = request.form.get("new_password", "")
+    confirm_password = request.form.get("confirm_password", "")
     email = (session.get("email") or "").strip()
-    if not email:
-        flash("Your account email is unavailable. Please sign in again.")
+
+    if not email or not current_password:
+        flash("Enter your current password to continue.", "error")
+        return redirect(url_for("profile"))
+    if len(new_password) < 8:
+        flash("Your new password must be at least 8 characters long.", "error")
+        return redirect(url_for("profile"))
+    if new_password != confirm_password:
+        flash("The new passwords do not match.", "error")
+        return redirect(url_for("profile"))
+    if new_password == current_password:
+        flash("Choose a password different from your current password.", "error")
         return redirect(url_for("profile"))
 
     try:
-        # Supabase sends the recovery email using the project's configured
-        # password-reset redirect URL and email template.
-        get_client().auth.reset_password_for_email(email)
-        flash("Password reset email sent. Check your inbox and spam folder.")
+        auth_client = get_client()
+        auth_client.auth.sign_in_with_password({"email": email, "password": current_password})
+        get_user_client().auth.update_user({"password": new_password})
+        flash("Password updated successfully.", "success")
     except Exception:
-        app.logger.exception("Profile password reset email request failed")
-        flash("Couldn't send the password reset email. Please try again later.")
+        app.logger.warning("Password change failed for authenticated user", exc_info=True)
+        flash("Password could not be changed. Check your current password and try again.", "error")
+    return redirect(url_for("profile"))
 
+
+@app.route("/profile/reset-password", methods=["POST"])
+@login_required
+def profile_reset_password():
+    flash("Email-based password reset requires SMTP to be configured. Use the direct password change form instead.", "error")
     return redirect(url_for("profile"))
 
 
