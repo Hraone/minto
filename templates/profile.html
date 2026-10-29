@@ -963,7 +963,10 @@
     flex-direction: row;
     flex-wrap: wrap;
     align-items: center;
+    justify-content: center;
     gap: 0;
+    width: 100%;
+    text-align: center;
   }
 
   .profile-password-action {
@@ -1023,6 +1026,7 @@
 
   @media (max-width: 600px) {
     .profile-links {
+      justify-content: center;
       column-gap: 0;
       row-gap: 2px;
     }
@@ -1436,7 +1440,7 @@
       <label for="confirm_password">Confirm new password</label><input id="confirm_password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
       <div class="profile-modal-actions"><button type="submit" class="profile-save">Update password</button></div>
     </form></div>
-  </dialog>>
+  </dialog>
 
   <div class="profile-card">
     <div class="profile-links">
