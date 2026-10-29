@@ -431,7 +431,7 @@
   .profile-page .section-description { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
   .profile-page .section-action { display:inline-flex; align-items:center; justify-content:center; width:auto; margin:0; padding:9px 13px; border:1px solid var(--border); border-radius:10px; background:var(--surface-subtle); color:var(--text); font:inherit; font-size:12px; font-weight:650; cursor:pointer; }
   .profile-page .section-action:hover { border-color:var(--theme-accent); background:var(--theme-accent-soft); }
-  .profile-page dialog.profile-modal { width:min(520px,calc(100vw - 28px)); max-width:none; max-height:min(82dvh,760px); overflow:auto; padding:0; border:1px solid var(--border); border-radius:20px; background:var(--surface); color:var(--text); box-shadow:0 24px 80px rgba(0,0,0,.32); }
+  dialog.profile-modal { width:min(520px,calc(100vw - 28px)); max-width:none; max-height:min(82dvh,760px); overflow:auto; padding:0; border:1px solid var(--border); border-radius:20px; background:var(--surface); color:var(--text); box-shadow:0 24px 80px rgba(0,0,0,.32); }
   .profile-page dialog.profile-modal::backdrop { background:rgba(8,12,16,.62); backdrop-filter:blur(3px); }
   .profile-modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:20px 22px 16px; border-bottom:1px solid var(--border); }
   .profile-modal-head h2 { margin:0; font-size:18px; line-height:1.3; }
@@ -906,33 +906,34 @@
     </div>
   </div>
 
-  <section class="profile-card palette-card" aria-labelledby="palette-title">
-    <div class="palette-heading">
-      <div>
-        <h3 id="palette-title">Colour palette</h3>
-        <p class="preference-label">A little colour, your way. Choose an accent for Minto.</p>
-      </div>
-      <span id="palette-save-status" class="palette-save-status" role="status" aria-live="polite"></span>
-    </div>
-    <div class="palette-options" role="radiogroup" aria-label="Choose a colour palette">
-      {% for palette_id, palette_name, palette_note, palette_color in [
-        ('grove', 'Grove', 'Quiet greens', '#34765b'),
-        ('tide', 'Tide', 'Calm blue', '#397a9b'),
-        ('rosewater', 'Rosewater', 'Soft pink', '#c45d83'),
-        ('terra', 'Terra', 'Warm clay', '#b65e43'),
-        ('ink', 'Ink', 'Soft neutral', '#626873')
-      ] %}
-      <button type="button" class="palette-option {% if color_theme == palette_id %}is-selected{% endif %}"
-              data-color-theme-option="{{ palette_id }}" role="radio"
-              aria-checked="{{ 'true' if color_theme == palette_id else 'false' }}"
-              aria-label="{{ palette_name }}: {{ palette_note }}">
-        <span class="palette-swatch" style="--swatch: {{ palette_color }};"></span>
-        <span class="palette-option-copy"><strong>{{ palette_name }}</strong><small>{{ palette_note }}</small></span>
-        <span class="palette-check" aria-hidden="true">✓</span>
-      </button>
-      {% endfor %}
-    </div>
+  <section class="profile-card profile-settings-row" aria-labelledby="theme-settings-title">
+    <div><h2 id="theme-settings-title">Theme</h2><p class="section-description">Choose a colour style for Minto.</p></div>
+    <button type="button" class="section-action" data-open-profile-modal="theme-modal">Customize theme</button>
   </section>
+  <dialog class="profile-modal" id="theme-modal" aria-labelledby="theme-modal-title">
+    <div class="profile-modal-head"><div><h2 id="theme-modal-title">Choose a theme</h2><p>Select an accent colour. Your choice applies across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div>
+    <div class="profile-modal-body">
+      <div class="palette-options" role="radiogroup" aria-label="Choose a theme">
+        {% for palette_id, palette_name, palette_note, palette_color in [
+          ('grove', 'Grove', 'Quiet greens', '#34765b'),
+          ('tide', 'Tide', 'Calm blue', '#397a9b'),
+          ('rosewater', 'Rosewater', 'Soft pink', '#c45d83'),
+          ('terra', 'Terra', 'Warm clay', '#b65e43'),
+          ('ink', 'Ink', 'Soft neutral', '#626873')
+        ] %}
+        <button type="button" class="palette-option {% if color_theme == palette_id %}is-selected{% endif %}"
+                data-color-theme-option="{{ palette_id }}" role="radio"
+                aria-checked="{{ 'true' if color_theme == palette_id else 'false' }}"
+                aria-label="{{ palette_name }}: {{ palette_note }}">
+          <span class="palette-swatch" style="--swatch: {{ palette_color }};"></span>
+          <span class="palette-option-copy"><strong>{{ palette_name }}</strong><small>{{ palette_note }}</small></span>
+          <span class="palette-check" aria-hidden="true">✓</span>
+        </button>
+        {% endfor %}
+      </div>
+      <p id="palette-save-status" class="palette-save-status" role="status" aria-live="polite"></p>
+    </div>
+  </dialog>
 
   <details class="profile-card" style="padding:0;overflow:hidden;">
     <summary style="padding:22px;cursor:pointer;list-style:none;font-size:15px;font-weight:700;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
@@ -995,7 +996,11 @@
       function closeModal(dialog){if(dialog&&dialog.open)dialog.close();}
       if(nameTrigger)nameTrigger.addEventListener('click',()=>openModal(nameEditor));
       if(avatarTrigger)avatarTrigger.addEventListener('click',()=>openModal(avatarEditor));
-      document.querySelectorAll('[data-open-profile-modal]').forEach(button=>button.addEventListener('click',()=>openModal(document.getElementById(button.dataset.openProfileModal))));
+      // Delegate modal triggers so controls added by later template sections work too.
+      document.addEventListener('click',event=>{
+        const trigger=event.target.closest('[data-open-profile-modal]');
+        if(trigger){event.preventDefault();openModal(document.getElementById(trigger.dataset.openProfileModal));}
+      });
       document.querySelectorAll('[data-close-profile-modal]').forEach(button=>button.addEventListener('click',()=>closeModal(button.closest('dialog'))));
       document.querySelectorAll('dialog.profile-modal').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog)closeModal(dialog);}));
       const cancel=document.getElementById('profile-name-cancel');if(cancel)cancel.addEventListener('click',()=>closeModal(nameEditor));
