@@ -67,9 +67,21 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             if not uid:
                 continue
             profile = profiles.get(uid, {})
+            user_metadata = getattr(user, "user_metadata", None) or {}
+            if not isinstance(user_metadata, dict):
+                user_metadata = {}
+            phone = (
+                getattr(user, "phone", None)
+                or user_metadata.get("phone")
+                or user_metadata.get("phone_number")
+                or user_metadata.get("mobile")
+                or user_metadata.get("mobile_number")
+                or ""
+            )
             output.append({
                 "id": uid,
                 "email": getattr(user, "email", None) or "",
+                "phone": str(phone),
                 "created_at": getattr(user, "created_at", None),
                 "display_name": profile.get("display_name") or "",
                 "role": "Administrator" if uid in admin_ids else "User",
@@ -140,7 +152,7 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
         try:
             directory = user_directory(include_feedback_counts=True)
             if query:
-                directory = [u for u in directory if query in u["id"].lower() or query in u["email"].lower() or query in u["display_name"].lower()]
+                directory = [u for u in directory if query in u["id"].lower() or query in u["email"].lower() or query in u["phone"].lower() or query in u["display_name"].lower()]
             if role_filter == "user":
                 directory = [u for u in directory if u["role"] == "User"]
             elif role_filter == "admin":
