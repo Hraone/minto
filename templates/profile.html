@@ -424,11 +424,26 @@
     color: var(--muted);
   }
 
-  .profile-card h3 {
-    margin: 0 0 12px;
-    font-size: 15px;
-    color: var(--text);
-  }
+  /* Shared type scale keeps profile section headings consistent. */
+  .profile-page-title { font-size:26px!important; line-height:1.2; }
+  .profile-card h2,.profile-card h3,.profile-preference-card h3,.palette-heading h3 { font-size:16px; line-height:1.35; font-weight:700; color:var(--text); }
+  .profile-card h3 { margin:0 0 12px; }
+  .profile-page .section-description { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.5; }
+  .profile-page .section-action { display:inline-flex; align-items:center; justify-content:center; width:auto; margin:0; padding:9px 13px; border:1px solid var(--border); border-radius:10px; background:var(--surface-subtle); color:var(--text); font:inherit; font-size:12px; font-weight:650; cursor:pointer; }
+  .profile-page .section-action:hover { border-color:var(--theme-accent); background:var(--theme-accent-soft); }
+  .profile-page dialog.profile-modal { width:min(520px,calc(100vw - 28px)); max-width:none; max-height:min(82dvh,760px); overflow:auto; padding:0; border:1px solid var(--border); border-radius:20px; background:var(--surface); color:var(--text); box-shadow:0 24px 80px rgba(0,0,0,.32); }
+  .profile-page dialog.profile-modal::backdrop { background:rgba(8,12,16,.62); backdrop-filter:blur(3px); }
+  .profile-modal-head { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:20px 22px 16px; border-bottom:1px solid var(--border); }
+  .profile-modal-head h2 { margin:0; font-size:18px; line-height:1.3; }
+  .profile-modal-head p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.45; }
+  .profile-modal-close { flex:none; width:34px!important; height:34px; margin:0!important; padding:0!important; border:1px solid var(--border)!important; border-radius:10px!important; background:var(--surface-subtle)!important; color:var(--text)!important; font-size:20px!important; cursor:pointer; }
+  .profile-modal-body { padding:20px 22px 22px; }
+  .profile-modal-body form { display:grid; gap:10px; }
+  .profile-modal-body input:not([type=radio]):not([type=checkbox]),.profile-modal-body select { width:100%; min-width:0; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface-subtle); color:var(--text); font:inherit; font-size:14px; }
+  .profile-modal-actions { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+  .profile-modal-actions .profile-save { margin:0; }
+  .profile-settings-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .profile-settings-row h2 { margin:0; font-size:16px; line-height:1.35; }
 
   .profile-card label {
     display: block;
@@ -795,7 +810,7 @@
       </div>
     </div>
 
-    <div class="profile-inline-editor" id="profile-name-editor" hidden>
+    <dialog class="profile-modal" id="profile-name-editor" aria-labelledby="profile-name-modal-title"><div class="profile-modal-head"><div><h2 id="profile-name-modal-title">Edit display name</h2><p>Choose how your name appears across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div><div class="profile-modal-body">
       <form method="post" action="{{ url_for('update_profile_name') }}" class="profile-inline-form">
         <input
           type="text"
@@ -809,9 +824,9 @@
         <button type="submit" class="profile-inline-save">Save</button>
         <button type="button" class="profile-inline-cancel" id="profile-name-cancel">Cancel</button>
       </form>
-    </div>
+      </div></dialog>
 
-    <div class="profile-emoji-editor" id="profile-emoji-editor" hidden>
+    <dialog class="profile-modal" id="profile-emoji-editor" aria-labelledby="profile-avatar-modal-title"><div class="profile-modal-head"><div><h2 id="profile-avatar-modal-title">Choose your avatar</h2><p>Select an illustration to represent your profile.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div><div class="profile-modal-body">
       <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
         <div class="avatar-picker" aria-label="Choose a profile avatar">
           {% for avatar in profile_avatars %}
@@ -823,9 +838,9 @@
           </div>
           {% endfor %}
         </div>
-        <button type="submit" class="profile-save">Save avatar</button>
+        <div class="profile-modal-actions"><button type="submit" class="profile-save">Save avatar</button></div>
       </form>
-    </div>
+      </div></dialog>
 
     {% if member_since %}
     <p class="profile-since">Member since {{ member_since }}</p>
@@ -972,46 +987,18 @@
 
   <script>
     (function () {
-      const nameTrigger = document.getElementById('profile-name-trigger');
-      const nameEditor = document.getElementById('profile-name-editor');
-      const nameCancel = document.getElementById('profile-name-cancel');
-      const avatarTrigger = document.getElementById('profile-avatar-trigger');
-      const emojiEditor = document.getElementById('profile-emoji-editor');
-
-      function setHidden(el, hidden) {
-        if (!el) return;
-        el.hidden = hidden;
-      }
-
-      if (nameTrigger && nameEditor) {
-        nameTrigger.addEventListener('click', function () {
-          const open = nameEditor.hidden;
-          setHidden(nameEditor, !open);
-          nameTrigger.setAttribute('aria-expanded', open ? 'true' : 'false');
-          if (open) {
-            const input = nameEditor.querySelector('input[name="display_name"]');
-            if (input) {
-              input.focus();
-              input.select();
-            }
-          }
-        });
-      }
-
-      if (nameCancel) {
-        nameCancel.addEventListener('click', function () {
-          setHidden(nameEditor, true);
-          if (nameTrigger) nameTrigger.setAttribute('aria-expanded', 'false');
-        });
-      }
-
-      if (avatarTrigger && emojiEditor) {
-        avatarTrigger.addEventListener('click', function () {
-          const open = emojiEditor.hidden;
-          setHidden(emojiEditor, !open);
-          if (open) emojiEditor.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        });
-      }
+      const nameTrigger=document.getElementById('profile-name-trigger');
+      const nameEditor=document.getElementById('profile-name-editor');
+      const avatarTrigger=document.getElementById('profile-avatar-trigger');
+      const avatarEditor=document.getElementById('profile-emoji-editor');
+      function openModal(dialog){if(dialog&&typeof dialog.showModal==='function'&&!dialog.open){dialog.showModal();const input=dialog.querySelector('input:not([type=radio]):not([type=checkbox])');if(input)setTimeout(()=>input.focus(),40);}}
+      function closeModal(dialog){if(dialog&&dialog.open)dialog.close();}
+      if(nameTrigger)nameTrigger.addEventListener('click',()=>openModal(nameEditor));
+      if(avatarTrigger)avatarTrigger.addEventListener('click',()=>openModal(avatarEditor));
+      document.querySelectorAll('[data-open-profile-modal]').forEach(button=>button.addEventListener('click',()=>openModal(document.getElementById(button.dataset.openProfileModal))));
+      document.querySelectorAll('[data-close-profile-modal]').forEach(button=>button.addEventListener('click',()=>closeModal(button.closest('dialog'))));
+      document.querySelectorAll('dialog.profile-modal').forEach(dialog=>dialog.addEventListener('click',event=>{if(event.target===dialog)closeModal(dialog);}));
+      const cancel=document.getElementById('profile-name-cancel');if(cancel)cancel.addEventListener('click',()=>closeModal(nameEditor));
     })();
   </script>
 
@@ -1179,19 +1166,19 @@
     </form></div>
   </details>
 
-  <section class="profile-card" aria-labelledby="profile-security-title">
-    <h2 id="profile-security-title" style="margin:0 0 6px;font-size:17px;">Account security</h2>
-    <p style="margin:0 0 14px;color:var(--muted);font-size:13px;line-height:1.5;">Change your password directly without email. Enter your current password to verify your identity.</p>
-    <form method="post" action="{{ url_for('profile_change_password') }}" style="display:grid;gap:10px;max-width:460px;">
-      <label for="current_password">Current password</label>
-      <input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
-      <label for="new_password">New password</label>
-      <input id="new_password" name="new_password" type="password" minlength="8" autocomplete="new-password" required>
-      <label for="confirm_password">Confirm new password</label>
-      <input id="confirm_password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
-      <button type="submit" style="width:auto;margin:8px 0 0;justify-self:start;">Update password</button>
-    </form>
+  <section class="profile-card profile-settings-row" aria-labelledby="profile-security-title">
+    <div><h2 id="profile-security-title">Account security</h2><p class="section-description">Manage your password and keep your account secure.</p></div>
+    <button type="button" class="section-action" data-open-profile-modal="password-modal">Change password</button>
   </section>
+  <dialog class="profile-modal" id="password-modal" aria-labelledby="password-modal-title">
+    <div class="profile-modal-head"><div><h2 id="password-modal-title">Change password</h2><p>Enter your current password, then choose a new password with at least 8 characters.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal aria-label="Close">×</button></div>
+    <div class="profile-modal-body"><form method="post" action="{{ url_for('profile_change_password') }}">
+      <label for="current_password">Current password</label><input id="current_password" name="current_password" type="password" autocomplete="current-password" required>
+      <label for="new_password">New password</label><input id="new_password" name="new_password" type="password" minlength="8" autocomplete="new-password" required>
+      <label for="confirm_password">Confirm new password</label><input id="confirm_password" name="confirm_password" type="password" minlength="8" autocomplete="new-password" required>
+      <div class="profile-modal-actions"><button type="submit" class="profile-save">Update password</button></div>
+    </form></div>
+  </dialog>
 
   <div class="profile-card">
     <div class="profile-links">
