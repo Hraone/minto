@@ -25,6 +25,7 @@
        server before the first paint, so it follows the account across browsers. -->
   <script>
     document.documentElement.setAttribute("data-theme", {{ user_theme|tojson }});
+    document.documentElement.setAttribute("data-color-theme", {{ color_theme|default("grove")|tojson }});
     document.documentElement.setAttribute("data-minto-tone", {{ ('casual' if genz_mode else 'classic')|tojson }});
   </script>
 
@@ -125,6 +126,48 @@
       --radius-lg: 20px;
       --minto-font: "Manrope";
     }
+
+    /* User-selectable accent palettes. Surface and text tokens stay tied to light/dark mode. */
+    [data-color-theme="grove"] {
+      --positive: #34765b;
+      --info: #4f7f9d;
+      --ring: rgba(52, 118, 91, 0.18);
+      --theme-accent: #34765b;
+      --theme-accent-soft: #e8f2ec;
+    }
+    [data-color-theme="tide"] {
+      --positive: #397a9b;
+      --info: #397a9b;
+      --ring: rgba(57, 122, 155, 0.20);
+      --theme-accent: #397a9b;
+      --theme-accent-soft: #e8f2f7;
+    }
+    [data-color-theme="rosewater"] {
+      --positive: #c45d83;
+      --info: #a85c85;
+      --ring: rgba(196, 93, 131, 0.20);
+      --theme-accent: #c45d83;
+      --theme-accent-soft: #faeaf0;
+    }
+    [data-color-theme="terra"] {
+      --positive: #b65e43;
+      --info: #a96c4c;
+      --ring: rgba(182, 94, 67, 0.20);
+      --theme-accent: #b65e43;
+      --theme-accent-soft: #f8ece6;
+    }
+    [data-color-theme="ink"] {
+      --positive: #626873;
+      --info: #626873;
+      --ring: rgba(98, 104, 115, 0.18);
+      --theme-accent: #626873;
+      --theme-accent-soft: #eceef0;
+    }
+    [data-theme="dark"][data-color-theme="grove"] { --positive: #62b58b; --info: #80b1d0; --ring: rgba(98,181,139,.28); --theme-accent: #62b58b; --theme-accent-soft: #20362c; }
+    [data-theme="dark"][data-color-theme="tide"] { --positive: #75b8d7; --info: #75b8d7; --ring: rgba(117,184,215,.28); --theme-accent: #75b8d7; --theme-accent-soft: #203440; }
+    [data-theme="dark"][data-color-theme="rosewater"] { --positive: #e58bad; --info: #e58bad; --ring: rgba(229,139,173,.28); --theme-accent: #e58bad; --theme-accent-soft: #3d2631; }
+    [data-theme="dark"][data-color-theme="terra"] { --positive: #e18b6f; --info: #e18b6f; --ring: rgba(225,139,111,.28); --theme-accent: #e18b6f; --theme-accent-soft: #3a2923; }
+    [data-theme="dark"][data-color-theme="ink"] { --positive: #b6bdc8; --info: #b6bdc8; --ring: rgba(182,189,200,.24); --theme-accent: #b6bdc8; --theme-accent-soft: #2c2f35; }
 
     [data-minto-tone="casual"] {
       --minto-font: "DM Sans";
