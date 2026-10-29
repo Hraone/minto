@@ -187,19 +187,21 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                 flash("The selected user could not be found.")
             else:
                 profile_rows = service.table("profiles").select("id,is_deleted").eq("id", target_id).limit(1).execute().data or []
-                if not profile_rows:
-                    flash("This user has no profile record to mark as deleted. No changes were made.")
-                elif profile_rows[0].get("is_deleted") is True:
+                if profile_rows and profile_rows[0].get("is_deleted") is True:
                     flash("This user is already soft-deleted.")
                 else:
-                    update_result = service.table("profiles").update({"is_deleted": True}).eq("id", target_id).execute()
+                    # Some older/auth-only accounts have no public.profiles row.
+                    # Upsert creates the minimal profile row and marks it deleted
+                    # in one operation without deleting any user data.
+                    update_result = service.table("profiles").upsert(
+                        {"id": target_id, "is_deleted": True},
+                        on_conflict="id"
+                    ).execute()
                     updated_rows = getattr(update_result, "data", None) or []
                     if not updated_rows:
-                        # Verify whether the update took effect in case the API omits
-                        # representation data for this request.
                         verify_rows = service.table("profiles").select("id,is_deleted").eq("id", target_id).limit(1).execute().data or []
                         if not verify_rows or verify_rows[0].get("is_deleted") is not True:
-                            raise RuntimeError("Profile soft-delete update returned no updated row; check profiles.is_deleted and service-role permissions.")
+                            raise RuntimeError("Profile soft-delete upsert did not persist; check profiles.is_deleted and service-role permissions.")
                     try:
                         service.table("admin_activity_logs").insert({
                             "actor_user_id": actor_id,
