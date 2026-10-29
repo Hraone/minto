@@ -971,6 +971,18 @@ def login_required(view):
         if "user_id" not in session:
             return redirect(url_for("info"))
 
+        try:
+            status_client = get_user_client()
+            status_rows = status_client.table("profiles").select("is_deleted").eq("id", session["user_id"]).limit(1).execute().data or []
+            if status_rows and status_rows[0].get("is_deleted") is True:
+                session.clear()
+                flash("This account has been deactivated. Please contact support if you believe this is a mistake.")
+                return redirect(url_for("login"))
+        except Exception as status_exc:
+            app.logger.warning("Account status check failed (%s)", type(status_exc).__name__)
+            # Fail closed only if an explicit soft-delete status was returned; temporary
+            # profile lookup failures should not lock out every user.
+        
         guard_started = time.perf_counter()
         profile_started = time.perf_counter()
         if session.get("theme") not in ("light", "dark"):
