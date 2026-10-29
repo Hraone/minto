@@ -619,9 +619,13 @@
     margin:18px 0 16px; padding:16px 20px;
     border-top:1px solid var(--border);
   }
-  .profile-card-footer p { margin:0; color:var(--muted); font-size:12px; line-height:1.5; }
+  .profile-card-footer > p { flex:1 1 auto; min-width:0; margin:0; color:var(--muted); font-size:12px; line-height:1.5; text-align:left; }
+  .profile-card-footer > form { flex:0 0 auto; margin-left:auto; }
+  .profile-card-footer .section-action { white-space:nowrap; }
   @media (max-width:600px) {
-    .profile-card-footer { align-items:flex-start; flex-direction:column; padding:14px 4px; }
+    .profile-card-footer { align-items:flex-start; flex-direction:row; justify-content:space-between; padding:14px 4px; gap:12px; }
+    .profile-card-footer > p { flex:1 1 0; }
+    .profile-card-footer > form { margin-left:auto; }
   }
   .profile-settings-row { display:flex; align-items:center; justify-content:space-between; gap:16px; }
   .profile-settings-row h2 { margin:0; font-size:16px; line-height:1.35; }
@@ -1070,7 +1074,7 @@
     <div class="profile-card-footer">
       <p>Your profile details and preferences help personalize your Minto experience.</p>
       <form method="post" action="{{ url_for('profile_reset_password') }}">
-        <button type="submit" class="section-action">Forgot password?</button>
+        <button type="submit" class="section-action">Reset password</button>
       </form>
     </div>
   </div>
