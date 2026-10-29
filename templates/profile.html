@@ -321,26 +321,40 @@
     box-shadow: 0 6px 18px var(--shadow-soft);
   }
 
-  .profile-avatar-button::after {
-    content: "✎";
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    z-index: 2;
-    width: 27px;
-    height: 27px;
-    box-sizing: border-box;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
+  .profile-avatar-edit-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+  }
+
+  .profile-avatar-edit-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
     background: var(--surface);
-    color: var(--muted);
-    border: 2px solid var(--border);
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    font-size: 14px;
-    line-height: 1;
-    box-shadow: 0 1px 3px rgba(0,0,0,.18);
-    pointer-events: none;
+    color: var(--text-secondary, var(--text));
+    font-size: 11px;
+    font-weight: 650;
+    line-height: 1.2;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .profile-avatar-edit-action:hover {
+    border-color: var(--theme-accent);
+    color: var(--text);
+    background: var(--surface-subtle);
+  }
+
+  .profile-avatar-edit-action:focus-visible {
+    outline: 2px solid var(--theme-accent);
+    outline-offset: 2px;
   }
 
   .profile-avatar-button .profile-avatar-svg {
@@ -1153,9 +1167,12 @@
     <h1 class="profile-page-title" style="margin:0 0 18px;font-size:28px;font-weight:800;letter-spacing:-.6px;">Profile</h1>
     <div class="profile-identity-layout">
       <div class="profile-identity-main">
-        <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Change profile avatar">
-          <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
-        </button>
+        <div class="profile-avatar-edit-group">
+          <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Edit avatar">
+            <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
+          </button>
+          <button type="button" class="profile-avatar-edit-action" data-open-profile-modal="profile-emoji-editor">Edit avatar</button>
+        </div>
         <div class="profile-identity-copy">
           <div class="profile-identity-name-row">
             <button type="button" class="profile-edit-trigger" id="profile-name-trigger" aria-expanded="false">
