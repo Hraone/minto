@@ -975,6 +975,8 @@ def login_required(view):
         profile_started = time.perf_counter()
         if session.get("theme") not in ("light", "dark"):
             session["theme"] = load_saved_theme(get_user_client(), session["user_id"])
+        if session.get("color_theme") not in COLOR_THEMES:
+            session["color_theme"] = load_saved_color_theme(get_user_client(), session["user_id"])
         if "genz_mode" not in session:
             session["genz_mode"] = load_genz_mode(get_user_client(), session["user_id"])
         profile_elapsed_ms = (time.perf_counter() - profile_started) * 1000
