@@ -178,10 +178,14 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             return redirect(url_for("admin_users", q=request.form.get("q", ""), role=request.form.get("role", "all"), page=request.form.get("page", "1")))
         try:
             service = admin_client()
-            target = next((u for u in service.auth.admin.list_users(page=1, per_page=1000).users if str(getattr(u, "id", "")) == target_id), None)
+            user_response = service.auth.admin.list_users(page=1, per_page=1000)
+            # Supabase SDK versions differ: list_users may return a list directly
+            # or a response object exposing .users.
+            auth_users = user_response if isinstance(user_response, list) else getattr(user_response, "users", [])
+            target = next((u for u in (auth_users or []) if str(getattr(u, "id", "")) == target_id), None)
             if target is None:
                 flash("The selected user could not be found.")
-            elif target_id in {str(getattr(u, "id", "")) for u in (service.auth.admin.list_users(page=1, per_page=1000).users or []) if getattr(u, "id", None)} and getattr(target, "email", None):
+            else:
                 profile_rows = service.table("profiles").select("id,is_deleted").eq("id", target_id).limit(1).execute().data or []
                 if not profile_rows:
                     flash("This user has no profile record to mark as deleted. No changes were made.")
