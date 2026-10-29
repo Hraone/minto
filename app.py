@@ -1579,12 +1579,24 @@ def profile_change_password():
         return redirect(url_for("profile"))
 
     try:
+        # Keep verification and password update on the same Supabase Auth client.
+        # get_user_client() authenticates PostgREST requests only; it does not
+        # attach the user's access token to the Auth client used by update_user().
         auth_client = get_client()
-        auth_client.auth.sign_in_with_password({"email": email, "password": current_password})
-        get_user_client().auth.update_user({"password": new_password})
+        auth_client.auth.sign_in_with_password({
+            "email": email,
+            "password": current_password,
+        })
+        auth_client.auth.update_user({"password": new_password})
         flash("Password updated successfully.", "success")
-    except Exception:
-        app.logger.warning("Password change failed for authenticated user", exc_info=True)
+    except Exception as exc:
+        # Do not expose provider details or credentials to the user, but record
+        # the exception type in logs so auth/configuration failures are diagnosable.
+        app.logger.warning(
+            "Password change failed for authenticated user; error_type=%s",
+            type(exc).__name__,
+            exc_info=True,
+        )
         flash("Password could not be changed. Check your current password and try again.", "error")
     return redirect(url_for("profile"))
 
