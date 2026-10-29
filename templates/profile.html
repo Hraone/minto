@@ -430,6 +430,51 @@
     background: var(--surface-subtle);
   }
 
+  .profile-preferences-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 6px 20px;
+    margin: 18px 0;
+  }
+  .profile-setting-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 58px;
+    padding: 10px 2px;
+  }
+  .profile-setting-row + .profile-setting-row {
+    border-top: 1px solid var(--border);
+  }
+  .profile-setting-name {
+    min-width: 0;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 650;
+  }
+  .profile-setting-row .theme-toggle-wrap,
+  .profile-setting-row .style-control {
+    flex: 0 0 auto;
+  }
+  .profile-setting-row .section-action {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  @media (max-width: 600px) {
+    .profile-preferences-compact {
+      padding: 4px 14px;
+    }
+    .profile-setting-row {
+      min-height: 56px;
+      gap: 10px;
+    }
+    .profile-setting-name {
+      font-size: 13px;
+    }
+  }
+
   .profile-preferences {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1130,47 +1175,36 @@
 
 
 
-  <div class="profile-preferences">
-    <div class="profile-card profile-preference-card">
-      <div class="preference-head">
-        <div class="preference-title">
-          <h3>Appearance</h3>
-          <span class="preference-label">Theme</span>
-        </div>
-        <div class="theme-toggle-wrap">
-          <span class="theme-icon" aria-hidden="true">☀️</span>
-          <label class="theme-switch" aria-label="Toggle dark mode">
-            <input type="checkbox" id="theme-toggle" {% if theme == 'dark' %}checked{% endif %} aria-label="Toggle dark mode">
-            <span class="theme-slider"></span>
-          </label>
-          <span class="theme-icon" aria-hidden="true">🌙</span>
-        </div>
+  <div class="profile-card profile-preferences-compact">
+    <div class="profile-setting-row">
+      <span class="profile-setting-name">Appearance</span>
+      <div class="theme-toggle-wrap">
+        <span class="theme-icon" aria-hidden="true">☀️</span>
+        <label class="theme-switch" aria-label="Toggle dark mode">
+          <input type="checkbox" id="theme-toggle" {% if theme == 'dark' %}checked{% endif %} aria-label="Toggle dark mode">
+          <span class="theme-slider"></span>
+        </label>
+        <span class="theme-icon" aria-hidden="true">🌙</span>
       </div>
     </div>
-
-    <div class="profile-card profile-preference-card">
-      <div class="preference-head">
-        <div class="preference-title">
-          <h3>Minto tone</h3>
-          <span class="preference-label">Classic&nbsp; / &nbsp;Casual</span>
-        </div>
-        <div class="style-control">
-          <span class="style-side {% if not genz_mode %}selected{% endif %}" id="style-classic-label">Classic</span>
-          <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
-            <input type="checkbox" id="style-toggle" role="switch" aria-checked="{{ 'true' if genz_mode else 'false' }}" {% if genz_mode %}checked{% endif %}>
-            <span class="style-track"><span class="style-knob"></span></span>
-          </label>
-          <span class="style-side {% if genz_mode %}selected{% endif %}" id="style-casual-label">Casual</span>
-        </div>
+    <div class="profile-setting-row">
+      <span class="profile-setting-name">Minto tone</span>
+      <div class="style-control">
+        <span class="style-side {% if not genz_mode %}selected{% endif %}" id="style-classic-label">Classic</span>
+        <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
+          <input type="checkbox" id="style-toggle" role="switch" aria-checked="{{ 'true' if genz_mode else 'false' }}" {% if genz_mode %}checked{% endif %}>
+          <span class="style-track"><span class="style-knob"></span></span>
+        </label>
+        <span class="style-side {% if genz_mode %}selected{% endif %}" id="style-casual-label">Casual</span>
       </div>
-      <p id="style-save-status" class="preference-status" role="status" aria-live="polite" hidden></p>
     </div>
+    <div class="profile-setting-row">
+      <span class="profile-setting-name">Theme</span>
+      <button type="button" class="section-action" data-open-profile-modal="theme-modal">Customize</button>
+    </div>
+    <p id="style-save-status" class="preference-status" role="status" aria-live="polite" hidden></p>
   </div>
 
-  <section class="profile-card profile-settings-row" aria-labelledby="theme-settings-title">
-    <div><h2 id="theme-settings-title">Theme</h2><p class="section-description">Choose a colour style for Minto.</p></div>
-    <button type="button" class="section-action" data-open-profile-modal="theme-modal">Customize theme</button>
-  </section>
   <dialog class="profile-modal" id="theme-modal" aria-labelledby="theme-modal-title">
     <div class="profile-modal-head"><div><h2 id="theme-modal-title">Choose a theme</h2><p>Select an accent colour. Your choice applies across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
     <div class="profile-modal-body">
