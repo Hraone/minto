@@ -37,7 +37,7 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
         offset = 0
         while True:
             try:
-                rows = service.table("profiles").select("id,display_name,is_deleted").range(offset, offset + 999).execute().data or []
+                rows = service.table("profiles").select("id,display_name,is_deleted,phone").range(offset, offset + 999).execute().data or []
             except Exception as exc:
                 app.logger.warning("Admin profile lookup unavailable (%s)", type(exc).__name__)
                 break
@@ -73,7 +73,8 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             if not isinstance(user_metadata, dict):
                 user_metadata = {}
             phone = (
-                getattr(user, "phone", None)
+                profile.get("phone")
+                or getattr(user, "phone", None)
                 or user_metadata.get("phone")
                 or user_metadata.get("phone_number")
                 or user_metadata.get("mobile")
