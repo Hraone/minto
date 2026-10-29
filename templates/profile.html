@@ -1067,9 +1067,12 @@
       </form>
       </div></dialog>
 
-    {% if member_since %}
-    <p class="profile-since">Member since {{ member_since }}</p>
-    {% endif %}
+    <div class="profile-card-footer">
+      <p>Your profile details and preferences help personalize your Minto experience.</p>
+      <form method="post" action="{{ url_for('profile_reset_password') }}">
+        <button type="submit" class="section-action">Forgot password?</button>
+      </form>
+    </div>
   </div>
 
   <div class="profile-password-action">
