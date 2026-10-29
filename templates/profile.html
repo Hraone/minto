@@ -572,7 +572,25 @@
   }
 
   .style-control {
-    gap: 5px;
+    gap: 7px;
+  }
+
+  .style-side {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    min-width: 18px;
+    font-size: 16px;
+    line-height: 1;
+    color: var(--muted-2);
+    transition: opacity .18s ease;
+    opacity: .65;
+  }
+
+  .style-side.selected {
+    color: var(--text);
+    opacity: 1;
   }
 
   .theme-switch,
@@ -840,20 +858,22 @@
     }
 
     .style-side {
-      width: 29px;
-      min-width: 29px;
-      font-size: 9px;
+      width: 18px;
+      min-width: 18px;
+      font-size: 15px;
     }
 
     .theme-switch,
     .style-switch {
-      width: 44px;
-      min-width: 44px;
-      flex-basis: 44px;
+      width: 46px;
+      min-width: 46px;
+      height: 26px;
+      min-height: 26px;
+      flex: 0 0 46px;
     }
 
     .style-switch input:checked + .style-track .style-knob {
-      transform: translateX(18px);
+      transform: translateX(20px);
     }
   }
 
@@ -1214,12 +1234,12 @@
     <div class="profile-setting-row">
       <span class="profile-setting-name">Minto tone</span>
       <div class="style-control">
-        <span class="style-side {% if not genz_mode %}selected{% endif %}" id="style-classic-label">Classic</span>
+        <span class="style-side {% if not genz_mode %}selected{% endif %}" id="style-classic-label" aria-label="Classic tone" title="Classic tone">🎩</span>
         <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
           <input type="checkbox" id="style-toggle" role="switch" aria-checked="{{ 'true' if genz_mode else 'false' }}" {% if genz_mode %}checked{% endif %}>
           <span class="style-track"><span class="style-knob"></span></span>
         </label>
-        <span class="style-side {% if genz_mode %}selected{% endif %}" id="style-casual-label">Casual</span>
+        <span class="style-side {% if genz_mode %}selected{% endif %}" id="style-casual-label" aria-label="Casual tone" title="Casual tone">😎</span>
       </div>
     </div>
     <div class="profile-setting-row">
