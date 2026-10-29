@@ -715,6 +715,13 @@
   .profile-modal-body input:focus,.profile-modal-body select:focus { outline:2px solid var(--theme-accent); outline-offset:1px; }
   .profile-modal-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:6px; }
   .profile-modal-actions .profile-save { min-height:44px; margin:0; padding:11px 18px; border-radius:10px; }
+  .edit-profile-section { padding:0 0 20px; margin:0 0 20px; border-bottom:1px solid var(--border); }
+  .edit-profile-section:last-child { padding-bottom:0; margin-bottom:0; border-bottom:0; }
+  .edit-profile-section h3 { margin:0 0 12px; font-size:15px; font-weight:750; }
+  .edit-profile-check { display:flex!important; align-items:flex-start; gap:10px!important; margin:12px 0 0!important; font-weight:500!important; }
+  .edit-profile-check input { width:18px; height:18px; flex:none; margin:1px 0 0; accent-color:var(--theme-accent); }
+  #edit-profile-modal { width:min(560px,calc(100vw - 28px)); }
+  #edit-profile-modal .avatar-picker { grid-template-columns:repeat(auto-fill,minmax(58px,1fr)); }
   .profile-card-footer {
     display:flex; align-items:center; justify-content:space-between; gap:16px;
     width:100%; min-width:0;
@@ -1180,22 +1187,19 @@
     <div class="profile-identity-layout">
       <div class="profile-identity-main">
         <div class="profile-avatar-edit-group">
-          <button type="button" class="profile-avatar-button" id="profile-avatar-trigger" aria-label="Edit avatar">
-            <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
-          </button>
-          <button type="button" class="profile-avatar-edit-action" data-open-profile-modal="profile-emoji-editor">Edit avatar</button>
+          <div class="profile-avatar-button" aria-hidden="true">
+            <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="">
+          </div>
         </div>
         <div class="profile-identity-copy">
           <div class="profile-identity-name-row">
-            <button type="button" class="profile-edit-trigger" id="profile-name-trigger" aria-expanded="false">
-              <span class="profile-name">{{ display_name }}</span>
-              <span class="profile-edit-icon" aria-hidden="true">✎</span>
-            </button>
+            <span class="profile-name">{{ display_name }}</span>
             <span class="profile-access-badge {% if is_admin_user %}is-admin{% endif %}">
               <span class="profile-access-dot" aria-hidden="true"></span>{{ 'Admin' if is_admin_user else 'Normal user' }}
             </span>
           </div>
           <p class="profile-email">{{ email }}</p>
+          <button type="button" class="section-action" data-open-profile-modal="edit-profile-modal">Edit profile</button>
         </div>
       </div>
       <aside class="profile-identity-meta" aria-label="Account details">
@@ -1206,29 +1210,43 @@
       </aside>
     </div>
 
-    <dialog class="profile-modal" id="profile-name-editor" aria-labelledby="profile-name-modal-title"><div class="profile-modal-head"><div><h2 id="profile-name-modal-title">Edit display name</h2><p>Choose how your name appears across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div><div class="profile-modal-body">
-      <form method="post" action="{{ url_for('update_profile_name') }}" class="profile-inline-form">
-        <input type="text" name="display_name" maxlength="40" value="{{ display_name if has_custom_name else '' }}" placeholder="{{ display_name }}" autocomplete="name" aria-label="Display name">
-        <button type="submit" class="profile-inline-save">Save</button>
-        <button type="button" class="profile-inline-cancel" id="profile-name-cancel">Cancel</button>
-      </form>
-      </div></dialog>
-
-    <dialog class="profile-modal" id="profile-emoji-editor" aria-labelledby="profile-avatar-modal-title"><div class="profile-modal-head"><div><h2 id="profile-avatar-modal-title">Choose your avatar</h2><p>Select an illustration to represent your profile.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div><div class="profile-modal-body">
-      <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
-        <div class="avatar-picker" aria-label="Choose a profile avatar">
-          {% for avatar in profile_avatars %}
-          <div class="avatar-option">
-            <input type="radio" id="profile-avatar-{{ loop.index }}" name="profile_avatar" value="{{ avatar }}" {% if profile_avatar == avatar %}checked{% endif %}>
-            <label for="profile-avatar-{{ loop.index }}" aria-label="Choose avatar {{ loop.index }}">
-              <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true">
-            </label>
-          </div>
-          {% endfor %}
-        </div>
-        <div class="profile-modal-actions"><button type="submit" class="profile-save">Save avatar</button></div>
-      </form>
-      </div></dialog>
+    <dialog class="profile-modal" id="edit-profile-modal" aria-labelledby="edit-profile-modal-title">
+      <div class="profile-modal-head"><div><h2 id="edit-profile-modal-title">Edit profile</h2><p>Manage your name, avatar, and contact preferences in one place.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
+      <div class="profile-modal-body">
+        <section class="edit-profile-section">
+          <h3>Display name</h3>
+          <form method="post" action="{{ url_for('update_profile_name') }}">
+            <label for="edit-profile-display-name">Name shown across Minto</label>
+            <input id="edit-profile-display-name" type="text" name="display_name" maxlength="40" value="{{ display_name if has_custom_name else '' }}" placeholder="{{ display_name }}" autocomplete="name">
+            <div class="profile-modal-actions"><button type="submit" class="profile-save">Save name</button></div>
+          </form>
+        </section>
+        <section class="edit-profile-section">
+          <h3>Avatar</h3>
+          <form method="post" action="{{ url_for('update_profile_emoji') }}" data-no-loader>
+            <div class="avatar-picker" aria-label="Choose a profile avatar">
+              {% for avatar in profile_avatars %}
+              <div class="avatar-option"><input type="radio" id="edit-profile-avatar-{{ loop.index }}" name="profile_avatar" value="{{ avatar }}" {% if profile_avatar == avatar %}checked{% endif %}><label for="edit-profile-avatar-{{ loop.index }}" aria-label="Choose avatar {{ loop.index }}"><img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (avatar) ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></label></div>
+              {% endfor %}
+            </div>
+            <div class="profile-modal-actions"><button type="submit" class="profile-save">Save avatar</button></div>
+          </form>
+        </section>
+        <section class="edit-profile-section">
+          <h3>Contact details</h3>
+          <label for="edit-profile-email">Account email</label>
+          <input id="edit-profile-email" type="email" value="{{ email }}" readonly aria-describedby="edit-profile-email-note">
+          <p id="edit-profile-email-note" class="profile-email" style="margin:0 0 12px;">Email changes are not available here.</p>
+          <form method="post" action="{{ url_for('update_profile_contact_sharing') }}">
+            <label for="edit-profile-phone">Phone number</label>
+            <input id="edit-profile-phone" name="phone" type="tel" value="{{ contact_phone }}" maxlength="32" autocomplete="tel" placeholder="+91 98765 43210">
+            <label class="edit-profile-check"><input type="checkbox" name="share_phone" {% if share_phone %}checked{% endif %}> Share my phone number with accepted friends</label>
+            <label class="edit-profile-check"><input type="checkbox" name="share_email" {% if share_email %}checked{% endif %}> Share my account email with accepted friends</label>
+            <div class="profile-modal-actions"><button type="submit" class="profile-save">Save contact details</button></div>
+          </form>
+        </section>
+      </div>
+    </dialog>
 
     <div class="profile-card-footer">
       <p>Your profile details and preferences help personalize your Minto experience.</p>
@@ -1525,24 +1543,6 @@
       });
     })();
   </script>
-
-  <details class="profile-card profile-contact-details">
-    <summary><span><strong>Contact details</strong><small>Add your phone number and choose what friends can see</small></span><span class="contact-chevron" aria-hidden="true">⌄</span></summary><div class="profile-contact-body"><h3 style="margin:16px 0 6px;">Your contact information</h3>
-    <p class="profile-email" style="margin:0 0 16px;">Only accepted Minto friends can see the contact details you choose to share.</p>
-    <form method="post" action="{{ url_for('update_profile_contact_sharing') }}">
-      <label for="friend-phone">Phone number</label>
-      <input id="friend-phone" name="phone" type="tel" value="{{ contact_phone }}" maxlength="32" autocomplete="tel" placeholder="+91 98765 43210">
-      <label style="display:flex;align-items:center;gap:9px;margin-top:12px;font-weight:600;">
-        <input type="checkbox" name="share_phone" {% if share_phone %}checked{% endif %} style="width:auto;margin:0;">
-        Share my phone number with accepted friends
-      </label>
-      <label style="display:flex;align-items:center;gap:9px;margin-top:10px;font-weight:600;">
-        <input type="checkbox" name="share_email" {% if share_email %}checked{% endif %} style="width:auto;margin:0;">
-        Share my account email with accepted friends
-      </label>
-      <button type="submit" class="profile-save" style="width:auto;margin-top:14px;">Save contact preferences</button>
-    </form></div>
-  </details>
 
   <dialog class="profile-modal" id="password-modal" aria-labelledby="password-modal-title">
     <div class="profile-modal-head"><div><h2 id="password-modal-title">Change password</h2><p>Enter your current password, then choose a new password with at least 8 characters.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
