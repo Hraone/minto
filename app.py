@@ -1701,6 +1701,7 @@ def profile():
     response = render_template(
         "profile.html",
         display_name=display_name,
+        is_admin_user=_is_admin_user_id(user_id),
         has_custom_name=bool(name),
         email=email,
         member_since=_format_member_since(since),
