@@ -37,7 +37,7 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
         offset = 0
         while True:
             try:
-                rows = service.table("profiles").select("id,display_name").range(offset, offset + 999).execute().data or []
+                rows = service.table("profiles").select("id,display_name,is_deleted").range(offset, offset + 999).execute().data or []
             except Exception as exc:
                 app.logger.warning("Admin profile lookup unavailable (%s)", type(exc).__name__)
                 break
@@ -67,6 +67,8 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             if not uid:
                 continue
             profile = profiles.get(uid, {})
+            if profile.get("is_deleted") is True:
+                continue
             user_metadata = getattr(user, "user_metadata", None) or {}
             if not isinstance(user_metadata, dict):
                 user_metadata = {}
@@ -164,6 +166,44 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             app.logger.warning("Admin user directory load failed (%s)", type(exc).__name__)
             users_error = "The user directory could not be loaded. Please retry."
         return render_template("admin/users.html", users=users, users_error=users_error, query=query, role_filter=role_filter, page=page, total_pages=total_pages, has_previous=page > 1, has_next=page < total_pages)
+
+    @app.route("/admin/users/<uuid:target_user_id>/delete", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_soft_delete_user(target_user_id):
+        actor_id, target_id = str(session["user_id"]), str(target_user_id)
+        if actor_id == target_id:
+            flash("You cannot soft-delete your own account.")
+            return redirect(url_for("admin_users", q=request.form.get("q", ""), role=request.form.get("role", "all"), page=request.form.get("page", "1")))
+        try:
+            service = admin_client()
+            target = next((u for u in service.auth.admin.list_users(page=1, per_page=1000).users if str(getattr(u, "id", "")) == target_id), None)
+            if target is None:
+                flash("The selected user could not be found.")
+            elif target_id in {str(getattr(u, "id", "")) for u in (service.auth.admin.list_users(page=1, per_page=1000).users or []) if getattr(u, "id", None)} and getattr(target, "email", None):
+                profile_rows = service.table("profiles").select("id,is_deleted").eq("id", target_id).limit(1).execute().data or []
+                if not profile_rows:
+                    flash("This user has no profile record to mark as deleted. No changes were made.")
+                elif profile_rows[0].get("is_deleted") is True:
+                    flash("This user is already soft-deleted.")
+                else:
+                    service.table("profiles").update({"is_deleted": True}).eq("id", target_id).execute()
+                    try:
+                        service.table("admin_activity_logs").insert({
+                            "actor_user_id": actor_id,
+                            "target_type": "user",
+                            "target_id": target_id,
+                            "action": "soft_delete_user",
+                            "outcome": "success",
+                            "details": {"email": getattr(target, "email", None) or ""},
+                        }).execute()
+                    except Exception as log_exc:
+                        app.logger.warning("Admin soft-delete audit log failed (%s)", type(log_exc).__name__)
+                    flash("User soft-deleted. Their database records have not been physically removed.")
+        except Exception as exc:
+            app.logger.warning("Admin soft-delete failed (%s)", type(exc).__name__)
+            flash("The user could not be soft-deleted. No success was reported; please retry.")
+        return redirect(url_for("admin_users", q=request.form.get("q", ""), role=request.form.get("role", "all"), page=request.form.get("page", "1")))
 
     @app.route("/admin/users/<uuid:target_user_id>/role", methods=["POST"])
     @login_required
