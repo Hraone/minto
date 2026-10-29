@@ -213,6 +213,31 @@ def save_theme(client, user_id, theme):
         return False
 
 
+COLOR_THEMES = ("grove", "tide", "rosewater", "terra", "ink")
+
+
+def load_saved_color_theme(client, user_id):
+    """Load the user's accent palette, falling back safely for older schemas."""
+    try:
+        rows = client.table("profiles").select("color_theme").eq("id", user_id).execute().data
+        if rows and rows[0].get("color_theme") in COLOR_THEMES:
+            return rows[0]["color_theme"]
+    except Exception:
+        pass
+    return "grove"
+
+
+def save_color_theme(client, user_id, color_theme):
+    if color_theme not in COLOR_THEMES:
+        return False
+    try:
+        client.table("profiles").upsert({"id": user_id, "color_theme": color_theme}).execute()
+        return True
+    except Exception:
+        app.logger.exception("Could not save colour palette preference")
+        return False
+
+
 def load_genz_mode(client, user_id):
     """Load the optional lighter, Gen Z wording preference."""
     try:
@@ -388,6 +413,7 @@ def inject_template_globals():
         "minto_version": MINTO_VERSION,
         "app_mode": mode,
         "user_theme": session.get("theme", "light") if session.get("user_id") else "light",
+        "color_theme": session.get("color_theme", "grove") if session.get("user_id") else "grove",
         "genz_mode": bool(session.get("genz_mode", False)) if session.get("user_id") else False,
         "nav_name": name,
         "is_admin_user": is_admin_user,
@@ -1633,6 +1659,8 @@ def profile():
     log_profile_stage("parallel_profile_loads_wall_time", parallel_started)
 
     name = profile_data.get("display_name") or ""
+    color_theme = profile_data.get("color_theme") if profile_data.get("color_theme") in COLOR_THEMES else session.get("color_theme", "grove")
+    session["color_theme"] = color_theme
     theme = profile_data.get("theme") if profile_data.get("theme") in ("light", "dark") else session.get("theme", "light")
     profile_avatar = profile_data.get("profile_emoji") if profile_data.get("profile_emoji") in PROFILE_AVATARS else load_profile_avatar(client, user_id)
     biometric_enabled = bool(profile_data.get("biometric_enabled"))
@@ -2027,6 +2055,26 @@ def update_profile_theme():
     if wants_json:
         return jsonify(ok=saved), (200 if saved else 500)
     flash("Appearance updated." if saved else "Couldn't save your appearance preference. Please try again.")
+    return redirect(url_for("profile"))
+
+
+@app.route("/profile/color-theme", methods=["POST"])
+@login_required
+def update_profile_color_theme():
+    wants_json = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+    color_theme = request.form.get("color_theme", "grove").strip().lower()
+    if color_theme not in COLOR_THEMES:
+        if wants_json:
+            return jsonify(ok=False), 400
+        flash("Invalid colour palette selection.")
+        return redirect(url_for("profile"))
+
+    saved = save_color_theme(get_user_client(), session["user_id"], color_theme)
+    if saved:
+        session["color_theme"] = color_theme
+    if wants_json:
+        return jsonify(ok=saved), (200 if saved else 500)
+    flash("Colour palette updated." if saved else "Couldn't save your palette. Please try again.")
     return redirect(url_for("profile"))
 
 
