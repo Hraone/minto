@@ -188,7 +188,14 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                 elif profile_rows[0].get("is_deleted") is True:
                     flash("This user is already soft-deleted.")
                 else:
-                    service.table("profiles").update({"is_deleted": True}).eq("id", target_id).execute()
+                    update_result = service.table("profiles").update({"is_deleted": True}).eq("id", target_id).execute()
+                    updated_rows = getattr(update_result, "data", None) or []
+                    if not updated_rows:
+                        # Verify whether the update took effect in case the API omits
+                        # representation data for this request.
+                        verify_rows = service.table("profiles").select("id,is_deleted").eq("id", target_id).limit(1).execute().data or []
+                        if not verify_rows or verify_rows[0].get("is_deleted") is not True:
+                            raise RuntimeError("Profile soft-delete update returned no updated row; check profiles.is_deleted and service-role permissions.")
                     try:
                         service.table("admin_activity_logs").insert({
                             "actor_user_id": actor_id,
@@ -202,7 +209,7 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                         app.logger.warning("Admin soft-delete audit log failed (%s)", type(log_exc).__name__)
                     flash("User soft-deleted. Their database records have not been physically removed.")
         except Exception as exc:
-            app.logger.warning("Admin soft-delete failed (%s)", type(exc).__name__)
+            app.logger.exception("Admin soft-delete failed for target %s", target_id)
             flash("The user could not be soft-deleted. No success was reported; please retry.")
         return redirect(url_for("admin_users", q=request.form.get("q", ""), role=request.form.get("role", "all"), page=request.form.get("page", "1")))
 
