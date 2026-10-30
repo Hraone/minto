@@ -2182,15 +2182,21 @@ def planner():
 
     stage_started = time.perf_counter()
     profile_rows = (
-        client.table("profiles")
-        .select("monthly_salary, salary_day")
-        .eq("id", user_id)
+        client.table("fixed_incomes")
+        .select("amount, due_day")
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .eq("is_salary", True)
         .limit(1)
         .execute()
         .data
     )
-    log_planner_stage("profile_settings_query", stage_started)
-    profile_settings = profile_rows[0] if profile_rows else {}
+    log_planner_stage("salary_recurring_income_query", stage_started)
+    salary_row = profile_rows[0] if profile_rows else {}
+    profile_settings = {
+        "monthly_salary": salary_row.get("amount"),
+        "salary_day": salary_row.get("due_day"),
+    }
     salary_cycle = get_salary_cycle(profile_settings, today)
 
     stage_started = time.perf_counter()
@@ -6218,8 +6224,12 @@ def dashboard():
     log_dashboard_stage("manual_net_worth_items", stage_started)
     stage_started = time.perf_counter()
     try:
-        profile_settings_rows = client.table("profiles").select("monthly_salary, salary_day, reminder_days_before").eq("id", user_id).limit(1).execute().data
+        profile_settings_rows = client.table("profiles").select("reminder_days_before").eq("id", user_id).limit(1).execute().data
         profile_settings = profile_settings_rows[0] if profile_settings_rows else {}
+        salary_rows = client.table("fixed_incomes").select("amount, due_day").eq("user_id", user_id).eq("active", True).eq("is_salary", True).limit(1).execute().data
+        if salary_rows:
+            profile_settings["monthly_salary"] = salary_rows[0].get("amount")
+            profile_settings["salary_day"] = salary_rows[0].get("due_day")
     except Exception:
         profile_settings = {}
     log_dashboard_stage("profile_settings_query", stage_started)
