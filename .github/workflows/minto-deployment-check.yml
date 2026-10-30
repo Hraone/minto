@@ -1,0 +1,38 @@
+name: Minto deployment check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployment-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check live Minto version endpoint
+        env:
+          MINTO_BASE_URL: ${{ secrets.MINTO_BASE_URL }}
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MINTO_BASE_URL:-}" ]; then
+            echo "::error::Add MINTO_BASE_URL as a repository Actions secret (your public Railway app URL)."
+            exit 1
+          fi
+          response="$(curl --fail --silent --show-error --max-time 20 "${MINTO_BASE_URL%/}/version")"
+          echo "$response" | jq .
+          live_sha="$(echo "$response" | jq -r '.commit // "unknown"')"
+          if [ "$live_sha" = "unknown" ] || [ -z "$live_sha" ]; then
+            echo "::error::The live app did not report a commit SHA. Confirm Railway exposes RAILWAY_GIT_COMMIT_SHA."
+            exit 1
+          fi
+          echo "Live commit: $live_sha"
+          echo "Commit that triggered this check: $EXPECTED_SHA"
+          if [ "$live_sha" != "$EXPECTED_SHA" ]; then
+            echo "::warning::Live commit differs from the commit that triggered this check. Railway may still be deploying or may deploy a different commit."
+            exit 1
+          fi
+          echo "Deployment commit matches the triggering commit."
