@@ -1791,8 +1791,9 @@
     }
 
     /* Mobile quick-add: the entry form opens in a focused dialog. */
-    .mobile-add-fab,
+    .mobile-add-fab { display: none; }
     .mobile-entry-dialog { display: none; }
+    .mobile-entry-dialog[open] { display: block; }
 
     .mobile-entry-dialog {
       width: min(680px, calc(100vw - 24px));
