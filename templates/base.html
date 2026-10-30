@@ -1563,6 +1563,12 @@
       animation: minto-spin 0.8s linear infinite;
     }
 
+    /* Keep Minto's single global page-loading progress bar. Hide duplicate browser/library bars. */
+    #nprogress, #nprogress .bar, .pace, .pace .pace-progress,
+    .turbo-progress-bar, progress.page-progress, .loading-progress-bar {
+      display: none !important;
+    }
+
     .minto-progress {
       position: fixed;
       top: 0;
