@@ -1789,6 +1789,66 @@
         transition-duration: 0.01ms !important;
       }
     }
+
+    /* Mobile quick-add: the entry form opens in a focused dialog. */
+    .mobile-add-fab,
+    .mobile-entry-dialog { display: none; }
+
+    .mobile-entry-dialog {
+      width: min(680px, calc(100vw - 24px));
+      max-width: calc(100vw - 24px);
+      height: min(90dvh, 820px);
+      max-height: calc(100dvh - 24px);
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: 0 24px 80px rgba(0,0,0,.28);
+    }
+    .mobile-entry-dialog::backdrop { background: rgba(10, 14, 12, .56); }
+    .mobile-entry-dialog iframe { display:block; width:100%; height:100%; border:0; background:var(--background); }
+    .modal-entry-page .navbar,
+    .modal-entry-page .tab-bar,
+    .modal-entry-page .fixed-reminder-chip,
+    .modal-entry-page .fixed-reminder-overlay,
+    .modal-entry-page .site-footer { display:none !important; }
+    .modal-entry-page .app-container { padding:0 12px 18px !important; }
+    .modal-entry-page .entry-wrapper { padding:12px 0 20px !important; }
+    .modal-entry-page .entry-card { padding:20px 16px !important; border-radius:14px !important; box-shadow:none !important; }
+    .modal-entry-page .entry-header { margin-bottom:18px !important; }
+    .modal-entry-page .entry-header h1.page-title { font-size:23px !important; }
+    .modal-entry-page body { overflow-x:hidden; }
+    @media (max-width: 600px) {
+      .mobile-add-fab {
+        position: fixed;
+        left: 16px;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        z-index: 25;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-width: 56px;
+        height: 52px;
+        padding: 0 17px;
+        border: 1px solid var(--theme-accent, var(--positive));
+        border-radius: 16px !important;
+        background: var(--theme-accent, var(--positive));
+        color: #fff;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 750;
+        box-shadow: 0 8px 22px var(--shadow-lift);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mobile-add-fab svg { width:21px; height:21px; flex:none; }
+      .mobile-add-fab:active { transform:scale(.97); }
+      .mobile-entry-dialog { width:calc(100vw - 16px); max-width:calc(100vw - 16px); height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); border-radius:16px; }
+    }
+
 </style>
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/minto-apple-theme.css') }}?v={{ asset_version }}">
@@ -2019,6 +2079,16 @@
 
   </div>
 
+  {% if session.get('user_id') and app_mode != 'trip' %}
+  <button class="mobile-add-fab" id="mobileAddFab" type="button" aria-haspopup="dialog" aria-controls="mobileEntryDialog" aria-label="Add a transaction">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+    <span>Add</span>
+  </button>
+  <dialog class="mobile-entry-dialog" id="mobileEntryDialog" aria-label="Add a transaction">
+    <iframe id="mobileEntryFrame" title="Add a transaction form" loading="lazy"></iframe>
+  </dialog>
+  {% endif %}
+
   {% if session.get('user_id') and app_mode == 'trip' %}
   <nav class="tab-bar trip-tab-bar" aria-label="Trip navigation">
     <a class="tab-link {{ 'active' if request.endpoint in ['trips', 'trip_detail', 'trip_home'] else '' }}" href="{{ url_for('trips') }}">
@@ -2047,15 +2117,6 @@
         <path d="M7.5 9.5h9M7.5 14.5h5"></path>
       </svg>
       Home
-    </a>
-
-    <a class="tab-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"></circle>
-        <line x1="12" y1="8" x2="12" y2="16"></line>
-        <line x1="8" y1="12" x2="16" y2="12"></line>
-      </svg>
-      Add
     </a>
 
     <a class="tab-link {{ 'active' if request.endpoint == 'planner' else '' }}" href="{{ url_for('planner') }}">
@@ -2594,6 +2655,45 @@
   </div>
 </div>
 <button class="fixed-reminder-chip" id="fixedReminderChip" type="button" aria-label="Open fixed transaction reminders" title="Fixed transaction reminders" hidden><svg class="fixed-reminder-icon" viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg><span class="fixed-reminder-count" id="fixedReminderCount"></span><span class="fixed-reminder-chip-label">Pending fixed transactions</span></button>
+
+<script>
+(function () {
+  const button = document.getElementById('mobileAddFab');
+  const dialog = document.getElementById('mobileEntryDialog');
+  const frame = document.getElementById('mobileEntryFrame');
+  if (!button || !dialog || !frame) return;
+
+  button.addEventListener('click', function () {
+    if (!frame.getAttribute('src')) frame.src = "{{ url_for('entry') }}?modal=1";
+    if (!dialog.open) dialog.showModal();
+  });
+
+  dialog.addEventListener('close', function () {
+    // Reset the form when it is opened again; the server supplies current account/category data.
+    frame.src = "{{ url_for('entry') }}?modal=1";
+  });
+
+  frame.addEventListener('load', function () {
+    try {
+      const path = frame.contentWindow.location.pathname;
+      if (dialog.open && path !== new URL("{{ url_for('entry') }}", window.location.origin).pathname) {
+        dialog.close();
+        window.location.reload();
+      }
+    } catch (error) {
+      // The frame is same-origin; ignore transient navigation states.
+    }
+  });
+
+  dialog.addEventListener('click', function (event) {
+    if (event.target === dialog) dialog.close();
+  });
+
+  document.addEventListener('keydown', function (event) {
+    if (event.key === 'Escape' && dialog.open) dialog.close();
+  });
+})();
+</script>
 <script>
 (function () {
   var overlay = document.getElementById('fixedReminderOverlay');
