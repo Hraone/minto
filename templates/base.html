@@ -2089,7 +2089,7 @@
     <span>Add</span>
   </button>
   <dialog class="mobile-entry-dialog" id="mobileEntryDialog" aria-label="Add a transaction">
-    <iframe id="mobileEntryFrame" title="Add a transaction form" loading="lazy"></iframe>
+    <iframe id="mobileEntryFrame" title="Add a transaction form" loading="eager" src="{{ url_for('entry') }}?modal=1"></iframe>
   </dialog>
   {% endif %}
 
