@@ -1609,9 +1609,18 @@
     (function () {
       const toggle = document.getElementById('theme-toggle');
       const status = document.getElementById('theme-status');
+      const lightChoice = document.querySelector('.theme-choice:first-child');
+      const darkChoice = document.querySelector('.theme-choice:last-child');
       if (!toggle) return;
 
+      function updateAppearanceLabels() {
+        if (lightChoice) lightChoice.classList.toggle('selected', !toggle.checked);
+        if (darkChoice) darkChoice.classList.toggle('selected', toggle.checked);
+      }
+      updateAppearanceLabels();
+
       toggle.addEventListener('change', async function () {
+        updateAppearanceLabels();
         const theme = toggle.checked ? 'dark' : 'light';
         const previous = toggle.checked;
 
