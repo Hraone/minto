@@ -2253,29 +2253,12 @@
           </a>
         </div>
 
-        <div class="more-divider"></div>
-
-        <div class="more-group">
-          <div class="more-group-label">Insights</div>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'net_worth' else '' }}" href="{{ url_for('net_worth') }}">
-            <span>Net Worth</span><small>Protected wealth view</small>
-          </a>
-        </div>
-
-        <div class="more-divider"></div>
-
-        <div class="more-group">
-          <div class="more-group-label">Minto</div>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'friends' else '' }}" href="{{ url_for('friends') }}"><span>Friends</span><small>Search &amp; manage friends</small></a>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'info' else '' }}" href="{{ url_for('info') }}">
-            <span>About Minto</span><small>App info &amp; help</small>
-          </a>
-        </div>
+        <!-- Net Worth, Friends, and About Minto are already available from the profile menu. -->
       </div>
       <a
         href="{{ url_for('dashboard') }}"
         role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['planner', 'fixed_expenses', 'budgets', 'pay_cc_bill', 'withdraw_cash', 'bank_transfer', 'net_worth', 'friends', 'info'] else '' }}"
+        class="tab-link {{ 'active' if request.endpoint in ['planner', 'fixed_expenses', 'budgets', 'pay_cc_bill', 'withdraw_cash', 'bank_transfer'] else '' }}"
         aria-haspopup="true"
         aria-expanded="false"
         aria-controls="moreSheet"
