@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Transactions · Minto{% endblock %}
+
+{% block content %}
+<style>
+  .transactions-page { width:100%; max-width:1220px; margin:0 auto; padding:12px 24px 48px; }
+  .transactions-header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; flex-wrap:wrap; margin-bottom:20px; }
+  .transactions-header h1 { margin:0; font-size:28px; font-weight:800; letter-spacing:-.6px; }
+  .transactions-subtitle { margin:6px 0 0; color:var(--muted); font-size:13px; }
+  .transactions-count { color:var(--text-secondary); font-size:13px; font-weight:700; }
+  .transactions-card { overflow:hidden; border:1px solid var(--border); border-radius:14px; background:var(--surface); }
+  .transactions-table-wrap { width:100%; overflow-x:auto; }
+  .transactions-table { width:100%; border-collapse:collapse; text-align:left; font-size:13px; }
+  .transactions-table th { padding:13px 16px; color:var(--muted); background:var(--surface-subtle); font-size:11px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+  .transactions-table td { padding:14px 16px; border-top:1px solid var(--border); vertical-align:middle; }
+  .transactions-table tbody tr:hover { background:var(--surface-subtle); }
+  .transactions-description { min-width:180px; color:var(--text); font-weight:750; overflow-wrap:anywhere; }
+  .transactions-muted { margin-top:4px; color:var(--muted); font-size:11px; }
+  .transactions-tag { display:inline-flex; align-items:center; padding:4px 8px; border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); font-size:11px; font-weight:700; white-space:nowrap; }
+  .transactions-amount { text-align:right; font-weight:800; white-space:nowrap; }
+  .transactions-amount.in { color:var(--positive); }
+  .transactions-amount.out { color:var(--negative); }
+  .transactions-pagination { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; padding:14px 16px; border-top:1px solid var(--border); }
+  .transactions-page-info { color:var(--muted); font-size:12px; }
+  .transactions-page-actions { display:flex; align-items:center; gap:8px; }
+  .transactions-page-button { display:inline-flex; align-items:center; justify-content:center; min-height:38px; padding:0 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface); color:var(--text); font-size:12px; font-weight:750; text-decoration:none; }
+  .transactions-page-button:hover { background:var(--surface-subtle); }
+  .transactions-page-button[aria-disabled="true"] { opacity:.4; pointer-events:none; }
+  .transactions-empty { padding:42px 20px; color:var(--muted); text-align:center; font-size:13px; }
+  .transactions-error { margin-bottom:14px; padding:12px 14px; border:1px solid var(--danger-border); border-radius:10px; background:var(--danger-bg-alt); color:var(--negative); font-size:13px; }
+  @media (max-width:700px) {
+    .transactions-page { padding:8px 0 40px; }
+    .transactions-header { align-items:flex-start; padding:0 2px; }
+    .transactions-header h1 { font-size:25px; }
+    .transactions-card { border-radius:12px; }
+    .transactions-table { min-width:700px; }
+    .transactions-pagination { padding:12px; }
+  }
+</style>
+
+<section class="transactions-page">
+  <header class="transactions-header">
+    <div>
+      <h1>Transactions</h1>
+      <p class="transactions-subtitle">All your recorded income, expenses, transfers and investments.</p>
+    </div>
+    <div class="transactions-count">{{ total_count }} {{ 'transaction' if total_count == 1 else 'transactions' }}</div>
+  </header>
+
+  {% if error %}
+    <div class="transactions-error" role="alert">{{ error }}</div>
+  {% endif %}
+
+  <section class="transactions-card" aria-label="Transaction records">
+    {% if transactions %}
+    <div class="transactions-table-wrap">
+      <table class="transactions-table">
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Transaction</th>
+            <th scope="col">Category</th>
+            <th scope="col">Account</th>
+            <th scope="col">Direction</th>
+            <th scope="col" style="text-align:right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transactions %}
+          {% set txn_name = t.description or t.expense_category or t.category or 'Transaction' %}
+          <tr>
+            <td class="tnum">{{ t.transaction_date|nice_date }}</td>
+            <td>
+              <div class="transactions-description">{{ txn_name }}</div>
+              {% if t.merchant %}
+              <div class="transactions-muted">{{ t.merchant }}</div>
+              {% endif %}
+            </td>
+            <td><span class="transactions-tag">{{ 'Lending' if t.category == 'lending' else (t.expense_category or t.category or 'Other')|replace('_', ' ')|title }}</span></td>
+            <td>{{ t.user_sources.name if t.user_sources and t.user_sources.name else '—' }}</td>
+            <td>{{ 'Income' if t.direction == 'in' else 'Expense' }}</td>
+            <td class="transactions-amount tnum {{ 'in' if t.direction == 'in' else 'out' }}">{{ '+' if t.direction == 'in' else '−' }}{{ (t.amount or 0)|inr }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="transactions-empty">{% if error %}Transactions are temporarily unavailable.{% else %}No transactions recorded yet.{% endif %}</div>
+    {% endif %}
+
+    <nav class="transactions-pagination" aria-label="Transaction pages">
+      <div class="transactions-page-info">
+        {% if total_count %}Showing {{ first_record }}–{{ last_record }} of {{ total_count }}{% else %}Showing 0 transactions{% endif %}
+        · Page {{ page }} of {{ total_pages }}
+      </div>
+      <div class="transactions-page-actions">
+        <a class="transactions-page-button" href="{{ url_for('transactions', page=page - 1) }}" aria-disabled="{{ 'true' if page <= 1 else 'false' }}">Previous</a>
+        <a class="transactions-page-button" href="{{ url_for('transactions', page=page + 1) }}" aria-disabled="{{ 'true' if page >= total_pages else 'false' }}">Next</a>
+      </div>
+    </nav>
+  </section>
+</section>
+{% endblock %}
