@@ -6104,6 +6104,61 @@ def get_period_start(period):
     return get_dashboard_period_start(period, datetime.now(APP_TZ))
 
 
+@app.route("/transactions")
+@login_required
+def transactions():
+    """Show the signed-in user's transactions in a paginated grid."""
+    client = get_user_client()
+    user_id = session["user_id"]
+    page_size = 20
+    try:
+        page = max(int(request.args.get("page", "1")), 1)
+    except (TypeError, ValueError):
+        page = 1
+
+    try:
+        count_result = (
+            client.table("transactions")
+            .select("id", count="exact")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        total_count = count_result.count or 0
+        total_pages = max((total_count + page_size - 1) // page_size, 1)
+        page = min(page, total_pages)
+        offset = (page - 1) * page_size
+        result = (
+            client.table("transactions")
+            .select("*, user_sources(name, source_type)")
+            .eq("user_id", user_id)
+            .order("transaction_date", desc=True)
+            .order("created_at", desc=True)
+            .range(offset, offset + page_size - 1)
+            .execute()
+        )
+        rows = result.data or []
+        error = None
+    except Exception:
+        app.logger.exception("Could not load paginated transactions")
+        rows = []
+        total_count = 0
+        total_pages = 1
+        page = 1
+        error = "Transactions could not be loaded right now. Please refresh and try again."
+
+    return render_template(
+        "transactions.html",
+        transactions=rows,
+        page=page,
+        page_size=page_size,
+        total_count=total_count,
+        total_pages=total_pages,
+        first_record=((page - 1) * page_size + 1) if total_count else 0,
+        last_record=min(page * page_size, total_count),
+        error=error,
+    )
+
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
