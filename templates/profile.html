@@ -1310,6 +1310,137 @@
     .profile-contact-body button { width:100%; align-self:stretch; }
   }
 
+
+  /* Compact three-column preferences: controls stay centered and values sit below. */
+  .profile-page .profile-preferences-compact {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 0;
+    padding: 16px 8px;
+  }
+  .profile-page .profile-preferences-compact .profile-setting-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 9px;
+    min-width: 0;
+    min-height: 0;
+    padding: 2px 6px;
+    text-align: center;
+  }
+  .profile-page .profile-preferences-compact .profile-setting-name {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.25;
+    text-align: center;
+  }
+  .profile-page .profile-preferences-compact .theme-toggle-wrap,
+  .profile-page .profile-preferences-compact .style-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 24px;
+    min-height: 24px;
+    margin: 0;
+    overflow: visible;
+  }
+  .profile-page .profile-preferences-compact .theme-switch,
+  .profile-page .profile-preferences-compact .style-switch {
+    position: relative;
+    display: block;
+    width: 34px !important;
+    min-width: 34px !important;
+    max-width: 34px;
+    height: 20px !important;
+    min-height: 20px !important;
+    flex: 0 0 34px !important;
+    margin: 0;
+    transform: none !important;
+  }
+  .profile-page .profile-preferences-compact .theme-switch .theme-slider,
+  .profile-page .profile-preferences-compact .style-switch .style-track {
+    position: absolute;
+    inset: 0;
+    width: 34px;
+    height: 20px;
+    border-radius: 999px;
+    box-sizing: border-box;
+  }
+  .profile-page .profile-preferences-compact .theme-switch .theme-slider::before,
+  .profile-page .profile-preferences-compact .style-switch .style-knob {
+    width: 14px;
+    height: 14px;
+    top: 2px;
+    left: 2px;
+  }
+  .profile-page .profile-preferences-compact .theme-switch input:checked + .theme-slider::before,
+  .profile-page .profile-preferences-compact .style-switch input:checked + .style-track .style-knob {
+    transform: translateX(14px);
+  }
+  .profile-page .profile-preferences-compact .profile-setting-value {
+    display: block;
+    max-width: 100%;
+    min-height: 16px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .profile-page .profile-preferences-compact .profile-theme-current {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 30px;
+    margin: 0;
+    padding: 5px 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-subtle);
+    color: var(--text);
+    font-size: 11px;
+    line-height: 1.2;
+    font-weight: 650;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    box-shadow: none;
+  }
+  .profile-page .profile-preferences-compact .profile-theme-current:hover {
+    border-color: var(--theme-accent);
+    background: var(--surface-subtle);
+    color: var(--text);
+    transform: none;
+    box-shadow: none;
+  }
+  .profile-page .profile-preferences-compact .profile-theme-current:focus-visible {
+    outline: 2px solid var(--theme-accent);
+    outline-offset: 2px;
+  }
+  .profile-page .profile-preferences-compact > .preference-status {
+    grid-column: 1 / -1;
+    margin: 8px 8px 0;
+    min-height: 0;
+    font-size: 10px;
+    text-align: center;
+  }
+  @media (max-width: 380px) {
+    .profile-page .profile-preferences-compact { padding-right: 4px; padding-left: 4px; }
+    .profile-page .profile-preferences-compact .profile-setting-row { padding-right: 3px; padding-left: 3px; }
+    .profile-page .profile-preferences-compact .profile-setting-name { font-size: 11px; }
+    .profile-page .profile-preferences-compact .profile-setting-value { font-size: 10px; }
+    .profile-page .profile-preferences-compact .profile-theme-current { font-size: 10px; }
+  }
+
 </style>
 
 <div class="profile-page">
@@ -1385,28 +1516,28 @@
       <div class="profile-setting-row">
         <span class="profile-setting-name">Appearance</span>
         <div class="theme-toggle-wrap" aria-label="Appearance preference">
-          <span class="theme-choice {% if theme != 'dark' %}selected{% endif %}">Light</span>
           <label class="theme-switch" aria-label="Toggle light or dark appearance">
             <input type="checkbox" id="theme-toggle" {% if theme == 'dark' %}checked{% endif %} aria-label="Toggle dark mode">
             <span class="theme-slider"></span>
           </label>
-          <span class="theme-choice {% if theme == 'dark' %}selected{% endif %}">Dark</span>
         </div>
+        <span class="profile-setting-value" id="appearance-value">{{ 'Dark' if theme == 'dark' else 'Light' }}</span>
       </div>
       <div class="profile-setting-row">
         <span class="profile-setting-name">Minto tone</span>
         <div class="style-control">
-          <span class="style-side {% if not genz_mode %}selected{% endif %}" id="style-classic-label" aria-label="Classic tone" title="Classic tone">Classic</span>
           <label class="style-switch" aria-label="Toggle between Classic and Casual tone">
             <input type="checkbox" id="style-toggle" role="switch" aria-checked="{{ 'true' if genz_mode else 'false' }}" {% if genz_mode %}checked{% endif %}>
             <span class="style-track"><span class="style-knob"></span></span>
           </label>
-          <span class="style-side {% if genz_mode %}selected{% endif %}" id="style-casual-label" aria-label="Casual tone" title="Casual tone">Casual</span>
         </div>
+        <span class="profile-setting-value" id="minto-tone-value">{{ 'Casual' if genz_mode else 'Classic' }}</span>
       </div>
       <div class="profile-setting-row">
         <span class="profile-setting-name">Theme</span>
-        <button type="button" class="section-action" data-open-profile-modal="theme-modal">Customize <span aria-hidden="true">›</span></button>
+        <button type="button" class="section-action profile-theme-current" id="profile-theme-current" data-open-profile-modal="theme-modal" data-current-theme="{{ color_theme }}">
+          {{ {'grove': 'Grove', 'tide': 'Tide', 'rosewater': 'Rosewater', 'terra': 'Terra', 'ink': 'Ink'}.get(color_theme, 'Grove') }}
+        </button>
       </div>
       <p id="style-save-status" class="preference-status" role="status" aria-live="polite" hidden></p>
     </div>
@@ -1537,8 +1668,8 @@
     (function () {
       const toggle = document.getElementById('style-toggle');
       const status = document.getElementById('style-save-status');
-      const classicLabel = document.getElementById('style-classic-label');
-      const casualLabel = document.getElementById('style-casual-label');
+      const toneValue = document.getElementById('minto-tone-value');
+      const appearanceValue = document.getElementById('appearance-value');
       if (!toggle) return;
 
       function applyTone(casual) {
@@ -1546,8 +1677,7 @@
         document.documentElement.setAttribute('data-minto-tone', casual ? 'casual' : 'classic');
         toggle.checked = casual;
         toggle.setAttribute('aria-checked', casual ? 'true' : 'false');
-        if (classicLabel) classicLabel.classList.toggle('selected', !casual);
-        if (casualLabel) casualLabel.classList.toggle('selected', casual);
+        if (toneValue) toneValue.textContent = casual ? 'Casual' : 'Classic';
         if (window.mintoApplyGenZCopy) window.mintoApplyGenZCopy();
       }
 
@@ -1602,6 +1732,8 @@
     (function () {
       const options = Array.from(document.querySelectorAll('[data-color-theme-option]'));
       const status = document.getElementById('palette-save-status');
+      const currentThemeButton = document.getElementById('profile-theme-current');
+      const themeNames = { grove: 'Grove', tide: 'Tide', rosewater: 'Rosewater', terra: 'Terra', ink: 'Ink' };
       if (!options.length) return;
 
       options.forEach(function (option) {
@@ -1611,6 +1743,10 @@
           if (selected === previous) return;
 
           document.documentElement.setAttribute('data-color-theme', selected);
+          if (currentThemeButton) {
+            currentThemeButton.textContent = themeNames[selected] || 'Grove';
+            currentThemeButton.setAttribute('data-current-theme', selected);
+          }
           options.forEach(function (item) {
             const active = item === option;
             item.classList.toggle('is-selected', active);
@@ -1629,6 +1765,10 @@
             if (status) status.textContent = 'Saved';
           } catch (error) {
             document.documentElement.setAttribute('data-color-theme', previous);
+            if (currentThemeButton) {
+              currentThemeButton.textContent = themeNames[previous] || 'Grove';
+              currentThemeButton.setAttribute('data-current-theme', previous);
+            }
             options.forEach(function (item) {
               const active = item.getAttribute('data-color-theme-option') === previous;
               item.classList.toggle('is-selected', active);
@@ -1645,13 +1785,11 @@
     (function () {
       const toggle = document.getElementById('theme-toggle');
       const status = document.getElementById('theme-status');
-      const lightChoice = document.querySelector('.theme-choice:first-child');
-      const darkChoice = document.querySelector('.theme-choice:last-child');
+      const appearanceValue = document.getElementById('appearance-value');
       if (!toggle) return;
 
       function updateAppearanceLabels() {
-        if (lightChoice) lightChoice.classList.toggle('selected', !toggle.checked);
-        if (darkChoice) darkChoice.classList.toggle('selected', toggle.checked);
+        if (appearanceValue) appearanceValue.textContent = toggle.checked ? 'Dark' : 'Light';
       }
       updateAppearanceLabels();
 
