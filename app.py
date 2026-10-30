@@ -5691,7 +5691,8 @@ def delete_fixed_expense(fixed_expense_id):
 def add_fixed_income():
     client = get_user_client()
     user_id = session["user_id"]
-    name = request.form.get("name", "").strip()[:60]
+    is_salary = request.form.get("is_salary") == "1"
+    name = "Salary" if is_salary else request.form.get("name", "").strip()[:60]
     amount = parse_money(request.form.get("amount"))
     source_id = request.form.get("source_id") or None
     try:
@@ -5701,19 +5702,27 @@ def add_fixed_income():
 
     valid_destinations = {
         str(r["id"]) for r in client.table("user_sources").select("id")
-        .eq("active", True).in_("source_type", ["savings", "cash"]).execute().data
+        .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data
     }
     if not name or amount is None or not 1 <= due_day <= 31:
         flash("Enter an income name, a valid amount, and a due day from 1 to 31.")
-    elif not source_id or str(source_id) not in valid_destinations:
+    elif source_id and str(source_id) not in valid_destinations:
+        flash("Choose a valid bank or cash account where this income arrives.")
+    elif not is_salary and not source_id:
         flash("Choose the bank or cash account where this income arrives.")
     else:
         try:
+            if is_salary:
+                existing_salary = client.table("fixed_incomes").select("id").eq("user_id", user_id).eq("is_salary", True).eq("active", True).limit(1).execute().data
+                if existing_salary:
+                    flash("You already have a salary entry. Remove it before adding another.")
+                    return redirect(url_for("fixed_expenses"))
             client.table("fixed_incomes").insert({
                 "user_id": user_id, "name": name, "amount": amount,
-                "due_day": due_day, "source_id": int(source_id),
+                "due_day": due_day, "source_id": int(source_id) if source_id else None,
+                "is_salary": is_salary,
             }).execute()
-            flash(f"Added {name} as recurring monthly income.")
+            flash("Added your salary as recurring income." if is_salary else f"Added {name} as recurring monthly income.")
         except Exception:
             app.logger.exception("Could not add fixed income")
             flash("Couldn't add recurring income. Check that the latest database update has been run.")
