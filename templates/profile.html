@@ -1714,6 +1714,9 @@
             });
             if (!response.ok) throw new Error('Palette update failed');
             if (status) status.textContent = 'Saved';
+            // Re-render the entire page with the saved palette so server-rendered
+            // components and any page-specific styles use the same theme.
+            window.location.reload();
           } catch (error) {
             document.documentElement.setAttribute('data-color-theme', previous);
             if (currentThemeButton) {
@@ -1765,6 +1768,10 @@
           });
 
           if (!response.ok) throw new Error('Theme update failed');
+
+          // Reload after the preference is saved so every page component,
+          // stylesheet and server-rendered element uses the same theme.
+          window.location.reload();
         } catch (error) {
           // Revert the switch if the preference could not be saved.
           toggle.checked = !previous;
