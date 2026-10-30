@@ -749,3 +749,17 @@ WITH CHECK (auth.uid() = user_id);
 
 CREATE INDEX IF NOT EXISTS wishlists_user_status_created_idx
 ON public.wishlists (user_id, status, created_at DESC);
+
+
+-- Identify the single recurring salary entry per user.
+ALTER TABLE public.fixed_incomes ADD COLUMN IF NOT EXISTS is_salary boolean NOT NULL DEFAULT false;
+CREATE UNIQUE INDEX IF NOT EXISTS fixed_incomes_one_salary_per_user_idx
+ON public.fixed_incomes (user_id) WHERE is_salary = true;
+
+-- Migrate existing profile-based salary settings into the recurring-income model.
+INSERT INTO public.fixed_incomes (user_id, name, amount, due_day, is_salary, active)
+SELECT p.id, 'Salary', p.monthly_salary, p.salary_day, true, true
+FROM public.profiles p
+WHERE p.monthly_salary IS NOT NULL AND p.monthly_salary > 0
+  AND p.salary_day BETWEEN 1 AND 31
+  AND NOT EXISTS (SELECT 1 FROM public.fixed_incomes fi WHERE fi.user_id = p.id AND fi.is_salary = true);

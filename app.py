@@ -2182,15 +2182,21 @@ def planner():
 
     stage_started = time.perf_counter()
     profile_rows = (
-        client.table("profiles")
-        .select("monthly_salary, salary_day")
-        .eq("id", user_id)
+        client.table("fixed_incomes")
+        .select("amount, due_day")
+        .eq("user_id", user_id)
+        .eq("active", True)
+        .eq("is_salary", True)
         .limit(1)
         .execute()
         .data
     )
-    log_planner_stage("profile_settings_query", stage_started)
-    profile_settings = profile_rows[0] if profile_rows else {}
+    log_planner_stage("salary_recurring_income_query", stage_started)
+    salary_row = profile_rows[0] if profile_rows else {}
+    profile_settings = {
+        "monthly_salary": salary_row.get("amount"),
+        "salary_day": salary_row.get("due_day"),
+    }
     salary_cycle = get_salary_cycle(profile_settings, today)
 
     stage_started = time.perf_counter()
@@ -5691,7 +5697,8 @@ def delete_fixed_expense(fixed_expense_id):
 def add_fixed_income():
     client = get_user_client()
     user_id = session["user_id"]
-    name = request.form.get("name", "").strip()[:60]
+    is_salary = request.form.get("is_salary") == "1"
+    name = "Salary" if is_salary else request.form.get("name", "").strip()[:60]
     amount = parse_money(request.form.get("amount"))
     source_id = request.form.get("source_id") or None
     try:
@@ -5701,19 +5708,27 @@ def add_fixed_income():
 
     valid_destinations = {
         str(r["id"]) for r in client.table("user_sources").select("id")
-        .eq("active", True).in_("source_type", ["savings", "cash"]).execute().data
+        .eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).execute().data
     }
     if not name or amount is None or not 1 <= due_day <= 31:
         flash("Enter an income name, a valid amount, and a due day from 1 to 31.")
-    elif not source_id or str(source_id) not in valid_destinations:
+    elif source_id and str(source_id) not in valid_destinations:
+        flash("Choose a valid bank or cash account where this income arrives.")
+    elif not is_salary and not source_id:
         flash("Choose the bank or cash account where this income arrives.")
     else:
         try:
+            if is_salary:
+                existing_salary = client.table("fixed_incomes").select("id").eq("user_id", user_id).eq("is_salary", True).eq("active", True).limit(1).execute().data
+                if existing_salary:
+                    flash("You already have a salary entry. Remove it before adding another.")
+                    return redirect(url_for("fixed_expenses"))
             client.table("fixed_incomes").insert({
                 "user_id": user_id, "name": name, "amount": amount,
-                "due_day": due_day, "source_id": int(source_id),
+                "due_day": due_day, "source_id": int(source_id) if source_id else None,
+                "is_salary": is_salary,
             }).execute()
-            flash(f"Added {name} as recurring monthly income.")
+            flash("Added your salary as recurring income." if is_salary else f"Added {name} as recurring monthly income.")
         except Exception:
             app.logger.exception("Could not add fixed income")
             flash("Couldn't add recurring income. Check that the latest database update has been run.")
@@ -6209,8 +6224,12 @@ def dashboard():
     log_dashboard_stage("manual_net_worth_items", stage_started)
     stage_started = time.perf_counter()
     try:
-        profile_settings_rows = client.table("profiles").select("monthly_salary, salary_day, reminder_days_before").eq("id", user_id).limit(1).execute().data
+        profile_settings_rows = client.table("profiles").select("reminder_days_before").eq("id", user_id).limit(1).execute().data
         profile_settings = profile_settings_rows[0] if profile_settings_rows else {}
+        salary_rows = client.table("fixed_incomes").select("amount, due_day").eq("user_id", user_id).eq("active", True).eq("is_salary", True).limit(1).execute().data
+        if salary_rows:
+            profile_settings["monthly_salary"] = salary_rows[0].get("amount")
+            profile_settings["salary_day"] = salary_rows[0].get("due_day")
     except Exception:
         profile_settings = {}
     log_dashboard_stage("profile_settings_query", stage_started)
