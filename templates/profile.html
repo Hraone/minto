@@ -1592,24 +1592,7 @@
     </div>
   </dialog>
 
-  <details class="profile-card" style="padding:0;overflow:hidden;">
-    <summary style="padding:22px;cursor:pointer;list-style:none;font-size:15px;font-weight:700;color:var(--text);display:flex;justify-content:space-between;align-items:center;">
-      <span>Default expense account</span><span style="color:var(--muted);font-size:20px;">+</span>
-    </summary>
-    <div style="padding:0 22px 22px;">
-      <p class="profile-email" style="margin:0 0 14px;">Minto will preselect this account when you accept a shared trip expense. Accepting an expense does not change its balance.</p>
-      <form method="post" action="{{ url_for('update_default_expense_account') }}">
-        <label for="default-expense-source">Account</label>
-        <select id="default-expense-source" name="source_id">
-          <option value="">Choose manually each time</option>
-          {% for source in expense_accounts %}
-          <option value="{{ source.id }}" {% if default_expense_source_id == source.id %}selected{% endif %}>{{ source.name }} · {{ source.source_type|replace('_',' ')|title }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="profile-save">Save account</button>
-      </form>
-    </div>
-  </details>
+
 
     <script>
     (function () {
