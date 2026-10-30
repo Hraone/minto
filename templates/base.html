@@ -1793,6 +1793,8 @@
     /* Mobile quick-add: the entry form opens in a focused dialog. */
     .mobile-add-fab,
     .mobile-entry-dialog { display: none; }
+    /* Ensure an open native dialog is visible and does not invisibly block page controls. */
+    .mobile-entry-dialog[open] { display: block; }
 
     .mobile-entry-dialog {
       width: min(680px, calc(100vw - 24px));
