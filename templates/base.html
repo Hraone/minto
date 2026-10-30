@@ -2823,8 +2823,9 @@
         if (url.pathname === location.pathname && url.search === location.search) return;
         bar.classList.remove("run");
         void bar.offsetWidth;
+        // Page navigation uses only the slim progress bar. Keep the blocking
+        // loader and money mini-game for form submissions that are still processing.
         bar.classList.add("run");
-        showLoader(a.getAttribute("data-loader-text") || "Loading...");
       });
 
       // Coming back with the Back button can restore the page mid-load.
