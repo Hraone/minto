@@ -421,11 +421,17 @@
   function scheduleRefresh() { setTimeout(refresh, 1800); }
   form.addEventListener("submit", scheduleRefresh);
 
-  // base.html defines formatMintoDate after this content block. Render the
-  // initial server-provided history on window load so the date helper exists.
-  window.addEventListener("load", function () {
+  // Render server-provided history as soon as the DOM is ready. Waiting for
+  // window "load" also waits for every image/font/resource and makes this
+  // section look empty longer than necessary.
+  function renderInitialHistory() {
     applyHistory({{ history|tojson }}, false);
-  }, { once: true });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", renderInitialHistory, { once: true });
+  } else {
+    renderInitialHistory();
+  }
 })();
 </script>
 {% endblock %}
