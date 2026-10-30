@@ -420,6 +420,21 @@
     <p>Add the banks and cards you use to track your money.</p>
   </div>
 
+  <section class="source-section" style="margin:24px 0;padding:20px;border:1px solid var(--border);border-radius:18px;background:var(--surface);">
+    <h2 style="margin:0 0 6px;font-size:18px;">Default expense account</h2>
+    <p style="margin:0;color:var(--muted);line-height:1.5;">Minto will preselect this account when you accept a shared trip expense. Accepting an expense does not change its balance.</p>
+    <form method="post" action="{{ url_for('update_default_expense_account') }}" style="margin-top:16px;max-width:460px;">
+      <label for="default-expense-source">Account</label>
+      <select id="default-expense-source" name="source_id">
+        <option value="">Choose manually each time</option>
+        {% for source in expense_accounts %}
+        <option value="{{ source.id }}" {% if default_expense_source_id == source.id %}selected{% endif %}>{{ source.name }} · {{ source.source_type|replace('_',' ')|title }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="profile-save" style="margin-top:12px;">Save account</button>
+    </form>
+  </section>
+
   <!-- Add Account -->
   <button type="button" class="add-account-toggle" id="add-account-toggle"
           aria-expanded="false" aria-controls="add-account-card">
