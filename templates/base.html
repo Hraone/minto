@@ -2947,12 +2947,17 @@
 </style>
 <script>
 (function () {
-  var key = "minto-beta-notice-dismissed-v1";
+  var key = "minto-beta-notice-dismissed-this-session-v1";
   var overlay = document.getElementById("minto-beta-notice");
   var button = document.getElementById("minto-beta-continue");
   if (!overlay || !button) return;
+  document.querySelectorAll("form.login-form, form.signup-form").forEach(function (form) {
+    form.addEventListener("submit", function () {
+      try { sessionStorage.removeItem(key); } catch (e) {}
+    });
+  });
   try {
-    if (localStorage.getItem(key) === "1") return;
+    if (sessionStorage.getItem(key) === "1") return;
   } catch (e) {}
   overlay.hidden = false;
   document.body.style.overflow = "hidden";
@@ -2960,7 +2965,7 @@
   function dismiss() {
     overlay.hidden = true;
     document.body.style.overflow = "";
-    try { localStorage.setItem(key, "1"); } catch (e) {}
+    try { sessionStorage.setItem(key, "1"); } catch (e) {}
   }
   button.addEventListener("click", dismiss);
   overlay.addEventListener("click", function (event) {

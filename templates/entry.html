@@ -192,6 +192,12 @@
     .entry-wrapper { padding:8px 0 24px; }
     .entry-card { padding:16px 14px; border-radius:16px; }
     .entry-header { margin-bottom:16px; }
+  .entry-header-with-direction { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .entry-heading-copy { min-width:0; }
+  .entry-header-with-direction .entry-heading-copy p { margin-top:4px; }
+  .entry-header-with-direction .direction-toggle { flex:0 0 auto; margin:0; }
+  .entry-header-with-direction .direction-toggle .chip { min-width:48px; padding:8px 10px; justify-content:center; }
+
     .entry-header h1.page-title { font-size:22px; }
     .entry-header p { margin-top:4px; font-size:12px; }
     .form-section { margin-bottom:15px; }
@@ -212,9 +218,15 @@
   <div class="entry-card">
 
 
-<div class="entry-header">
-  <h1 class="page-title">Add</h1>
-  <p>Record a transaction.</p>
+<div class="entry-header entry-header-with-direction">
+  <div class="entry-heading-copy">
+    <h1 class="page-title">Add</h1>
+    <p>Record a transaction.</p>
+  </div>
+  <div class="chip-group direction-toggle" role="radiogroup" aria-label="Transaction direction">
+    <label class="chip"><input type="radio" name="direction" value="in" required><span>In</span></label>
+    <label class="chip"><input type="radio" name="direction" value="out" checked><span>Out</span></label>
+  </div>
 </div>
 
 
@@ -264,39 +276,6 @@
     >
   </div>
   </div>
-
-  <!-- Direction -->
-
-  <div class="form-section">
-
-    <div class="form-label" id="direction-group-label">Direction</div>
-
-    <div class="chip-group direction-toggle" role="radiogroup" aria-labelledby="direction-group-label">
-
-      <label class="chip">
-        <input
-          type="radio"
-          name="direction"
-          value="in"
-          required
-        >
-        In
-      </label>
-
-      <label class="chip">
-        <input
-          type="radio"
-          name="direction"
-          value="out"
-          checked
-        >
-        Out
-      </label>
-
-    </div>
-
-  </div>
-
 
   <!-- Category -->
 
