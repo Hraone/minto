@@ -6075,7 +6075,8 @@ def sources():
         today=datetime.now(APP_TZ).date().isoformat(),
         expense_accounts=client.table("user_sources").select("id,name,source_type").eq("user_id", user_id).eq("active", True).in_("source_type", ["savings", "cash"]).order("name").execute().data,
         default_expense_source_id=(client.table("profiles").select("default_expense_source_id").eq("id", user_id).limit(1).execute().data or [{}])[0].get("default_expense_source_id"),
-    )    log_sources_stage("template_render", stage_started)
+    )
+    log_sources_stage("template_render", stage_started)
     return response
 
 
