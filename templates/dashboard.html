@@ -322,31 +322,74 @@
     margin-bottom: 14px;
   }
 
+  /* Dashboard time-range selector: five equal, touch-friendly options. */
   .period-tabs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    background: var(--surface-alt);
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 3px;
+    width: 100%;
+    min-width: 0;
     padding: 4px;
-    border-radius: 999px;
+    border: 1px solid var(--hairline);
+    border-radius: 18px;
+    background: var(--surface-alt);
     max-width: 100%;
   }
 
   .period-tab {
-    flex-shrink: 0;
-    padding: 8px 14px;
-    border-radius: 999px;
-    font-size: 13px;
-    font-weight: 650;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px;
+    padding: 8px 3px;
+    border: 1px solid transparent;
+    border-radius: 13px;
     color: var(--muted);
     text-decoration: none;
-    transition: 0.15s ease;
+    text-align: center;
+    white-space: nowrap;
+    font-size: clamp(11px, 2.8vw, 13px);
+    line-height: 1.2;
+    font-weight: 650;
+    -webkit-tap-highlight-color: transparent;
+    transition: background-color .18s ease, color .18s ease, box-shadow .18s ease, transform .18s ease;
+  }
+
+  .period-tab:hover {
+    color: var(--text);
+    background: color-mix(in srgb, var(--surface) 55%, transparent);
+  }
+
+  .period-tab:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+    position: relative;
+    z-index: 1;
   }
 
   .period-tab.active {
     background: var(--surface);
+    border-color: var(--hairline);
     color: var(--text);
-    box-shadow: 0 2px 8px var(--shadow-card);
+    box-shadow: 0 2px 6px var(--shadow-card);
+    font-weight: 750;
+  }
+
+  [data-theme="dark"] .period-tab.active {
+    background: #3a3b40;
+    border-color: rgba(255,255,255,.06);
+    color: #fff;
+  }
+
+  @media (max-width: 420px) {
+    .period-tabs { gap: 2px; padding: 3px; border-radius: 15px; }
+    .period-tab { min-height: 42px; padding-inline: 1px; border-radius: 11px; font-size: 11px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .period-tab { transition: none; }
   }
 
   /* Overall wealth — the actual headline of a finance app, so net worth
