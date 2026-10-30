@@ -66,8 +66,93 @@
 
   .reports-dates > div { min-width: 0; }
 
-  @media (max-width: 420px) {
+  @media (max-width: 600px) {
+    .reports-page {
+      padding: 16px 12px calc(96px + env(safe-area-inset-bottom, 0px));
+    }
+
+    .reports-card {
+      padding: 18px 16px;
+      margin-bottom: 12px;
+      border-radius: 16px;
+    }
+
+    .reports-card h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      line-height: 1.15;
+      letter-spacing: -0.7px;
+    }
+
+    .reports-card h2 { font-size: 18px; }
+
+    .reports-card p {
+      margin-bottom: 14px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .reports-presets {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .reports-preset {
+      min-height: 42px;
+      padding: 9px 8px;
+      border-radius: 10px;
+      font-size: 12px;
+      text-align: center;
+    }
+
+    .reports-dates {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .reports-dates label {
+      margin-bottom: 6px;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .reports-dates input {
+      padding: 11px 9px;
+      border-radius: 10px;
+      font-size: 13px;
+    }
+
+    .reports-download {
+      min-height: 48px;
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 14px;
+    }
+
+    .reports-history li {
+      align-items: flex-start;
+      padding: 14px 0;
+      font-size: 13px;
+    }
+
+    .reports-history li > div {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+
+    .reports-history a {
+      font-size: 12px;
+      white-space: nowrap;
+    }
+  }
+
+  @media (max-width: 360px) {
     .reports-dates { grid-template-columns: 1fr; }
+    .reports-page { padding-right: 8px; padding-left: 8px; }
+    .reports-card { padding-right: 14px; padding-left: 14px; }
   }
 
   .reports-dates label {
