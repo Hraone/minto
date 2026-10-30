@@ -1823,9 +1823,10 @@
     @media (max-width: 600px) {
       .mobile-add-fab {
         position: fixed;
-        left: 16px;
-        /* Keep Add above the bottom navigation so it never covers Home/Planner/More. */
-        bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+        left: auto;
+        right: 16px;
+        /* Keep Add above the bottom navigation; the reminder bell sits above it. */
+        bottom: calc(88px + env(safe-area-inset-bottom, 0px));
         z-index: 25;
         display: inline-flex;
         align-items: center;
@@ -2654,7 +2655,7 @@
     .fixed-reminder-item form button { width:100%; }
     #fixedReminderItems { grid-template-columns:1fr; }
     /* Compact notification bell stays above the fixed bottom navigation. */
-    .fixed-reminder-chip { left:auto; right:16px; bottom:calc(82px + env(safe-area-inset-bottom)); width:48px; height:48px; }
+    .fixed-reminder-chip { left:auto; right:16px; bottom:calc(150px + env(safe-area-inset-bottom)); width:48px; height:48px; }
     /* Reserve space for the bottom navigation and the floating Add control. */
     body { padding-bottom:calc(154px + env(safe-area-inset-bottom)); }
   }
