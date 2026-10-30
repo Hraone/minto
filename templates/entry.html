@@ -39,7 +39,7 @@
 
   .form-section { margin-bottom: 18px; }
   .amount-date-row { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:12px; }
-  .amount-date-row .form-section { min-width:0; }
+  .amount-date-row .form-section { min-width:0; display:flex; flex-direction:column; }
   .amount-date-row input[type="date"] { width:100%; min-width:0; box-sizing:border-box; }
   .direction-toggle { display:inline-grid; grid-template-columns:1fr 1fr; gap:3px; padding:4px; border-radius:13px; background:var(--surface-subtle); border:1px solid var(--surface-subtle-border); }
   .direction-toggle .chip { min-width:64px; justify-content:center; }
@@ -251,10 +251,7 @@
 
   <div class="form-section">
 
-    <label class="form-label" for="transaction_date">
-      Date
-      <span style="font-weight:400; color:var(--muted-2);">(when it actually happened, not necessarily today)</span>
-    </label>
+    <label class="form-label" for="transaction_date">Date</label>
 
     <input
       type="date"
@@ -263,10 +260,8 @@
       class="minto-date-input"
       value="{{ today }}"
       autocomplete="off"
-      aria-describedby="transaction-date-format-note"
       required
     >
-    <p id="transaction-date-format-note" class="form-help" style="margin:6px 0 0;color:var(--muted);font-size:12px;">Choose the date the transaction happened.</p>
   </div>
   </div>
 
