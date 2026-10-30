@@ -37,9 +37,14 @@
     font-size: 14px;
   }
 
-  .form-section {
-    margin-bottom: 25px;
-  }
+  .form-section { margin-bottom: 18px; }
+  .amount-date-row { display:grid; grid-template-columns:minmax(0,1.2fr) minmax(0,1fr); gap:12px; }
+  .amount-date-row .form-section { min-width:0; }
+  .amount-date-row input[type="date"] { width:100%; min-width:0; box-sizing:border-box; }
+  .direction-toggle { display:inline-grid; grid-template-columns:1fr 1fr; gap:3px; padding:4px; border-radius:13px; background:var(--surface-subtle); border:1px solid var(--surface-subtle-border); }
+  .direction-toggle .chip { min-width:64px; justify-content:center; }
+  .category-extra[hidden] { display:none !important; }
+  .generated-note-hint { margin:5px 0 0; color:var(--muted); font-size:12px; }
 
   .form-label {
     display: block;
@@ -183,22 +188,23 @@
     margin-top: 2px;
   }
 
-  @media (max-width: 600px) {
-
-    .entry-wrapper {
-      padding: 10px 0 40px;
-    }
-
-    .entry-card {
-      padding: 26px 20px;
-      border-radius: 20px;
-    }
-
-    .entry-header h1.page-title {
-      font-size: 26px;
-    }
-
+  @media (max-width:600px) {
+    .entry-wrapper { padding:8px 0 24px; }
+    .entry-card { padding:16px 14px; border-radius:16px; }
+    .entry-header { margin-bottom:16px; }
+    .entry-header h1.page-title { font-size:22px; }
+    .entry-header p { margin-top:4px; font-size:12px; }
+    .form-section { margin-bottom:15px; }
+    .form-label { margin-bottom:6px; }
+    .amount-input input { padding:12px 10px 12px 34px; font-size:20px; }
+    .amount-symbol { left:12px; font-size:17px; }
+    .amount-date-row { grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:8px; }
+    .amount-date-row input[type="date"] { min-height:48px; padding:10px 7px; font-size:13px; }
+    .amount-date-row .form-help { display:none; }
+    .expense-block { margin-top:9px; padding:12px; border-radius:13px; }
+    .entry-card .chip { padding:9px 11px; font-size:13px; }
   }
+  @media (max-width:360px) { .amount-date-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:6px; } .amount-date-row input[type="date"] { font-size:12px; } }
 </style>
 
 <div class="entry-wrapper">
@@ -208,14 +214,14 @@
 
 <div class="entry-header">
   <h1 class="page-title">Add</h1>
-  <p>Record income, an expense, an investment, money lent, or a transfer.</p>
+  <p>Record a transaction.</p>
 </div>
 
 
 <form method="post" action="{{ url_for('entry', modal='1') if request.args.get('modal') == '1' else url_for('entry') }}">
 
-  <!-- Amount -->
-
+  <!-- Amount and date sit side by side on phones. -->
+  <div class="amount-date-row">
   <div class="form-section">
 
     <label class="form-label" for="amount">
@@ -260,12 +266,9 @@
       aria-describedby="transaction-date-format-note"
       required
     >
-    <p id="transaction-date-format-note" class="form-help" style="margin:6px 0 0;color:var(--muted);font-size:12px;">
-      This native date picker follows your device's date format. The saved transaction date remains consistent in Minto's records.
-    </p>
-
+    <p id="transaction-date-format-note" class="form-help" style="margin:6px 0 0;color:var(--muted);font-size:12px;">Choose the date the transaction happened.</p>
   </div>
-
+  </div>
 
   <!-- Direction -->
 
@@ -273,7 +276,7 @@
 
     <div class="form-label" id="direction-group-label">Direction</div>
 
-    <div class="chip-group" role="radiogroup" aria-labelledby="direction-group-label">
+    <div class="chip-group direction-toggle" role="radiogroup" aria-labelledby="direction-group-label">
 
       <label class="chip">
         <input
@@ -343,7 +346,7 @@
         Expense category <span style="font-weight:400; color:var(--muted-2);">(required)</span>
       </div>
 
-      <div class="chip-group" id="expense-category-chips" role="radiogroup" aria-labelledby="expense-category-group-label">
+      <div class="chip-group" id="expense-category-chips" class="category-chips" role="radiogroup" aria-labelledby="expense-category-group-label">
 
         {% for ec in expense_categories %}
 
@@ -361,6 +364,7 @@
 
         {% endfor %}
 
+        <button type="button" class="chip category-more" data-category-more="expense" aria-expanded="false" onclick="toggleMoreCategories('expense')">More</button>
         <button type="button" class="chip add-category-chip" onclick="addCategory('expense')">+ Add</button>
 
       </div>
@@ -380,7 +384,7 @@
         Investment category <span style="font-weight:400; color:var(--muted-2);">(required)</span>
       </div>
 
-      <div class="chip-group" id="investment-category-chips" role="radiogroup" aria-labelledby="investment-category-group-label">
+      <div class="chip-group" id="investment-category-chips" class="category-chips" role="radiogroup" aria-labelledby="investment-category-group-label">
 
         {% for ic in investment_categories %}
 
@@ -398,6 +402,7 @@
 
         {% endfor %}
 
+        <button type="button" class="chip category-more" data-category-more="investment" aria-expanded="false" onclick="toggleMoreCategories('investment')">More</button>
         <button type="button" class="chip add-category-chip" onclick="addCategory('investment')">+ Add</button>
 
       </div>
@@ -466,9 +471,8 @@
   </div>
 
 
-  <!-- Source -->
-
-  <div class="form-section">
+  <!-- Source: reveal after the user chooses a category/type. -->
+  <div class="form-section" id="account-section" hidden>
 
     <div class="form-label" id="account-group-label">
       Account <span style="font-weight:400; color:var(--muted-2);">(required)</span>
@@ -562,8 +566,9 @@
       id="notes"
       name="notes"
       class="notes-input"
-      placeholder="e.g. Lunch with team"
+      placeholder="Expense · Food · ₹250 · HDFC Bank"
     >
+    <p class="generated-note-hint">Suggested automatically from your transaction details. You can edit it.</p>
 
   </div>
 
@@ -642,8 +647,79 @@ function toggleSourceType() {
 }
 
 
+function toggleMoreCategories(kind) {
+  const container = document.getElementById(kind + "-category-chips");
+  const button = document.querySelector('[data-category-more="' + kind + '"]');
+  if (!container || !button) return;
+  const expanded = button.getAttribute("aria-expanded") === "true";
+  container.querySelectorAll(".category-extra").forEach(el => { el.hidden = expanded; });
+  button.setAttribute("aria-expanded", String(!expanded));
+  button.textContent = expanded ? "More" : "Show less";
+}
+
+function setupCompactCategories(kind) {
+  const container = document.getElementById(kind + "-category-chips");
+  const more = document.querySelector('[data-category-more="' + kind + '"]');
+  if (!container || !more) return;
+  const labels = Array.from(container.querySelectorAll("label.chip"));
+  labels.forEach((label, index) => {
+    label.classList.toggle("category-extra", index >= 4);
+    if (index >= 4) label.hidden = true;
+  });
+  more.hidden = labels.length <= 4;
+}
+
+function updateAccountVisibility() {
+  const type = document.querySelector('input[name="category"]:checked')?.value;
+  const selectedSubcategory = document.querySelector('input[name="expense_category"]:checked, input[name="investment_category"]:checked');
+  const needsSubcategory = type === "expense" || type === "investment";
+  const section = document.getElementById("account-section");
+  if (section) section.hidden = !type || (needsSubcategory && !selectedSubcategory);
+}
+
+let notesManuallyEdited = false;
+function updateSuggestedNote() {
+  const notes = document.getElementById("notes");
+  if (!notes || notesManuallyEdited) return;
+  const type = document.querySelector('input[name="category"]:checked')?.value || "expense";
+  const typeLabel = type === "lending" ? "Lent" : type.charAt(0).toUpperCase() + type.slice(1);
+  const sub = type === "expense"
+    ? document.querySelector('input[name="expense_category"]:checked')?.value
+    : type === "investment"
+      ? document.querySelector('input[name="investment_category"]:checked')?.value
+      : null;
+  const amount = document.getElementById("amount")?.value;
+  const source = document.querySelector('input[name="source_id"]:checked');
+  const sourceLabel = source ? source.closest("label")?.textContent.trim() : "";
+  const parts = [typeLabel];
+  if (sub) parts.push(sub.replace(/_/g, " ").replace(/\b\w/g, ch => ch.toUpperCase()));
+  if (amount && Number(amount) > 0) parts.push("₹" + Number(amount).toLocaleString("en-IN", { maximumFractionDigits: 2 }));
+  if (sourceLabel) parts.push(sourceLabel);
+  const suggestion = parts.join(" · ");
+  if (!notes.value || notes.dataset.generated === "true") {
+    notes.value = suggestion;
+    notes.dataset.generated = "true";
+  }
+}
+
+function setupCompactEntryForm() {
+  setupCompactCategories("expense");
+  setupCompactCategories("investment");
+  const notes = document.getElementById("notes");
+  if (notes) notes.addEventListener("input", function () {
+    notesManuallyEdited = true;
+    notes.dataset.generated = "false";
+  });
+  document.querySelectorAll('input[name="category"], input[name="direction"], input[name="expense_category"], input[name="investment_category"], input[name="source_id"], #amount')
+    .forEach(input => input.addEventListener("change", () => { updateAccountVisibility(); updateSuggestedNote(); }));
+  document.getElementById("amount")?.addEventListener("input", updateSuggestedNote);
+  updateAccountVisibility();
+  updateSuggestedNote();
+}
+
 document.addEventListener("DOMContentLoaded", toggleSubCategory);
 document.addEventListener("DOMContentLoaded", toggleSourceType);
+document.addEventListener("DOMContentLoaded", setupCompactEntryForm);
 document.addEventListener("DOMContentLoaded", function () {
   document.querySelectorAll("[data-person-name][data-person-amount]").forEach(function (button) {
     button.addEventListener("click", function () {
