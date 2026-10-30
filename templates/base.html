@@ -645,9 +645,18 @@
     }
 
     .mode-option.active {
-      background: var(--surface);
-      color: var(--text);
+      background: var(--primary);
+      color: var(--primary-contrast);
       box-shadow: 0 2px 8px var(--shadow-card);
+    }
+
+    [data-color-theme] .mode-option.active {
+      background: var(--primary);
+      color: var(--primary-contrast);
+    }
+
+    .mode-option:not(.active):hover {
+      color: var(--text);
     }
 
     .theme-toggle {
