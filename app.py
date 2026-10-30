@@ -40,7 +40,7 @@ from login_performance import load_login_profile_state
 load_dotenv()
 
 app = Flask(__name__)
-MINTO_VERSION = "2.0.0"
+MINTO_VERSION = "2.0.1"
 app.secret_key = os.environ["SECRET_KEY"]
 
 
@@ -6434,6 +6434,16 @@ def favicon():
 @app.route("/health")
 def health():
     return "OK"
+
+
+@app.route("/version")
+def version():
+    """Expose non-sensitive release metadata for deployment verification."""
+    return jsonify({
+        "version": MINTO_VERSION,
+        "commit": os.environ.get("RAILWAY_GIT_COMMIT_SHA", os.environ.get("GIT_COMMIT_SHA", "unknown")),
+        "pull_request": os.environ.get("MINTO_RELEASE_PR_NUMBER") or None,
+    })
 
 
 from admin_panel import register_admin_routes
