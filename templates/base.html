@@ -1590,6 +1590,70 @@
       animation: minto-spin 0.8s linear infinite;
     }
 
+    .minto-loader-card {
+      width: min(340px, calc(100vw - 40px));
+      text-align: center;
+    }
+
+    .minto-slow-message {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .minto-money-game {
+      display: none;
+      width: 100%;
+      margin-top: 4px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--surface-subtle);
+    }
+
+    .minto-money-game.show { display: block; }
+    .minto-money-game-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .minto-money-score { font-weight: 800; color: var(--theme-accent, var(--positive)); }
+    .minto-coin-field {
+      position: relative;
+      min-height: 90px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: var(--surface);
+      border: 1px dashed var(--border-strong);
+    }
+    .minto-coin {
+      position: absolute;
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--theme-border, var(--border));
+      border-radius: 50%;
+      background: var(--theme-accent-soft, var(--surface-alt));
+      color: var(--theme-accent, var(--positive));
+      font-size: 19px;
+      font-weight: 800;
+      cursor: pointer;
+      touch-action: manipulation;
+      animation: minto-coin-bob 1.5s ease-in-out infinite alternate;
+    }
+    .minto-coin:focus-visible { outline: 2px solid var(--theme-accent, var(--positive)); outline-offset: 2px; }
+    @keyframes minto-coin-bob { from { transform: translateY(0); } to { transform: translateY(-5px); } }
+    @media (prefers-reduced-motion: reduce) {
+      .minto-coin { animation: none; }
+    }
+
     /* Keep Minto's single global page-loading progress bar. Hide duplicate browser/library bars. */
     #nprogress, #nprogress .bar, .pace, .pace .pace-progress,
     .turbo-progress-bar, progress.page-progress, .loading-progress-bar {
@@ -2185,8 +2249,19 @@
   <div class="minto-progress" id="minto-progress"></div>
   <div class="minto-loader" id="minto-loader" role="status" aria-live="polite">
     <div class="minto-loader-card">
-      <div class="minto-spinner"></div>
+      <div class="minto-spinner" id="minto-spinner"></div>
       <span id="minto-loader-text">Saving...</span>
+      <p class="minto-slow-message" id="minto-slow-message">Just a moment while Minto gets things ready.</p>
+      <section class="minto-money-game" id="minto-money-game" aria-label="Quick money game">
+        <div class="minto-money-game-head">
+          <span>Waiting? Catch the coins</span>
+          <span class="minto-money-score">Collected: <span id="minto-money-score">₹0</span></span>
+        </div>
+        <div class="minto-coin-field" id="minto-coin-field">
+          <button class="minto-coin" type="button" aria-label="Collect ₹10">₹</button>
+        </div>
+        <p class="minto-slow-message">Tap a coin to collect it. Just for fun, not real money.</p>
+      </section>
     </div>
   </div>
 
@@ -2647,22 +2722,79 @@
     (function () {
       var loader = document.getElementById("minto-loader");
       var loaderText = document.getElementById("minto-loader-text");
+      var slowMessage = document.getElementById("minto-slow-message");
+      var game = document.getElementById("minto-money-game");
+      var coinField = document.getElementById("minto-coin-field");
+      var scoreNode = document.getElementById("minto-money-score");
       var bar = document.getElementById("minto-progress");
       var timer = null;
+      var slowTimer = null;
+      var messageTimer = null;
+      var score = 0;
+      var messages = [
+        "Good things take a moment. Thanks for your patience.",
+        "Your money deserves a little time to get in order.",
+        "Still working on it. Your entries are worth the wait.",
+        "Slow connection? Take a breath. Minto is catching up."
+      ];
+      var messageIndex = 0;
+      var gameStarted = false;
+
+      function placeCoin() {
+        if (!coinField) return;
+        var coin = coinField.querySelector(".minto-coin");
+        if (!coin) return;
+        var maxX = Math.max(0, coinField.clientWidth - 42);
+        var maxY = Math.max(0, coinField.clientHeight - 42);
+        coin.style.left = Math.floor(Math.random() * (maxX + 1)) + "px";
+        coin.style.top = Math.floor(Math.random() * (maxY + 1)) + "px";
+      }
+
+      function startSlowExperience() {
+        if (slowMessage) slowMessage.textContent = messages[0];
+        if (game && !gameStarted) {
+          game.classList.add("show");
+          gameStarted = true;
+          placeCoin();
+        }
+        if (messageTimer) clearInterval(messageTimer);
+        messageTimer = setInterval(function () {
+          messageIndex = (messageIndex + 1) % messages.length;
+          if (slowMessage) slowMessage.textContent = messages[messageIndex];
+        }, 4500);
+      }
+
+      if (coinField) {
+        coinField.addEventListener("click", function (e) {
+          var coin = e.target.closest(".minto-coin");
+          if (!coin) return;
+          score += 10;
+          if (scoreNode) scoreNode.textContent = "₹" + score;
+          placeCoin();
+        });
+        placeCoin();
+      }
 
       function showLoader(text) {
         if (timer) return;
-        // Small delay so very fast responses don't flash the spinner.
+        loaderText.textContent = text;
+        // Keep fast requests clean; show the overlay only if the request takes a moment.
         timer = setTimeout(function () {
-          loaderText.textContent = text;
           loader.classList.add("show");
-        }, 120);
+        }, 350);
+        slowTimer = setTimeout(startSlowExperience, 2500);
       }
 
       function hideAll() {
         if (timer) { clearTimeout(timer); timer = null; }
+        if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; }
+        if (messageTimer) { clearInterval(messageTimer); messageTimer = null; }
         loader.classList.remove("show");
-        bar.classList.remove("run");
+        if (game) game.classList.remove("show");
+        if (bar) bar.classList.remove("run");
+        gameStarted = false;
+        score = 0;
+        if (scoreNode) scoreNode.textContent = "₹0";
       }
 
       document.addEventListener("submit", function (e) {
