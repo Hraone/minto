@@ -67,15 +67,29 @@
     }
 
     .profile-page .profile-identity-main {
-      align-items: flex-start;
+      grid-template-columns: 52px minmax(0, 1fr);
+      align-items: start;
       gap: 12px;
     }
 
+    .profile-page .profile-edit-profile-action {
+      grid-column: 2;
+      justify-self: start;
+      margin-top: 2px;
+    }
+
     .profile-page .profile-avatar-button {
+      grid-column: 1;
+      grid-row: 1;
       flex: 0 0 52px;
       width: 52px;
       min-width: 52px;
       height: 52px;
+    }
+
+    .profile-page .profile-identity-copy {
+      grid-column: 2;
+      grid-row: 1;
     }
 
     .profile-page .profile-identity-copy {
@@ -230,13 +244,19 @@
   }
 
   .profile-identity-main {
-    display: flex;
-    align-items: center;
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr) auto;
+    align-items: start;
     gap: 16px;
     min-width: 0;
   }
 
   .profile-identity-copy { min-width: 0; }
+  .profile-edit-profile-action {
+    align-self: start;
+    justify-self: end;
+    white-space: nowrap;
+  }
   .profile-identity-name-row { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
   .profile-identity-meta {
     display: grid;
@@ -1199,8 +1219,8 @@
             </span>
           </div>
           <p class="profile-email">{{ email }}</p>
-          <button type="button" class="section-action" data-open-profile-modal="edit-profile-modal">Edit profile</button>
         </div>
+        <button type="button" class="section-action profile-edit-profile-action" data-open-profile-modal="edit-profile-modal">Edit profile</button>
       </div>
       <aside class="profile-identity-meta" aria-label="Account details">
         <span class="profile-meta-label">Member since</span>
