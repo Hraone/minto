@@ -1794,6 +1794,11 @@
     .mobile-add-fab,
     .mobile-entry-dialog { display: none; }
 
+    /* A closed dialog stays hidden, but an open native dialog must override the
+       shared display:none rule above. Otherwise its invisible top layer can
+       block every other control on the page. */
+    .mobile-entry-dialog[open] { display: block; }
+
     .mobile-entry-dialog {
       width: min(680px, calc(100vw - 24px));
       max-width: calc(100vw - 24px);
