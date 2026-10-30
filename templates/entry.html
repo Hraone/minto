@@ -212,7 +212,7 @@
 </div>
 
 
-<form method="post">
+<form method="post" action="{{ url_for('entry', modal='1') if request.args.get('modal') == '1' else url_for('entry') }}">
 
   <!-- Amount -->
 
