@@ -1859,7 +1859,34 @@
 
 </head>
 
-<body class="{% if session.get('user_id') and app_mode != 'trip' %}has-avatar{% endif %}">
+<body class="{% if session.get('user_id') and app_mode != 'trip' %}has-avatar{% endif %}{% if request.args.get('modal') == '1' %} entry-modal-mode{% endif %}">
+
+  {% if request.args.get('modal') == '1' %}
+  <style>
+    /* The iframe is a form surface, not a second copy of the Minto app. */
+    body.entry-modal-mode { padding: 0 !important; overflow-x: hidden; }
+    body.entry-modal-mode .navbar,
+    body.entry-modal-mode .site-footer,
+    body.entry-modal-mode .tab-bar,
+    body.entry-modal-mode .mobile-add-fab,
+    body.entry-modal-mode .mobile-entry-dialog,
+    body.entry-modal-mode .fixed-reminder-overlay,
+    body.entry-modal-mode .fixed-reminder-chip,
+    body.entry-modal-mode .mode-veil,
+    body.entry-modal-mode .minto-progress,
+    body.entry-modal-mode .minto-loader { display: none !important; }
+    body.entry-modal-mode .app-container,
+    body.entry-modal-mode .page-content { width: 100%; max-width: none; margin: 0; padding: 0; }
+    body.entry-modal-mode .entry-wrapper { padding: 12px 0 20px; }
+    body.entry-modal-mode .entry-card { border: 0; border-radius: 0; box-shadow: none; padding: 20px; }
+    body.entry-modal-mode .entry-header { margin-bottom: 18px; }
+    body.entry-modal-mode .entry-header h1.page-title { font-size: 22px; }
+    @media (max-width: 480px) {
+      body.entry-modal-mode .entry-card { padding: 16px; }
+      body.entry-modal-mode .form-section { margin-bottom: 18px; }
+    }
+  </style>
+  {% endif %}
 
   <div class="app-container">
 
@@ -2694,8 +2721,12 @@
 
   frame.addEventListener('load', function () {
     try {
-      const path = frame.contentWindow.location.pathname;
-      if (dialog.open && path !== new URL("{{ url_for('entry') }}", window.location.origin).pathname) {
+      const current = new URL(frame.contentWindow.location.href);
+      const entryPath = new URL("{{ url_for('entry') }}", window.location.origin).pathname;
+      if (dialog.open && current.searchParams.get('saved') === '1') {
+        dialog.close();
+        window.location.reload();
+      } else if (dialog.open && current.pathname !== entryPath) {
         dialog.close();
         window.location.reload();
       }
