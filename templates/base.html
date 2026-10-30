@@ -1822,7 +1822,15 @@
       box-shadow: 0 24px 80px rgba(0,0,0,.28);
     }
     .mobile-entry-dialog[open] { display: flex; }
-    .mobile-entry-dialog::backdrop { background: rgba(10, 14, 12, .34); }
+    /* Frost the app behind the open quick-add dialog while keeping it recognizable. */
+    .mobile-entry-dialog::backdrop {
+      background: rgba(8, 12, 15, .48);
+      -webkit-backdrop-filter: blur(9px) saturate(125%);
+      backdrop-filter: blur(9px) saturate(125%);
+    }
+    @supports not (backdrop-filter: blur(1px)) {
+      .mobile-entry-dialog::backdrop { background: rgba(8, 12, 15, .68); }
+    }
     .mobile-entry-dialog-header {
       display:flex;
       flex:0 0 auto;
