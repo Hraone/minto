@@ -1824,7 +1824,8 @@
       .mobile-add-fab {
         position: fixed;
         left: 16px;
-        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        /* Keep Add above the bottom navigation so it never covers Home/Planner/More. */
+        bottom: calc(104px + env(safe-area-inset-bottom, 0px));
         z-index: 25;
         display: inline-flex;
         align-items: center;
@@ -2640,7 +2641,8 @@
     #fixedReminderItems { grid-template-columns:1fr; }
     /* Compact notification bell stays above the fixed bottom navigation. */
     .fixed-reminder-chip { left:auto; right:16px; bottom:calc(82px + env(safe-area-inset-bottom)); width:48px; height:48px; }
-    body { padding-bottom:calc(90px + env(safe-area-inset-bottom)); }
+    /* Reserve space for the bottom navigation and the floating Add control. */
+    body { padding-bottom:calc(154px + env(safe-area-inset-bottom)); }
   }
 </style>
 <div class="fixed-reminder-overlay" id="fixedReminderOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="fixedReminderTitle">
