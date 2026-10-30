@@ -2979,7 +2979,7 @@ def entry():
                 problem = "Pick one of your accounts."
         if problem:
             flash(problem)
-            return redirect(url_for("entry"))
+            return redirect(url_for("entry", **({"modal": "1"} if request.args.get("modal") == "1" else {})))
 
         transaction_row = {
             "direction": direction,
@@ -3004,6 +3004,8 @@ def entry():
             flash("Couldn't save that entry. Please try again.")
             return redirect(url_for("entry"))
 
+        if request.args.get("modal") == "1":
+            return redirect(url_for("entry", modal="1", saved="1"))
         flash("Saved.")
         return redirect(url_for("entry"))
 
