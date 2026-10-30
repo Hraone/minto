@@ -1823,9 +1823,10 @@
     @media (max-width: 600px) {
       .mobile-add-fab {
         position: fixed;
-        left: 16px;
-        /* Keep Add above the bottom navigation so it never covers Home/Planner/More. */
-        bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+        left: auto;
+        right: 16px;
+        /* Keep Add above the bottom navigation; the reminder bell sits above it. */
+        bottom: calc(88px + env(safe-area-inset-bottom, 0px));
         z-index: 25;
         display: inline-flex;
         align-items: center;
@@ -2120,23 +2121,40 @@
       Home
     </a>
 
-    <a class="tab-link {{ 'active' if request.endpoint == 'planner' else '' }}" href="{{ url_for('planner') }}">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="17" rx="2"></rect>
-        <line x1="16" y1="2" x2="16" y2="6"></line>
-        <line x1="8" y1="2" x2="8" y2="6"></line>
-        <line x1="3" y1="10" x2="21" y2="10"></line>
+    <a class="tab-link {{ 'active' if request.endpoint == 'dashboard' and request.args.get('view') == 'transactions' else '' }}" href="{{ url_for('dashboard', view='transactions') }}#recent-transactions">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 6h16M4 12h16M4 18h10"></path><circle cx="19" cy="18" r="2"></circle>
       </svg>
-      Planner
+      Transactions
+    </a>
+
+    <a class="tab-link {{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <rect x="2.5" y="5" width="19" height="14" rx="2.5"></rect><path d="M2.5 10h19M6 15h4"></path>
+      </svg>
+      Accounts
+    </a>
+
+    <a class="tab-link {{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M4 19V5M4 19h17"></path><rect x="7" y="11" width="3" height="5" rx="1"></rect><rect x="13" y="7" width="3" height="9" rx="1"></rect><rect x="19" y="3" width="2" height="13" rx="1"></rect>
+      </svg>
+      Reports
     </a>
 
     <div class="tab-menu" id="moreMenu">
       <div class="tab-sheet more-sheet" id="moreSheet" role="menu" hidden>
         <div class="more-group">
-          <div class="more-group-label">Money setup</div>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">
-            <span>Accounts</span><small>Cards, cash &amp; bank</small>
+          <div class="more-group-label">Planning</div>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'planner' else '' }}" href="{{ url_for('planner') }}">
+            <span>Planner</span><small>Plan upcoming expenses</small>
           </a>
+        </div>
+
+        <div class="more-divider"></div>
+
+        <div class="more-group">
+          <div class="more-group-label">Money setup</div>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">
             <span>Fixed Expenses</span><small>Recurring commitments</small>
           </a>
@@ -2164,9 +2182,6 @@
 
         <div class="more-group">
           <div class="more-group-label">Insights</div>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'reports' else '' }}" href="{{ url_for('reports') }}">
-            <span>Reports</span><small>Download &amp; view reports</small>
-          </a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'net_worth' else '' }}" href="{{ url_for('net_worth') }}">
             <span>Net Worth</span><small>Protected wealth view</small>
           </a>
@@ -2185,7 +2200,7 @@
       <a
         href="{{ url_for('dashboard') }}"
         role="button"
-        class="tab-link {{ 'active' if request.endpoint in ['sources', 'fixed_expenses', 'budgets', 'pay_cc_bill', 'withdraw_cash', 'bank_transfer', 'reports', 'info'] else '' }}"
+        class="tab-link {{ 'active' if request.endpoint in ['planner', 'fixed_expenses', 'budgets', 'pay_cc_bill', 'withdraw_cash', 'bank_transfer', 'net_worth', 'friends', 'info'] else '' }}"
         aria-haspopup="true"
         aria-expanded="false"
         aria-controls="moreSheet"
@@ -2640,7 +2655,7 @@
     .fixed-reminder-item form button { width:100%; }
     #fixedReminderItems { grid-template-columns:1fr; }
     /* Compact notification bell stays above the fixed bottom navigation. */
-    .fixed-reminder-chip { left:auto; right:16px; bottom:calc(82px + env(safe-area-inset-bottom)); width:48px; height:48px; }
+    .fixed-reminder-chip { left:auto; right:16px; bottom:calc(150px + env(safe-area-inset-bottom)); width:48px; height:48px; }
     /* Reserve space for the bottom navigation and the floating Add control. */
     body { padding-bottom:calc(154px + env(safe-area-inset-bottom)); }
   }
