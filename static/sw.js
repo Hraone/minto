@@ -1,10 +1,18 @@
 // Minto service worker.
-// Caches static files only (icons, logos). It never touches pages, forms,
-// login or logout, so what you see always comes from the server and
-// your login state can never be out of sync.
-const CACHE = "minto-static-v2";
+// Static assets are cached for fast loading, and navigations get a branded
+// offline fallback when the network is unavailable. Authenticated pages are
+// never cached or served from cache.
+const CACHE = "minto-static-v3";
+const OFFLINE_URL = "/static/offline.html";
 
-self.addEventListener("install", () => self.skipWaiting());
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    caches.open(CACHE)
+      .then((cache) => cache.add(OFFLINE_URL))
+      .catch(() => {})
+      .then(() => self.skipWaiting())
+  );
+});
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
@@ -17,15 +25,29 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
-
   const url = new URL(req.url);
-  const isStaticFile =
-    url.origin === self.location.origin &&
-    url.pathname.startsWith("/static/") &&
+  if (url.origin !== self.location.origin) return;
+
+  // Only use the offline screen for full page navigations. Never intercept
+  // API calls, form submissions, or authentication requests.
+  if (req.mode === "navigate") {
+    event.respondWith(
+      fetch(req).catch(async () => {
+        const cache = await caches.open(CACHE);
+        const offline = await cache.match(OFFLINE_URL);
+        if (offline) return offline;
+        return new Response("You are offline. Please reconnect and try again.", {
+          status: 503,
+          headers: { "Content-Type": "text/plain; charset=utf-8" }
+        });
+      })
+    );
+    return;
+  }
+
+  const isStaticFile = url.pathname.startsWith("/static/") &&
     !url.pathname.endsWith("sw.js") &&
     !url.pathname.endsWith("manifest.json");
-
-  // Everything else (pages, login, logout, forms) goes straight to the network.
   if (!isStaticFile) return;
 
   event.respondWith(
@@ -34,7 +56,7 @@ self.addEventListener("fetch", (event) => {
       return fetch(req).then((res) => {
         if (res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
+          caches.open(CACHE).then((cache) => cache.put(req, copy));
         }
         return res;
       });

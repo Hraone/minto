@@ -27,6 +27,11 @@
     document.documentElement.setAttribute("data-theme", {{ user_theme|tojson }});
     document.documentElement.setAttribute("data-color-theme", {{ color_theme|default("grove")|tojson }});
     document.documentElement.setAttribute("data-minto-tone", {{ ('casual' if genz_mode else 'classic')|tojson }});
+    // Keep the latest appearance available to the offline fallback page.
+    try {
+      localStorage.setItem("minto-user-theme", {{ user_theme|tojson }});
+      localStorage.setItem("minto-color-theme", {{ color_theme|default("grove")|tojson }});
+    } catch (e) {}
   </script>
 
   <title>{% block title %}Minto{% endblock %}</title>
