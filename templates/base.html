@@ -1797,10 +1797,16 @@
     .mobile-entry-dialog[open] { display: block; }
 
     .mobile-entry-dialog {
+      position: fixed;
+      inset: calc(72px + env(safe-area-inset-top, 0px)) auto 24px 50%;
+      transform: translateX(-50%);
+      display: none;
+      flex-direction: column;
       width: min(680px, calc(100vw - 24px));
       max-width: calc(100vw - 24px);
-      height: min(90dvh, 820px);
-      max-height: calc(100dvh - 24px);
+      height: auto;
+      max-height: none;
+      margin: 0;
       padding: 0;
       overflow: hidden;
       border: 1px solid var(--border);
@@ -1809,8 +1815,38 @@
       color: var(--text);
       box-shadow: 0 24px 80px rgba(0,0,0,.28);
     }
-    .mobile-entry-dialog::backdrop { background: rgba(10, 14, 12, .56); }
-    .mobile-entry-dialog iframe { display:block; width:100%; height:100%; border:0; background:var(--background); }
+    .mobile-entry-dialog[open] { display: flex; }
+    .mobile-entry-dialog::backdrop { background: rgba(10, 14, 12, .34); }
+    .mobile-entry-dialog-header {
+      display:flex;
+      flex:0 0 auto;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      min-height:52px;
+      padding:8px 12px 8px 16px;
+      border-bottom:1px solid var(--border);
+      background:var(--surface);
+    }
+    .mobile-entry-dialog-title { margin:0; font-size:15px; font-weight:700; color:var(--text); }
+    .mobile-entry-dialog-close {
+      display:inline-flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 40px;
+      width:40px;
+      height:40px;
+      border:1px solid var(--border);
+      border-radius:12px;
+      background:var(--surface);
+      color:var(--text);
+      font-size:25px;
+      line-height:1;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    }
+    .mobile-entry-dialog-close:focus-visible { outline:2px solid var(--theme-accent, var(--positive)); outline-offset:2px; }
+    .mobile-entry-dialog iframe { display:block; flex:1 1 auto; min-height:0; width:100%; height:auto; border:0; background:var(--background); }
     .modal-entry-page .navbar,
     .modal-entry-page .tab-bar,
     .modal-entry-page .fixed-reminder-chip,
@@ -1850,7 +1886,13 @@
       }
       .mobile-add-fab svg { width:21px; height:21px; flex:none; }
       .mobile-add-fab:active { transform:scale(.97); }
-      .mobile-entry-dialog { width:calc(100vw - 16px); max-width:calc(100vw - 16px); height:calc(100dvh - 24px); max-height:calc(100dvh - 24px); border-radius:16px; }
+      .mobile-entry-dialog {
+        inset:calc(64px + env(safe-area-inset-top, 0px)) 8px calc(80px + env(safe-area-inset-bottom, 0px));
+        transform:none;
+        width:auto;
+        max-width:none;
+        border-radius:16px;
+      }
     }
 
 </style>
@@ -2116,6 +2158,10 @@
     <span>Add</span>
   </button>
   <dialog class="mobile-entry-dialog" id="mobileEntryDialog" aria-label="Add a transaction">
+    <div class="mobile-entry-dialog-header">
+      <p class="mobile-entry-dialog-title">Add transaction</p>
+      <button class="mobile-entry-dialog-close" id="mobileEntryClose" type="button" aria-label="Close Add Transaction" title="Close">×</button>
+    </div>
     <iframe id="mobileEntryFrame" title="Add a transaction form" loading="eager" src="{{ url_for('entry') }}?modal=1"></iframe>
   </dialog>
   {% endif %}
@@ -2707,11 +2753,16 @@
   const button = document.getElementById('mobileAddFab');
   const dialog = document.getElementById('mobileEntryDialog');
   const frame = document.getElementById('mobileEntryFrame');
-  if (!button || !dialog || !frame) return;
+  const closeButton = document.getElementById('mobileEntryClose');
+  if (!button || !dialog || !frame || !closeButton) return;
 
   button.addEventListener('click', function () {
     if (!frame.getAttribute('src')) frame.src = "{{ url_for('entry') }}?modal=1";
     if (!dialog.open) dialog.showModal();
+  });
+
+  closeButton.addEventListener('click', function () {
+    if (dialog.open) dialog.close();
   });
 
   dialog.addEventListener('close', function () {
