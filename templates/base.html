@@ -300,6 +300,24 @@
       background: var(--primary-hover);
       color: var(--primary-contrast);
     }
+
+    /* Keep the Personal/Trip switch aligned with the selected colour palette. */
+    [data-color-theme] .mode-toggle {
+      background: var(--surface-alt);
+      border: 1px solid var(--theme-border);
+    }
+    [data-color-theme] .mode-option {
+      color: var(--text-secondary);
+    }
+    [data-color-theme] .mode-option:hover {
+      color: var(--theme-accent);
+      background: var(--theme-accent-soft);
+    }
+    [data-color-theme] .mode-option.active {
+      background: var(--theme-accent);
+      color: var(--primary-contrast);
+      box-shadow: 0 2px 8px var(--shadow-card);
+    }
     [data-color-theme] input:focus,
     [data-color-theme] select:focus,
     [data-color-theme] textarea:focus {
