@@ -315,7 +315,7 @@
     <div class="fx-row">
       <div>
         <p class="fx-name">{{ x.name }}</p>
-        <p class="fx-meta">Income · due {{ x.due_date|nice_date }}{% if x.user_sources %} · arrives in {{ x.user_sources.name }}{% endif %}</p>
+        <p class="fx-meta">{% if x.is_salary %}Salary{% else %}Recurring income{% endif %} · due {{ x.due_date|nice_date }}{% if x.user_sources %} · arrives in {{ x.user_sources.name }}{% endif %}</p>
         {% if x.paid %}
         <span class="fx-status paid">Received this month</span>
         {% elif x.due_date < today %}
@@ -361,7 +361,8 @@
       <div class="fx-grid">
         <div class="wide">
           <label for="fi-name">Name</label>
-          <input type="text" id="fi-name" name="name" maxlength="60" placeholder="e.g. Salary" required>
+          <input type="text" id="fi-name" name="name" maxlength="60" placeholder="e.g. Rent received" required>
+          <label style="display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--text);"><input type="checkbox" name="is_salary" value="1" style="width:auto;"> This is my monthly salary (only one per user)</label>
         </div>
         <div>
           <label for="fi-amount">Amount</label>
