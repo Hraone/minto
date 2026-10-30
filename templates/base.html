@@ -2925,6 +2925,53 @@
 </script>
 {% endif %}
 
+
+<!-- First-launch beta notice -->
+<div id="minto-beta-notice" class="minto-beta-overlay" hidden>
+  <section class="minto-beta-dialog" role="dialog" aria-modal="true" aria-labelledby="minto-beta-title" aria-describedby="minto-beta-description">
+    <div class="minto-beta-label">EARLY ACCESS</div>
+    <h2 id="minto-beta-title">Minto is in beta</h2>
+    <p id="minto-beta-description">Minto is still being improved. You may encounter bugs or unfinished features. Please double-check important financial entries and report anything that doesn’t look right.</p>
+    <button type="button" id="minto-beta-continue">Got it, continue</button>
+  </section>
+</div>
+<style>
+  .minto-beta-overlay[hidden] { display: none !important; }
+  .minto-beta-overlay { position: fixed; inset: 0; z-index: 10050; display: grid; place-items: center; padding: 22px; background: rgba(5, 8, 12, .72); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .minto-beta-dialog { width: min(100%, 420px); padding: 26px; border: 1px solid var(--border, #3a3e46); border-radius: 22px; background: var(--surface, #1e2126); color: var(--text, #f5f5f6); box-shadow: 0 24px 80px rgba(0,0,0,.32); }
+  .minto-beta-label { display: inline-flex; padding: 6px 9px; border-radius: 7px; background: var(--surface-2, #292d34); color: var(--muted, #a6a8ae); font-size: 11px; font-weight: 800; letter-spacing: .09em; }
+  .minto-beta-dialog h2 { margin: 16px 0 9px; font-size: 25px; line-height: 1.2; }
+  .minto-beta-dialog p { margin: 0 0 22px; color: var(--muted, #a6a8ae); font-size: 15px; line-height: 1.6; }
+  .minto-beta-dialog button { width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: var(--accent, #b8becb); color: #17191d; font: inherit; font-weight: 750; cursor: pointer; }
+  @media (prefers-reduced-motion: no-preference) { .minto-beta-dialog { animation: minto-beta-enter .18s ease-out; } @keyframes minto-beta-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } } }
+</style>
+<script>
+(function () {
+  var key = "minto-beta-notice-dismissed-v1";
+  var overlay = document.getElementById("minto-beta-notice");
+  var button = document.getElementById("minto-beta-continue");
+  if (!overlay || !button) return;
+  try {
+    if (localStorage.getItem(key) === "1") return;
+  } catch (e) {}
+  overlay.hidden = false;
+  document.body.style.overflow = "hidden";
+  button.focus();
+  function dismiss() {
+    overlay.hidden = true;
+    document.body.style.overflow = "";
+    try { localStorage.setItem(key, "1"); } catch (e) {}
+  }
+  button.addEventListener("click", dismiss);
+  overlay.addEventListener("click", function (event) {
+    if (event.target === overlay) dismiss();
+  });
+  document.addEventListener("keydown", function (event) {
+    if (!overlay.hidden && event.key === "Escape") dismiss();
+  });
+})();
+</script>
+
 </body>
 
 </html>
