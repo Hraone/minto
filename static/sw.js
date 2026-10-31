@@ -2,7 +2,7 @@
 // Static assets are cached for fast loading, and navigations get a branded
 // offline fallback when the network is unavailable. Authenticated pages are
 // never cached or served from cache.
-const CACHE = "minto-static-v3";
+const CACHE = "minto-static-v4";
 const OFFLINE_URL = "/static/offline.html";
 
 self.addEventListener("install", (event) => {
