@@ -25,12 +25,13 @@
     .road{height:210px;position:relative;overflow:hidden;border-radius:10px;background:#343b45;border:1px solid #58616d;touch-action:manipulation;cursor:pointer}
     .lane{height:20%;border-bottom:2px dashed rgba(255,255,255,.5);position:relative}
     .lane:last-child{border:0}
-    .car{position:absolute;left:-42px;top:calc(50% - 8px);width:34px;height:16px;border-radius:6px 9px 6px 6px;background:#ee6b63;animation:drive 3.5s linear infinite}
+    .car{position:absolute;left:0;top:calc(50% - 8px);width:34px;height:16px;border-radius:6px 9px 6px 6px;background:#ee6b63;will-change:transform}
     .car:before{content:"";position:absolute;left:7px;top:-5px;width:17px;height:7px;border-radius:5px 5px 0 0;background:inherit}
-    .car.blue{background:#70a9e2;animation:drive-reverse 4s linear infinite}
-    .car.yellow{background:#e9b44f;animation-duration:4.7s}
-    @keyframes drive{to{left:calc(100% + 44px)}}
-    @keyframes drive-reverse{from{left:calc(100% + 44px)}to{left:-44px}}
+    .car.blue{background:#70a9e2}
+    .car.yellow{background:#e9b44f}
+    .game-over{position:absolute;inset:0;z-index:4;display:none;place-items:center;background:rgba(20,24,30,.82);color:#fff;text-align:center;padding:16px;font-weight:800}
+    .game-over.show{display:grid}
+    .game-over span{display:block;font-size:13px;font-weight:500;color:#d4d9e0;margin-top:6px}
     .chicken{position:absolute;z-index:2;left:calc(50% - 12px);bottom:2px;font-size:23px;line-height:1;transition:bottom .14s ease-out;filter:drop-shadow(0 1px 1px #222)}
     .game-foot{margin-top:10px}
     #move{border:0;border-radius:7px;background:var(--accent);color:#14251b;padding:9px 14px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
@@ -47,16 +48,16 @@
     <p class="intro">Minto couldn't reach the internet. Your saved account data hasn't been changed. While you reconnect, help the chicken cross.</p>
     <section class="game" aria-label="Chicken crossing mini game">
       <div class="game-head"><span class="game-title">Cross the road</span><span class="total">Total: <span id="total">₹0</span></span></div>
-      <p class="hint">Each safe lane doubles your virtual reward.</p>
+      <p class="hint">Earn virtual ₹10 for every safe lane. Traffic gets faster as you progress.</p>
       <div class="road" id="road" role="button" tabindex="0" aria-label="Tap to move the chicken up one lane">
         <div class="lane"><span class="car yellow"></span></div>
         <div class="lane"><span class="car blue"></span></div>
         <div class="lane"></div>
         <div class="lane"><span class="car"></span></div>
         <div class="lane"></div>
-        <span class="chicken" id="chicken" aria-hidden="true">🐔</span>
+        <span class="chicken" id="chicken" aria-hidden="true">🐔</span><div class="game-over" id="game-over" role="status"><div>Oops! The chicken got hit.<span id="game-over-detail">Your run is over.</span><button id="restart" type="button" style="margin-top:12px;border:0;border-radius:7px;background:var(--accent);color:#14251b;padding:9px 14px;font:inherit;font-weight:800">Play again</button></div></div>
       </div>
-      <div class="game-foot"><span class="total" id="next">Next: ₹20</span><button id="move" type="button">Move up</button></div>
+      <div class="game-foot"><span class="total" id="next">Level 1 · Speed 1×</span><button id="move" type="button">Move up</button></div>
       <p class="hint" id="game-status" aria-live="polite">Tap the road or Move up. Avoid the cars.</p>
     </section>
     <div class="status" id="status" role="status" aria-live="polite">The game works without an internet connection.</div>
@@ -64,17 +65,80 @@
   <script>
   (function(){
     try{var t=localStorage.getItem("minto-user-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}
-    var lane=0,total=0,reward=20,road=document.getElementById("road"),chicken=document.getElementById("chicken");
-    var totalNode=document.getElementById("total"),nextNode=document.getElementById("next"),gameStatus=document.getElementById("game-status");
-    function move(){
-      total+=reward;reward*=2;lane++;
-      if(lane>5){lane=0;gameStatus.textContent="Great crossing! Go again. Your virtual total keeps growing."}
-      chicken.style.bottom=(lane*20)+"%";
-      totalNode.textContent="₹"+total;nextNode.textContent="Next: ₹"+reward;
+    var road=document.getElementById("road"),chicken=document.getElementById("chicken");
+    var totalNode=document.getElementById("total"),nextNode=document.getElementById("next");
+    var gameStatus=document.getElementById("game-status"),gameOver=document.getElementById("game-over");
+    var moveButton=document.getElementById("move"),restartButton=document.getElementById("restart");
+    var cars=[
+      {el:document.querySelector(".car.yellow"),lane:0,x:35,direction:1,base:105},
+      {el:document.querySelector(".car.blue"),lane:1,x:road.clientWidth-90,direction:-1,base:125},
+      {el:document.querySelector(".car:not(.blue):not(.yellow)"),lane:3,x:100,direction:1,base:145}
+    ];
+    var lane=4,score=0,level=1,speed=1,playing=true,lastTime=0,frame=0;
+    var carWidth=34,playerWidth=24;
+    function placeChicken(){chicken.style.bottom=(Math.max(0,4-lane)*20)+"%";}
+    function updateLabels(){
+      totalNode.textContent="₹"+score;
+      nextNode.textContent="Level "+level+" · Speed "+speed.toFixed(1)+"×";
     }
-    document.getElementById("move").addEventListener("click",move);
+    function endGame(){
+      if(!playing)return;
+      playing=false;
+      gameOver.classList.add("show");
+      gameStatus.textContent="Collision! Your score is ₹"+score+". Try another run.";
+      moveButton.disabled=true;
+      moveButton.style.opacity=".55";
+    }
+    function reset(){
+      lane=4;score=0;level=1;speed=1;playing=true;lastTime=0;
+      cars[0].x=35;cars[1].x=Math.max(80,road.clientWidth-90);cars[2].x=100;
+      cars.forEach(function(car){car.el.style.transform="translateX("+car.x+"px)";});
+      gameOver.classList.remove("show");
+      moveButton.disabled=false;moveButton.style.opacity="";
+      gameStatus.textContent="Tap Move up to cross. Avoid the moving cars!";
+      placeChicken();updateLabels();
+    }
+    function move(){
+      if(!playing)return;
+      lane--;
+      if(lane<0){
+        score+=10;level++;
+        lane=4;
+        gameStatus.textContent="Safe crossing! Level "+level+" — traffic is faster.";
+      }
+      speed=Math.min(1+(level-1)*.18,4.5);
+      placeChicken();updateLabels();
+      checkCollision();
+    }
+    function checkCollision(){
+      if(!playing)return;
+      var roadRect=road.getBoundingClientRect();
+      var playerX=road.clientWidth/2;
+      cars.forEach(function(car){
+        if(car.lane!==lane)return;
+        var carCenter=car.x+carWidth/2;
+        if(Math.abs(carCenter-playerX)<(carWidth+playerWidth)/2-3)endGame();
+      });
+    }
+    function tick(time){
+      if(!lastTime)lastTime=time;
+      var dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
+      if(playing){
+        var width=road.clientWidth;
+        cars.forEach(function(car){
+          car.x+=car.direction*car.base*speed*dt;
+          if(car.direction>0&&car.x>width+45)car.x=-45;
+          if(car.direction<0&&car.x<-45)car.x=width+45;
+          car.el.style.transform="translateX("+car.x+"px)";
+        });
+        checkCollision();
+      }
+      requestAnimationFrame(tick);
+    }
+    moveButton.addEventListener("click",move);
     road.addEventListener("click",move);
     road.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();move()}});
+    restartButton.addEventListener("click",reset);
     document.getElementById("status").textContent=navigator.onLine?"Connection may be unstable. Tap Try again when ready.":"The game works without an internet connection.";
     var retry=document.createElement("button");retry.id="retry";retry.type="button";retry.textContent="Try again";
     retry.style.cssText="margin-top:12px;padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer";
@@ -82,6 +146,7 @@
     retry.addEventListener("click",function(){if(!navigator.onLine){document.getElementById("status").textContent="Still offline. Keep playing while you wait.";return}document.getElementById("status").textContent="Reconnecting to Minto…";location.href="/"});
     window.addEventListener("online",function(){document.getElementById("status").textContent="You're back online. Tap Try again to return to Minto."});
     window.addEventListener("offline",function(){document.getElementById("status").textContent="Connection lost. The game still works offline."});
+    reset();requestAnimationFrame(tick);
   })();
   </script>
 </body>
