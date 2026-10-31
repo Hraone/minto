@@ -2710,9 +2710,10 @@
       var messages = ["Good things take a moment. Thanks for your patience.","Your money deserves a little time to get in order.","Still working on it. Minto is catching up."];
       var messageIndex = 0, messageTimer = null;
       function moveChicken() {
-        if (!lane) { lane = 1; }
-        else { total += nextReward; nextReward *= 2; lane += 1; }
-        if (lane > 5) { lane = 0; lane = 1; }
+        total += nextReward;
+        nextReward *= 2;
+        lane += 1;
+        if (lane > 5) lane = 1;
         if (chicken) chicken.style.bottom = "calc(" + ((lane - 1) * 20) + "% + 3px)";
         if (scoreNode) scoreNode.textContent = "₹" + total;
         if (rewardNode) rewardNode.textContent = "Next: ₹" + nextReward;
