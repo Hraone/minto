@@ -2714,7 +2714,7 @@
         nextReward *= 2;
         lane += 1;
         if (lane > 5) lane = 1;
-        if (chicken) chicken.style.bottom = "calc(" + ((lane - 1) * 20) + "% + 3px)";
+        if (chicken) chicken.style.bottom = "calc(" + (lane * 20) + "% + 3px)";
         if (scoreNode) scoreNode.textContent = "₹" + total;
         if (rewardNode) rewardNode.textContent = "Next: ₹" + nextReward;
         if (lane === 5) {
