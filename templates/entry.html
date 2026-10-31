@@ -217,6 +217,7 @@
 
   <div class="entry-card">
 
+<form method="post" action="{{ url_for('entry', modal='1') if request.args.get('modal') == '1' else url_for('entry') }}">
 
 <div class="entry-header entry-header-with-direction">
   <div class="entry-heading-copy">
@@ -229,8 +230,6 @@
   </div>
 </div>
 
-
-<form method="post" action="{{ url_for('entry', modal='1') if request.args.get('modal') == '1' else url_for('entry') }}">
 
   <!-- Amount and date sit side by side on phones. -->
   <div class="amount-date-row">
