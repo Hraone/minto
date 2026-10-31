@@ -1608,57 +1608,27 @@
       line-height: 1.5;
     }
 
-    .minto-money-game {
-      display: none;
-      width: 100%;
-      margin-top: 4px;
-      padding: 12px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--surface-subtle);
-    }
-
-    .minto-money-game.show { display: block; }
-    .minto-money-game-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 10px;
-      font-size: 12px;
-      color: var(--text-secondary);
-    }
-    .minto-money-score { font-weight: 800; color: var(--theme-accent, var(--positive)); }
-    .minto-coin-field {
-      position: relative;
-      min-height: 90px;
-      overflow: hidden;
-      border-radius: 10px;
-      background: var(--surface);
-      border: 1px dashed var(--border-strong);
-    }
-    .minto-coin {
-      position: absolute;
-      display: grid;
-      place-items: center;
-      width: 38px;
-      height: 38px;
-      border: 1px solid var(--theme-border, var(--border));
-      border-radius: 50%;
-      background: var(--theme-accent-soft, var(--surface-alt));
-      color: var(--theme-accent, var(--positive));
-      font-size: 19px;
-      font-weight: 800;
-      cursor: pointer;
-      touch-action: manipulation;
-      animation: minto-coin-bob 1.5s ease-in-out infinite alternate;
-    }
-    .minto-coin:focus-visible { outline: 2px solid var(--theme-accent, var(--positive)); outline-offset: 2px; }
-    @keyframes minto-coin-bob { from { transform: translateY(0); } to { transform: translateY(-5px); } }
-    @media (prefers-reduced-motion: reduce) {
-      .minto-coin { animation: none; }
-    }
-
+    .minto-money-game { display:none; width:100%; margin-top:4px; padding:12px; border:1px solid var(--border); border-radius:14px; background:var(--surface-subtle); }
+    .minto-money-game.show { display:block; }
+    .minto-money-game-head,.minto-game-footer { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; color:var(--text-secondary); }
+    .minto-money-score { color:var(--theme-accent,var(--positive)); font-weight:800; white-space:nowrap; }
+    .minto-game-hint { margin:7px 0; color:var(--muted); font-size:11px; line-height:1.4; }
+    .minto-road { position:relative; height:142px; overflow:hidden; border-radius:9px; background:#343a43; border:1px solid #59616b; cursor:pointer; touch-action:manipulation; }
+    .minto-road-lanes { position:absolute; inset:0; display:flex; flex-direction:column; }
+    .minto-road-lanes i { flex:1; border-bottom:2px dashed rgba(255,255,255,.55); }
+    .minto-road-lanes i:last-child { border:0; }
+    .minto-car { position:absolute; left:-32px; width:27px; height:14px; border-radius:5px 8px 5px 5px; background:#e66c60; box-shadow:inset 5px -3px rgba(0,0,0,.12); color:transparent; }
+    .minto-car:after { content:""; position:absolute; left:6px; top:-4px; width:13px; height:6px; border-radius:4px 4px 0 0; background:inherit; }
+    .car-a { top:18%; animation:minto-car-right 3.4s linear infinite; }
+    .car-b { top:48%; background:#73a9df; animation:minto-car-left 4.1s linear infinite; }
+    .car-c { top:77%; background:#e8b34f; animation:minto-car-right 4.6s linear infinite; }
+    @keyframes minto-car-right { to { left:calc(100% + 34px); } }
+    @keyframes minto-car-left { from { left:calc(100% + 34px); } to { left:-34px; } }
+    .minto-chicken { position:absolute; left:calc(50% - 13px); bottom:3px; z-index:2; font-size:22px; line-height:1; transition:bottom .14s ease-out; }
+    .minto-game-footer { margin-top:8px; }
+    #minto-game-move { border:0; border-radius:7px; padding:7px 12px; background:var(--theme-accent,var(--positive)); color:#fff; font:inherit; font-size:12px; font-weight:750; cursor:pointer; }
+    @media(prefers-reduced-motion:reduce) { .minto-car { animation-duration:12s; } .minto-chicken { transition:none; } }
+    
     /* Keep Minto's single global page-loading progress bar. Hide duplicate browser/library bars. */
     #nprogress, #nprogress .bar, .pace, .pace .pace-progress,
     .turbo-progress-bar, progress.page-progress, .loading-progress-bar {
@@ -2257,15 +2227,16 @@
       <div class="minto-spinner" id="minto-spinner"></div>
       <span id="minto-loader-text">Saving...</span>
       <p class="minto-slow-message" id="minto-slow-message">Just a moment while Minto gets things ready.</p>
-      <section class="minto-money-game" id="minto-money-game" aria-label="Quick money game">
-        <div class="minto-money-game-head">
-          <span>Waiting? Catch the coins</span>
-          <span class="minto-money-score">Collected: <span id="minto-money-score">₹0</span></span>
+      <section class="minto-money-game" id="minto-money-game" aria-label="Chicken crossing mini game">
+        <div class="minto-money-game-head"><span>Help the chicken cross</span><span class="minto-money-score">Virtual total: <span id="minto-money-score">₹0</span></span></div>
+        <p class="minto-game-hint">Each safe lane doubles your reward.</p>
+        <div class="minto-road" id="minto-road" role="button" tabindex="0" aria-label="Tap to move the chicken up one lane">
+          <div class="minto-road-lanes"><i></i><i></i><i></i><i></i><i></i></div>
+          <span class="minto-car car-a">●</span><span class="minto-car car-b">●</span><span class="minto-car car-c">●</span>
+          <span class="minto-chicken" id="minto-chicken" aria-hidden="true">🐔</span>
         </div>
-        <div class="minto-coin-field" id="minto-coin-field">
-          <button class="minto-coin" type="button" aria-label="Collect ₹10">₹</button>
-        </div>
-        <p class="minto-slow-message">Tap a coin to collect it. Just for fun, not real money.</p>
+        <div class="minto-game-footer"><span id="minto-game-reward">Next: ₹20</span><button type="button" id="minto-game-move">Move up</button></div>
+        <p class="minto-game-hint">Virtual points only. Nothing is added to your Minto balance.</p>
       </section>
     </div>
   </div>
@@ -2723,73 +2694,54 @@
       });
     })();
 
-    // Loader: a spinner while a form saves, a thin bar while a page loads.
+    // Loader: page navigation gets a slim bar; slow form submissions get the mini-game.
     (function () {
       var loader = document.getElementById("minto-loader");
       var loaderText = document.getElementById("minto-loader-text");
       var slowMessage = document.getElementById("minto-slow-message");
       var game = document.getElementById("minto-money-game");
-      var coinField = document.getElementById("minto-coin-field");
+      var road = document.getElementById("minto-road");
+      var chicken = document.getElementById("minto-chicken");
       var scoreNode = document.getElementById("minto-money-score");
+      var rewardNode = document.getElementById("minto-game-reward");
+      var moveButton = document.getElementById("minto-game-move");
       var bar = document.getElementById("minto-progress");
-      var timer = null;
-      var slowTimer = null;
-      var messageTimer = null;
-      var score = 0;
-      var messages = [
-        "Good things take a moment. Thanks for your patience.",
-        "Your money deserves a little time to get in order.",
-        "Still working on it. Your entries are worth the wait.",
-        "Slow connection? Take a breath. Minto is catching up."
-      ];
-      var messageIndex = 0;
-      var gameStarted = false;
-
-      function placeCoin() {
-        if (!coinField) return;
-        var coin = coinField.querySelector(".minto-coin");
-        if (!coin) return;
-        var maxX = Math.max(0, coinField.clientWidth - 42);
-        var maxY = Math.max(0, coinField.clientHeight - 42);
-        coin.style.left = Math.floor(Math.random() * (maxX + 1)) + "px";
-        coin.style.top = Math.floor(Math.random() * (maxY + 1)) + "px";
+      var timer = null, slowTimer = null, lane = 0, total = 0, nextReward = 20;
+      var messages = ["Good things take a moment. Thanks for your patience.","Your money deserves a little time to get in order.","Still working on it. Minto is catching up."];
+      var messageIndex = 0, messageTimer = null;
+      function moveChicken() {
+        if (!lane) { lane = 1; }
+        else { total += nextReward; nextReward *= 2; lane += 1; }
+        if (lane > 5) { lane = 0; lane = 1; }
+        if (chicken) chicken.style.bottom = "calc(" + ((lane - 1) * 20) + "% + 3px)";
+        if (scoreNode) scoreNode.textContent = "₹" + total;
+        if (rewardNode) rewardNode.textContent = "Next: ₹" + nextReward;
+        if (lane === 5) {
+          if (slowMessage) slowMessage.textContent = "Nice crossing! Keep playing while Minto reconnects.";
+          lane = 0;
+          if (chicken) chicken.style.bottom = "3px";
+        }
       }
-
+      if (road) {
+        road.addEventListener("click", moveChicken);
+        road.addEventListener("keydown", function(e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); moveChicken(); } });
+      }
+      if (moveButton) moveButton.addEventListener("click", moveChicken);
       function startSlowExperience() {
         if (slowMessage) slowMessage.textContent = messages[0];
-        if (game && !gameStarted) {
-          game.classList.add("show");
-          gameStarted = true;
-          placeCoin();
-        }
+        if (game) game.classList.add("show");
         if (messageTimer) clearInterval(messageTimer);
-        messageTimer = setInterval(function () {
+        messageTimer = setInterval(function() {
           messageIndex = (messageIndex + 1) % messages.length;
           if (slowMessage) slowMessage.textContent = messages[messageIndex];
-        }, 4500);
+        }, 5000);
       }
-
-      if (coinField) {
-        coinField.addEventListener("click", function (e) {
-          var coin = e.target.closest(".minto-coin");
-          if (!coin) return;
-          score += 10;
-          if (scoreNode) scoreNode.textContent = "₹" + score;
-          placeCoin();
-        });
-        placeCoin();
-      }
-
       function showLoader(text) {
         if (timer) return;
         loaderText.textContent = text;
-        // Keep fast requests clean; show the overlay only if the request takes a moment.
-        timer = setTimeout(function () {
-          loader.classList.add("show");
-        }, 350);
+        timer = setTimeout(function() { loader.classList.add("show"); }, 350);
         slowTimer = setTimeout(startSlowExperience, 2500);
       }
-
       function hideAll() {
         if (timer) { clearTimeout(timer); timer = null; }
         if (slowTimer) { clearTimeout(slowTimer); slowTimer = null; }
@@ -2797,38 +2749,26 @@
         loader.classList.remove("show");
         if (game) game.classList.remove("show");
         if (bar) bar.classList.remove("run");
-        gameStarted = false;
-        score = 0;
+        lane = 0; total = 0; nextReward = 20;
+        if (chicken) chicken.style.bottom = "3px";
         if (scoreNode) scoreNode.textContent = "₹0";
+        if (rewardNode) rewardNode.textContent = "Next: ₹20";
       }
-
-      document.addEventListener("submit", function (e) {
-        // A cancelled confirm() (e.g. delete) stops the submit: show nothing.
+      document.addEventListener("submit", function(e) {
         if (e.defaultPrevented) return;
         var form = e.target;
-        if (form.hasAttribute("data-no-loader")) return;
-        if (form.target && form.target !== "_self") return;
-        var isPost = (form.method || "get").toLowerCase() === "post";
-        showLoader(form.getAttribute("data-loader-text") || (isPost ? "Saving..." : "Loading..."));
+        if (form.hasAttribute("data-no-loader") || (form.target && form.target !== "_self")) return;
+        showLoader(form.getAttribute("data-loader-text") || (((form.method || "get").toLowerCase() === "post") ? "Saving..." : "Loading..."));
       });
-
-      document.addEventListener("click", function (e) {
-        if (e.defaultPrevented || e.button !== 0) return;
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      document.addEventListener("click", function(e) {
+        if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         var a = e.target.closest && e.target.closest("a[href]");
         if (!a || a.target === "_blank" || a.hasAttribute("download") || a.hasAttribute("data-no-loader")) return;
         var url;
         try { url = new URL(a.href, location.href); } catch (err) { return; }
-        if (url.origin !== location.origin) return;
-        if (url.pathname === location.pathname && url.search === location.search) return;
-        bar.classList.remove("run");
-        void bar.offsetWidth;
-        // Page navigation uses only the slim progress bar. Keep the blocking
-        // loader and money mini-game for form submissions that are still processing.
-        bar.classList.add("run");
+        if (url.origin !== location.origin || (url.pathname === location.pathname && url.search === location.search)) return;
+        bar.classList.remove("run"); void bar.offsetWidth; bar.classList.add("run");
       });
-
-      // Coming back with the Back button can restore the page mid-load.
       window.addEventListener("pageshow", hideAll);
     })();
 
