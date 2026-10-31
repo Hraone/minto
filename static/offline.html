@@ -3,98 +3,86 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#1f6f50">
+  <meta name="theme-color" content="#171b22">
   <title>You're offline · Minto</title>
   <style>
-    :root { color-scheme: dark; --bg:#171310; --surface:#241d19; --text:#f7f2ed; --muted:#b5aaa3; --accent:#e89a7d; --soft:#392a24; --border:#4b3930; }
-    [data-theme="light"] { color-scheme:light; --bg:#f7f8f5; --surface:#fff; --text:#202720; --muted:#69736c; --accent:#34765b; --soft:#e8f2ec; --border:#d5e3d9; }
-    [data-color-theme="tide"] { --accent:#79bedc; --soft:#203744; --border:#365465; }
-    [data-color-theme="rosewater"] { --accent:#e58bad; --soft:#3d2631; --border:#654052; }
-    [data-color-theme="terra"] { --accent:#e49a7e; --soft:#3a2923; --border:#624638; }
-    [data-color-theme="ink"] { --accent:#b6bdc8; --soft:#2c3036; --border:#454b54; }
-    [data-theme="light"][data-color-theme="tide"] { --accent:#286f91; --soft:#e7f2f7; --border:#d1e2eb; }
-    [data-theme="light"][data-color-theme="rosewater"] { --accent:#b94f78; --soft:#faeaf0; --border:#efd1dc; }
-    [data-theme="light"][data-color-theme="terra"] { --accent:#a94f35; --soft:#f8ece6; --border:#e9d2c6; }
-    [data-theme="light"][data-color-theme="ink"] { --accent:#535b66; --soft:#eceef0; --border:#d8dce0; }
-    * { box-sizing:border-box; }
-    body { margin:0; min-height:100vh; min-height:100dvh; background:var(--bg); color:var(--text); font-family: -apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,Arial,sans-serif; display:flex; flex-direction:column; }
-    header { min-height:68px; display:flex; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--border); }
-    .logo { width:38px;height:38px;border:1px solid var(--border);border-radius:50%;display:grid;place-items:center;color:var(--accent);font-weight:800;font-size:20px; }
-    .brand { font-size:21px;font-weight:800;letter-spacing:-.04em; }
-    main { width:min(440px,100%); margin:auto; padding:32px 22px 42px; text-align:center; }
-    .cloud { width:58px;height:58px;margin:0 auto 20px;border:1px solid var(--border);border-radius:18px;background:var(--surface);display:grid;place-items:center;color:var(--accent);font-size:27px; }
-    h1 { font-size:28px;letter-spacing:-.04em;margin:0 0 10px; }
-    .intro { margin:0 auto 24px;max-width:330px;color:var(--muted);line-height:1.6;font-size:15px; }
-    .actions { display:flex;gap:10px;justify-content:center;margin-bottom:26px; }
-    button { min-height:46px;border:1px solid var(--border);border-radius:12px;padding:0 18px;font:inherit;font-weight:700;cursor:pointer; }
-    .retry { background:var(--accent);color:#171310;border-color:transparent; }
-    .hint { background:var(--surface);color:var(--text); }
-    .game { text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:16px; }
-    .game-head { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px; }
-    .game-title { font-weight:800;font-size:15px; }
-    .score { color:var(--accent);font-weight:800;font-size:13px;white-space:nowrap; }
-    .game-copy,.disclaimer { color:var(--muted);font-size:12px;line-height:1.5;margin:0 0 12px; }
-    .field { position:relative;height:128px;overflow:hidden;background:var(--bg);border:1px dashed var(--border);border-radius:12px; }
-    .coin { position:absolute;width:42px;height:42px;border-radius:50%;border:1px solid var(--border);background:var(--soft);color:var(--accent);font-size:18px;font-weight:800;padding:0;display:grid;place-items:center;touch-action:manipulation; }
-    .coin:focus-visible,button:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
-    .disclaimer { margin:10px 0 0; }
-    .status { min-height:18px;margin-top:12px;color:var(--muted);font-size:12px; }
-    @media(prefers-reduced-motion:no-preference) { .coin { animation:bob 1.2s ease-in-out infinite alternate; } @keyframes bob { to { transform:translateY(-4px); } } }
-    @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important;scroll-behavior:auto!important; } }
+    :root{color-scheme:dark;--bg:#171b22;--surface:#202630;--text:#f5f6f7;--muted:#aab2bd;--line:#46505d;--accent:#78c69b}
+    [data-theme="light"]{color-scheme:light;--bg:#f5f7f5;--surface:#fff;--text:#202720;--muted:#68736c;--line:#d7e0d9;--accent:#34765b}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;min-height:100dvh;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,Arial,sans-serif;display:flex;flex-direction:column}
+    header{height:66px;display:flex;align-items:center;gap:10px;padding:0 22px;border-bottom:1px solid var(--line)}
+    .brand-mark{width:30px;height:30px;border-radius:9px;background:var(--accent);color:#14251b;display:grid;place-items:center;font-weight:900}
+    .brand{font-size:20px;font-weight:800;letter-spacing:-.04em}
+    main{width:min(440px,100%);margin:auto;padding:28px 18px 36px;text-align:center}
+    .offline-icon{width:48px;height:48px;margin:0 auto 16px;color:var(--muted)}
+    h1{font-size:26px;letter-spacing:-.04em;margin:0 0 8px}
+    .intro{margin:0 auto 22px;max-width:340px;color:var(--muted);font-size:14px;line-height:1.55}
+    .game{padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;text-align:left}
+    .game-head,.game-foot{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .game-title{font-size:14px;font-weight:800}
+    .total{font-size:13px;color:var(--accent);font-weight:800}
+    .hint{margin:7px 0 10px;color:var(--muted);font-size:12px;line-height:1.45}
+    .road{height:210px;position:relative;overflow:hidden;border-radius:10px;background:#343b45;border:1px solid #58616d;touch-action:manipulation;cursor:pointer}
+    .lane{height:20%;border-bottom:2px dashed rgba(255,255,255,.5);position:relative}
+    .lane:last-child{border:0}
+    .car{position:absolute;left:-42px;top:calc(50% - 8px);width:34px;height:16px;border-radius:6px 9px 6px 6px;background:#ee6b63;animation:drive 3.5s linear infinite}
+    .car:before{content:"";position:absolute;left:7px;top:-5px;width:17px;height:7px;border-radius:5px 5px 0 0;background:inherit}
+    .car.blue{background:#70a9e2;animation:drive-reverse 4s linear infinite}
+    .car.yellow{background:#e9b44f;animation-duration:4.7s}
+    @keyframes drive{to{left:calc(100% + 44px)}}
+    @keyframes drive-reverse{from{left:calc(100% + 44px)}to{left:-44px}}
+    .chicken{position:absolute;z-index:2;left:calc(50% - 12px);bottom:2px;font-size:23px;line-height:1;transition:bottom .14s ease-out;filter:drop-shadow(0 1px 1px #222)}
+    .game-foot{margin-top:10px}
+    #move{border:0;border-radius:7px;background:var(--accent);color:#14251b;padding:9px 14px;font:inherit;font-size:13px;font-weight:800;cursor:pointer}
+    .status{min-height:18px;margin:12px 0 0;color:var(--muted);font-size:12px;text-align:center}
+    button:focus-visible,.road:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+    @media(prefers-reduced-motion:reduce){.car{animation-duration:12s}.chicken{transition:none}}
   </style>
 </head>
 <body>
-  <header><div class="logo" aria-hidden="true">M</div><div class="brand">Minto</div></header>
+  <header><div class="brand-mark" aria-hidden="true">M</div><div class="brand">Minto</div></header>
   <main>
-    <div class="cloud" aria-hidden="true">⌁</div>
-    <h1>Looks like your connection took a break.</h1>
-    <p class="intro">Minto couldn't reach the internet. Check your connection and try again. Your saved account data hasn't been changed by this screen.</p>
-    <div class="actions"><button class="retry" id="retry" type="button">Try again</button><button class="hint" id="check" type="button">Check connection</button></div>
-    <section class="game" aria-label="Virtual money mini-game">
-      <div class="game-head"><div class="game-title">Catch the coins</div><div class="score">Collected: <span id="score">₹0</span></div></div>
-      <p class="game-copy">A little game while you wait. Tap a coin to collect virtual ₹10.</p>
-      <div class="field" id="field"><button class="coin" type="button" aria-label="Collect virtual ₹10">₹</button></div>
-      <p class="disclaimer">For fun only. These are virtual coins, not real money. Your score won't be saved.</p>
+    <svg class="offline-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M7 18a26 26 0 0 1 34 0M13 25a17 17 0 0 1 12-5M20 32a7 7 0 0 1 5-2"/><path d="M8 8l32 32"/></svg>
+    <h1>You're offline</h1>
+    <p class="intro">Minto couldn't reach the internet. Your saved account data hasn't been changed. While you reconnect, help the chicken cross.</p>
+    <section class="game" aria-label="Chicken crossing mini game">
+      <div class="game-head"><span class="game-title">Cross the road</span><span class="total">Total: <span id="total">₹0</span></span></div>
+      <p class="hint">Each safe lane doubles your virtual reward.</p>
+      <div class="road" id="road" role="button" tabindex="0" aria-label="Tap to move the chicken up one lane">
+        <div class="lane"><span class="car yellow"></span></div>
+        <div class="lane"><span class="car blue"></span></div>
+        <div class="lane"></div>
+        <div class="lane"><span class="car"></span></div>
+        <div class="lane"></div>
+        <span class="chicken" id="chicken" aria-hidden="true">🐔</span>
+      </div>
+      <div class="game-foot"><span class="total" id="next">Next: ₹20</span><button id="move" type="button">Move up</button></div>
+      <p class="hint" id="game-status" aria-live="polite">Tap the road or Move up. Avoid the cars.</p>
     </section>
-    <div class="status" id="status" role="status" aria-live="polite">You're offline. The game works without a connection.</div>
+    <div class="status" id="status" role="status" aria-live="polite">The game works without an internet connection.</div>
   </main>
   <script>
-    (function () {
-      var root = document.documentElement;
-      try {
-        var theme = localStorage.getItem("minto-user-theme");
-        var palette = localStorage.getItem("minto-color-theme");
-        if (theme === "light" || theme === "dark") root.setAttribute("data-theme", theme);
-        if (["grove","tide","rosewater","terra","ink"].indexOf(palette) !== -1) root.setAttribute("data-color-theme", palette);
-      } catch (e) {}
-      var score = 0, scoreNode = document.getElementById("score");
-      var field = document.getElementById("field"), status = document.getElementById("status");
-      function moveCoin() {
-        var coin = field.querySelector(".coin");
-        coin.style.left = Math.floor(Math.random() * Math.max(1, field.clientWidth - 44)) + "px";
-        coin.style.top = Math.floor(Math.random() * Math.max(1, field.clientHeight - 44)) + "px";
-      }
-      field.addEventListener("click", function (event) {
-        if (!event.target.closest(".coin")) return;
-        score += 10; scoreNode.textContent = "₹" + score; moveCoin();
-      });
-      function retry() {
-        status.textContent = "Checking connection…";
-        if (!navigator.onLine) {
-          status.textContent = "Still offline. Your virtual coins are safe to keep collecting.";
-          return;
-        }
-        status.textContent = "Connection detected. Trying to reopen Minto…";
-        window.location.href = "/";
-      }
-      document.getElementById("retry").addEventListener("click", retry);
-      document.getElementById("check").addEventListener("click", function () {
-        status.textContent = navigator.onLine ? "Your device reports a connection. Tap Try again to reopen Minto." : "No internet connection detected yet.";
-      });
-      window.addEventListener("online", function () { status.textContent = "You're back online. Tap Try again to return to Minto."; });
-      window.addEventListener("offline", function () { status.textContent = "Connection lost. The game still works offline."; });
-      moveCoin();
-    })();
+  (function(){
+    try{var t=localStorage.getItem("minto-user-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}
+    var lane=0,total=0,reward=20,road=document.getElementById("road"),chicken=document.getElementById("chicken");
+    var totalNode=document.getElementById("total"),nextNode=document.getElementById("next"),gameStatus=document.getElementById("game-status");
+    function move(){
+      total+=reward;reward*=2;lane++;
+      if(lane>5){lane=0;gameStatus.textContent="Great crossing! Go again. Your virtual total keeps growing."}
+      chicken.style.bottom=(lane*20)+"%";
+      totalNode.textContent="₹"+total;nextNode.textContent="Next: ₹"+reward;
+    }
+    document.getElementById("move").addEventListener("click",move);
+    road.addEventListener("click",move);
+    road.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();move()}});
+    document.getElementById("status").textContent=navigator.onLine?"Connection may be unstable. Tap Try again when ready.":"The game works without an internet connection.";
+    var retry=document.createElement("button");retry.id="retry";retry.type="button";retry.textContent="Try again";
+    retry.style.cssText="margin-top:12px;padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer";
+    document.querySelector("main").appendChild(retry);
+    retry.addEventListener("click",function(){if(!navigator.onLine){document.getElementById("status").textContent="Still offline. Keep playing while you wait.";return}document.getElementById("status").textContent="Reconnecting to Minto…";location.href="/"});
+    window.addEventListener("online",function(){document.getElementById("status").textContent="You're back online. Tap Try again to return to Minto."});
+    window.addEventListener("offline",function(){document.getElementById("status").textContent="Connection lost. The game still works offline."});
+  })();
   </script>
 </body>
 </html>
