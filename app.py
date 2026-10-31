@@ -3489,19 +3489,26 @@ def set_mode():
 @app.route("/trip-home")
 @login_required
 def trip_home():
-    """Lands on trip details directly: the trip you last had open, else your
-    most recent one, else the trips page so you can create the first."""
+    """Open a trip directly only when it is active.
+
+    Planned and completed trips stay in the trips list until the user
+    deliberately opens one. This keeps switching into Trip mode from
+    unexpectedly opening a trip that has not started yet.
+    """
     client = get_user_client()
     user_id = session["user_id"]
 
-    active = session.get("active_trip")
-    if active and get_trip_or_none(client, user_id, active):
-        return redirect(url_for("trip_detail", trip_id=active))
+    active_trip_id = session.get("active_trip")
+    if active_trip_id:
+        active_trip = get_trip_or_none(client, user_id, active_trip_id)
+        if active_trip and active_trip.get("status") == "active":
+            return redirect(url_for("trip_detail", trip_id=active_trip_id))
     session.pop("active_trip", None)
 
-    latest = get_accessible_trip_rows(client, user_id, "id, created_at")
-    if latest:
-        return redirect(url_for("trip_detail", trip_id=latest[0]["id"]))
+    trips = get_accessible_trip_rows(client, user_id, "id, created_at, status")
+    active_trips = [trip for trip in trips if trip.get("status") == "active"]
+    if active_trips:
+        return redirect(url_for("trip_detail", trip_id=active_trips[0]["id"]))
     return redirect(url_for("trips"))
 
 
