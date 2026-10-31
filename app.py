@@ -2928,7 +2928,8 @@ def entry():
 
     if request.method == "POST":
         raw_amount = request.form.get("amount")
-        direction = request.form.get("direction")
+        # Default to Out when the direction control is omitted or left unselected.
+        direction = request.form.get("direction") or "out"
         category = request.form.get("category")
         expense_category = request.form.get("expense_category") or None
         investment_category = request.form.get("investment_category") or None
