@@ -74,7 +74,7 @@
       {el:document.querySelector(".car.blue"),lane:1,x:road.clientWidth-90,direction:-1,base:125},
       {el:document.querySelector(".car:not(.blue):not(.yellow)"),lane:3,x:100,direction:1,base:145}
     ];
-    var lane=4,score=0,level=1,speed=1,playing=true,lastTime=0,frame=0;
+    var lane=4,score=0,level=1,steps=0,speed=1,playing=true,lastTime=0;
     var carWidth=34,playerWidth=24;
     function placeChicken(){chicken.style.bottom=(Math.max(0,4-lane)*20)+"%";}
     function updateLabels(){
@@ -90,7 +90,7 @@
       moveButton.style.opacity=".55";
     }
     function reset(){
-      lane=4;score=0;level=1;speed=1;playing=true;lastTime=0;
+      lane=4;score=0;level=1;steps=0;speed=1;playing=true;lastTime=0;
       cars[0].x=35;cars[1].x=Math.max(80,road.clientWidth-90);cars[2].x=100;
       cars.forEach(function(car){car.el.style.transform="translateX("+car.x+"px)";});
       gameOver.classList.remove("show");
@@ -100,13 +100,14 @@
     }
     function move(){
       if(!playing)return;
-      lane--;
+      lane--;steps++;score+=10;
+      speed=Math.min(1+(steps*.035),4.5);
       if(lane<0){
-        score+=10;level++;
-        lane=4;
+        level++;lane=4;
         gameStatus.textContent="Safe crossing! Level "+level+" — traffic is faster.";
+      } else {
+        gameStatus.textContent="Step "+steps+" · Traffic speed increased.";
       }
-      speed=Math.min(1+(level-1)*.18,4.5);
       placeChicken();updateLabels();
       checkCollision();
     }
@@ -138,7 +139,7 @@
     moveButton.addEventListener("click",move);
     road.addEventListener("click",move);
     road.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();move()}});
-    restartButton.addEventListener("click",reset);
+    restartButton.addEventListener("click",function(e){e.stopPropagation();reset();});
     document.getElementById("status").textContent=navigator.onLine?"Connection may be unstable. Tap Try again when ready.":"The game works without an internet connection.";
     var retry=document.createElement("button");retry.id="retry";retry.type="button";retry.textContent="Try again";
     retry.style.cssText="margin-top:12px;padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer";
