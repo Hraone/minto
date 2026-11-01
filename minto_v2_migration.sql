@@ -1347,7 +1347,7 @@ grant execute on function public.current_trip_settlement_links(integer) to authe
 
 create or replace function public.list_trip_friend_suggestions(p_trip_id integer)
 returns table(username text, display_name text, profile_emoji text)
-language sql stable security definer set search_path = public, pg_temp as $
+language sql stable security definer set search_path = public, pg_temp as $function$
     select p.username,
            coalesce(nullif(btrim(p.display_name), ''), p.username),
            p.profile_emoji
@@ -1365,7 +1365,7 @@ language sql stable security definer set search_path = public, pg_temp as $
             where tm.trip_id = p_trip_id and tm.user_id = p.id
        )
      order by lower(coalesce(nullif(btrim(p.display_name), ''), p.username));
-$;
+$function$;
 revoke all on function public.list_trip_friend_suggestions(integer) from public;
 grant execute on function public.list_trip_friend_suggestions(integer) to authenticated;
 
