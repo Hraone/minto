@@ -4553,7 +4553,10 @@ def trip_detail(trip_id):
     minto_friend_suggestions = []
     if trip_owner and trip.get("is_group") and trip.get("status") != "archived":
         try:
-            minto_friend_suggestions = client.rpc("list_minto_friends").execute().data or []
+            minto_friend_suggestions = client.rpc(
+                "list_trip_friend_suggestions",
+                {"p_trip_id": trip["id"]},
+            ).execute().data or []
         except Exception:
             app.logger.exception("Could not load friend suggestions for trip members")
 
