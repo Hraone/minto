@@ -4550,11 +4550,19 @@ def trip_detail(trip_id):
     budget_over = max(total_paise / 100 - budget, 0) if budget > 0 else 0
     budget_pct = min(round((total_paise / 100 / budget) * 100, 1), 100) if budget > 0 else None
 
+    minto_friend_suggestions = []
+    if trip_owner and trip.get("is_group") and trip.get("status") != "archived":
+        try:
+            minto_friend_suggestions = client.rpc("list_minto_friends").execute().data or []
+        except Exception:
+            app.logger.exception("Could not load friend suggestions for trip members")
+
     stage_started = time.perf_counter()
     response = render_template(
         "trip_detail.html",
         trip=trip,
         friends=friends,
+        minto_friend_suggestions=minto_friend_suggestions,
         people=people,
         members=members,
         current_member_id=current_id,
