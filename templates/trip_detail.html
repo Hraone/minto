@@ -328,7 +328,8 @@
   const options = Array.from(panel.querySelectorAll(".friend-suggestion"));
   const empty = panel.querySelector(".friend-suggestion-empty");
   let activeIndex = -1;
-  const selectedUsernames = () => input.value.split(",").map(value => value.trim().replace(/^@/, "").toLowerCase()).filter(Boolean);
+  const committedUsernames = () => input.value.split(",").slice(0, -1).map(value => value.trim().replace(/^@/, "").toLowerCase()).filter(Boolean);
+  const currentQuery = () => input.value.split(",").pop().trim().replace(/^@/, "").toLowerCase();
   function close() {
     panel.hidden = true;
     input.setAttribute("aria-expanded", "false");
@@ -339,8 +340,8 @@
     input.setAttribute("aria-expanded", "true");
   }
   function filter() {
-    const query = input.value.split(",").pop().trim().replace(/^@/, "").toLowerCase();
-    const alreadySelected = selectedUsernames().slice(0, -1);
+    const query = currentQuery();
+    const alreadySelected = committedUsernames();
     let visible = 0;
     options.forEach(option => {
       const username = option.dataset.username.toLowerCase();
@@ -354,7 +355,7 @@
   }
   function choose(option) {
     const username = option.dataset.username;
-    const values = selectedUsernames();
+    const values = committedUsernames();
     if (!values.includes(username.toLowerCase())) values.push(username);
     input.value = values.join(", ") + ", ";
     input.focus();
