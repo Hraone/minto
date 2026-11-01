@@ -1345,4 +1345,28 @@ grant execute on function public.current_trip_expense_permissions(integer) to au
 grant execute on function public.current_trip_share_links(integer) to authenticated;
 grant execute on function public.current_trip_settlement_links(integer) to authenticated;
 
+create or replace function public.list_trip_friend_suggestions(p_trip_id integer)
+returns table(username text, display_name text, profile_emoji text)
+language sql stable security definer set search_path = public, pg_temp as $function$
+    select p.username,
+           coalesce(nullif(btrim(p.display_name), ''), p.username),
+           p.profile_emoji
+      from public.friends f
+      join public.profiles p
+        on p.id = case when f.user_a = auth.uid() then f.user_b else f.user_a end
+     where auth.uid() is not null
+       and (f.user_a = auth.uid() or f.user_b = auth.uid())
+       and exists (
+           select 1 from public.trips t
+            where t.id = p_trip_id and t.user_id = auth.uid()
+       )
+       and not exists (
+           select 1 from public.trip_members tm
+            where tm.trip_id = p_trip_id and tm.user_id = p.id
+       )
+     order by lower(coalesce(nullif(btrim(p.display_name), ''), p.username));
+$function$;
+revoke all on function public.list_trip_friend_suggestions(integer) from public;
+grant execute on function public.list_trip_friend_suggestions(integer) to authenticated;
+
 commit;
