@@ -4555,6 +4555,11 @@ def trip_detail(trip_id):
         "trip_detail.html",
         trip=trip,
         friends=friends,
+        minto_friend_suggestions=(
+            client.rpc("list_minto_friends").execute().data or []
+            if trip_owner and trip.get("is_group") and trip.get("status") != "archived"
+            else []
+        ),
         people=people,
         members=members,
         current_member_id=current_id,
