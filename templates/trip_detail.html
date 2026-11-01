@@ -44,6 +44,14 @@
   .person-x{display:flex;align-items:center;justify-content:center;width:24px;height:24px;margin:0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted-2)}
   .person-x:hover{background:var(--danger-bg);color:var(--negative);transform:none;box-shadow:none}
   .inline-form{display:flex;gap:8px}.inline-form input{flex:1;min-width:0}.inline-form button{width:auto;margin:0;padding:0 20px;flex-shrink:0}
+  .friend-picker{position:relative}
+  .friend-suggestions{position:absolute;z-index:30;top:calc(100% + 6px);left:0;right:0;max-height:240px;overflow-y:auto;padding:5px;border:1px solid var(--border);border-radius:12px;background:var(--surface);box-shadow:0 12px 28px var(--shadow-soft)}
+  .friend-suggestions[hidden]{display:none}
+  .friend-suggestion{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;margin:0;padding:11px 12px;border:0;border-radius:8px;background:transparent;color:var(--text);text-align:left}
+  .friend-suggestion:hover,.friend-suggestion:focus-visible{background:var(--surface-subtle);transform:none;box-shadow:none}
+  .friend-suggestion-name{font-size:13px;font-weight:700;min-width:0;overflow-wrap:anywhere}
+  .friend-suggestion-username{font-size:12px;color:var(--muted);white-space:nowrap}
+  .friend-suggestion-empty{margin:0;padding:12px;font-size:12px;color:var(--muted);text-align:center}
   .amount-input{position:relative}.amount-symbol{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:18px;font-weight:600;pointer-events:none}
   .amount-input input{padding:15px 18px 15px 38px;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
   .split-block{display:none;margin-top:12px}.split-block.visible{display:block}
@@ -141,7 +149,19 @@
     </div>
     {% if trip_owner and trip.status != "archived" %}<form method="post" action="{{ url_for('add_trip_friends', trip_id=trip.id) }}">
       <label for="guest-names">Add guest names</label><input type="text" id="guest-names" name="guest_names" placeholder="Rohan, Priya">
-      <label for="friend-usernames">Add Minto friend usernames</label><input type="text" id="friend-usernames" name="friend_usernames" placeholder="mira, arjun_23">
+      <label for="friend-usernames">Add Minto friend usernames</label>
+      <div class="friend-picker" id="trip-friend-picker">
+        <input type="text" id="friend-usernames" name="friend_usernames" placeholder="Search friends by name or username" autocomplete="off" aria-autocomplete="list" aria-controls="trip-friend-suggestions" aria-expanded="false">
+        <div class="friend-suggestions" id="trip-friend-suggestions" role="listbox" hidden>
+          {% for friend in minto_friend_suggestions %}
+          <button type="button" class="friend-suggestion" role="option" data-username="{{ friend.username|e }}" data-name="{{ friend.display_name|e }}">
+            <span class="friend-suggestion-name">{{ friend.display_name }}</span>
+            <span class="friend-suggestion-username">@{{ friend.username }}</span>
+          </button>
+          {% endfor %}
+          <p class="friend-suggestion-empty" hidden>No matching Minto friends found.</p>
+        </div>
+      </div>
       <p class="sub">Only existing Minto friends can join as linked members.</p><button type="submit">Add members</button>
     </form>{% endif %}
   </div>
@@ -301,6 +321,62 @@
 </div>
 
 <script>
+(() => {
+  const input = document.getElementById("friend-usernames");
+  const panel = document.getElementById("trip-friend-suggestions");
+  if (!input || !panel) return;
+  const options = Array.from(panel.querySelectorAll(".friend-suggestion"));
+  const empty = panel.querySelector(".friend-suggestion-empty");
+  let activeIndex = -1;
+  const selectedUsernames = () => input.value.split(",").map(value => value.trim().replace(/^@/, "").toLowerCase()).filter(Boolean);
+  function close() {
+    panel.hidden = true;
+    input.setAttribute("aria-expanded", "false");
+    activeIndex = -1;
+  }
+  function open() {
+    panel.hidden = false;
+    input.setAttribute("aria-expanded", "true");
+  }
+  function filter() {
+    const query = input.value.split(",").pop().trim().replace(/^@/, "").toLowerCase();
+    const alreadySelected = selectedUsernames().slice(0, -1);
+    let visible = 0;
+    options.forEach(option => {
+      const username = option.dataset.username.toLowerCase();
+      const name = option.dataset.name.toLowerCase();
+      const match = !alreadySelected.includes(username) && (!query || username.includes(query) || name.includes(query));
+      option.hidden = !match;
+      if (match) visible += 1;
+    });
+    empty.hidden = visible !== 0;
+    if (visible) open(); else close();
+  }
+  function choose(option) {
+    const username = option.dataset.username;
+    const values = selectedUsernames();
+    if (!values.includes(username.toLowerCase())) values.push(username);
+    input.value = values.join(", ") + ", ";
+    input.focus();
+    filter();
+  }
+  options.forEach(option => option.addEventListener("click", () => choose(option)));
+  input.addEventListener("input", filter);
+  input.addEventListener("focus", filter);
+  input.addEventListener("keydown", event => {
+    const visible = options.filter(option => !option.hidden);
+    if (event.key === "Escape") { close(); return; }
+    if (event.key === "ArrowDown" && visible.length) {
+      event.preventDefault();
+      activeIndex = Math.min(activeIndex + 1, visible.length - 1);
+      visible[activeIndex].focus();
+    }
+  });
+  document.addEventListener("click", event => {
+    if (!event.target.closest("#trip-friend-picker")) close();
+  });
+})();
+
 function openTripSettings() {
   const details = document.getElementById("trip-settings");
   if (!details) return;
