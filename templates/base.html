@@ -2610,7 +2610,12 @@
           if (!button.dataset.mintoOriginalText) {
             button.dataset.mintoOriginalText = button.tagName === "INPUT" ? button.value : button.textContent;
           }
-          button.disabled = true;
+          if (button === event.submitter) {
+            button.setAttribute("aria-disabled", "true");
+            button.style.pointerEvents = "none";
+          } else {
+            button.disabled = true;
+          }
           if (button.tagName === "INPUT") button.value = "Saving...";
           else button.textContent = "Saving...";
         });
