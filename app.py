@@ -2906,7 +2906,6 @@ def net_worth():
         card_forecasts=card_forecasts,
         snapshots=snapshots,
         today=datetime.now(APP_TZ).date().isoformat(),
-        submission_key=str(uuid.uuid4()),
     )
 
 
@@ -3069,6 +3068,7 @@ def entry():
         expense_categories=expense_categories,
         investment_categories=investment_categories,
         today=datetime.now(APP_TZ).date().isoformat(),
+        submission_key=str(uuid.uuid4()),
     )
 
 
