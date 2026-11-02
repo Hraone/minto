@@ -2144,7 +2144,7 @@ def _fetch_report_history(client, user_id, offset=0, limit=10):
         limit = min(max(int(limit or 10), 1), 10)
         rows = (
             client.table("report_history")
-            .select("id, date_from, date_to, row_count, file_format, created_at")
+            .select("id, date_from, date_to, report_type, row_count, file_format, created_at")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .range(offset, offset + limit)
@@ -2452,7 +2452,7 @@ def download_transactions_csv():
         "\ufeff" + output.getvalue(),
         mimetype="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f'{"inline" if request.args.get("view") == "1" else "attachment"}; filename="{filename}"',
             "Cache-Control": "no-store",
         },
     )
@@ -2511,16 +2511,18 @@ def download_report():
 
     # Log that a report was made (range and size only, never the report itself).
     # Never blocks the download.
-    try:
-        client.table("report_history").insert({
-            "user_id": user_id,
-            "date_from": d_from.isoformat(),
-            "date_to": d_to.isoformat(),
-            "row_count": len(rows),
-            "file_format": "pdf",
-        }).execute()
-    except Exception:
-        pass
+    if request.args.get("history") != "1":
+        try:
+            client.table("report_history").insert({
+                "user_id": user_id,
+                "date_from": d_from.isoformat(),
+                "date_to": d_to.isoformat(),
+                "report_type": report_type,
+                "row_count": len(rows),
+                "file_format": "pdf",
+            }).execute()
+        except Exception:
+            pass
 
     filename = f"minto-{report_type}-report-{d_from.isoformat()}-to-{d_to.isoformat()}.pdf"
     return Response(
