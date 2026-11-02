@@ -820,7 +820,7 @@ def build_money_fun_facts_pdf(user_name, d_from, d_to, rows):
     logo = Image(LOGO, width=13 * mm, height=13 * mm) if os.path.exists(LOGO) else ""
     header = Table([[logo,
         [Paragraph("Money fun facts", S_TITLE), Paragraph(f"{fdate(d_from)} to {fdate(d_to)}  |  {days} days", S_SUB)],
-        [Paragraph(f"<b>{_esc(user_name)}</b>", S_RIGHT), Paragraph(f"Generated {fdate(date.today())}", S_RIGHT_MUTED)]],
+        [Paragraph(f"<b>{_esc(user_name)}</b>", S_RIGHT), Paragraph(f"Generated {fdate(date.today())}", S_RIGHT_MUTED)]]],
         colWidths=[16 * mm, CONTENT_W - 71 * mm, 55 * mm])
     header.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),
         ("RIGHTPADDING",(0,0),(-1,-1),0),("LINEBELOW",(0,0),(-1,0),1.2,GREEN),("BOTTOMPADDING",(0,0),(-1,-1),8)]))
