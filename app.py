@@ -433,12 +433,7 @@ SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 MONTHLY_REPORT_CRON_SECRET = os.environ.get("MONTHLY_REPORT_CRON_SECRET", "")
 DAILY_EXPENSE_CRON_SECRET = os.environ.get("DAILY_EXPENSE_CRON_SECRET", MONTHLY_REPORT_CRON_SECRET)
 VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
-try:
-    # Store the private VAPID key as a JSON P-256 JWK in Railway variables.
-    # pywebpush accepts this dictionary directly; the key is never sent to clients.
-    VAPID_PRIVATE_KEY = json.loads(os.environ.get("VAPID_PRIVATE_KEY", "") or "null")
-except (TypeError, ValueError):
-    VAPID_PRIVATE_KEY = None
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
 VAPID_CLAIMS = {"sub": os.environ.get("VAPID_SUBJECT", "mailto:support@minto.app")}
 
 # SMTP is environment-driven so Minto is not tied to one mail provider.
