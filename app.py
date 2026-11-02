@@ -1837,10 +1837,11 @@ def update_daily_expense_notifications():
 
 
 def send_daily_expense_notifications():
-    """Send one summary/reminder per user at their local midnight.
+    """Send one summary/reminder per user shortly after their local midnight.
 
-    The scheduler should call this endpoint every minute. A unique user/date
-    claim makes overlapping runs and retries safe.
+    The scheduler may run every five minutes. The first ten minutes of the
+    local day form a delivery window, and a unique user/date claim ensures
+    only one notification is sent even when multiple runs overlap.
     """
     if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
         raise RuntimeError("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be configured.")
@@ -1857,7 +1858,10 @@ def send_daily_expense_notifications():
             timezone_name = profile.get("daily_expense_timezone") or "Asia/Kolkata"
             user_tz = ZoneInfo(timezone_name)
             local_now = now_utc.astimezone(user_tz)
-            if local_now.hour != 0 or local_now.minute != 0:
+            # Railway Cron has a five-minute minimum interval. Keep a
+            # ten-minute window so a delayed first run still catches midnight;
+            # the unique user/date claim below prevents duplicate delivery.
+            if local_now.hour != 0 or local_now.minute >= 10:
                 skipped += 1
                 continue
             summary_date = local_now.date() - timedelta(days=1)
