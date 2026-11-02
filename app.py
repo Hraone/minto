@@ -1899,7 +1899,7 @@ def send_daily_expense_notifications():
                         },
                         data=notification,
                         vapid_private_key=VAPID_PRIVATE_KEY,
-                        vapid_claims=VAPID_CLAIMS,
+                        vapid_claims=dict(VAPID_CLAIMS),
                         ttl=86400,
                     )
                     delivered += 1
