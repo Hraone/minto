@@ -63,3 +63,40 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+
+// Web Push notifications are delivered by the server even when the app is closed.
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch (_) {
+    payload = { body: event.data ? event.data.text() : "" };
+  }
+  const title = payload.title || "Minto";
+  const options = {
+    body: payload.body || "Open Minto to review your expenses.",
+    tag: payload.tag || "minto-daily-expenses",
+    renotify: false,
+    data: { url: payload.url || "/" }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL(
+    event.notification.data && event.notification.data.url || "/",
+    self.location.origin
+  ).href;
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.startsWith(self.location.origin) && "focus" in client) {
+          return client.navigate(target).then(() => client.focus());
+        }
+      }
+      return clients.openWindow(target);
+    })
+  );
+});
