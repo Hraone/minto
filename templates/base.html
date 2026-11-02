@@ -1954,6 +1954,29 @@
       }
     }
 
+    @media (max-width: 880px) {
+      .mobile-go-top {
+        position: fixed;
+        left: 16px;
+        bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+        z-index: 24;
+        width: 44px;
+        height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--border);
+        border-radius: 12px !important;
+        background: var(--surface);
+        color: var(--text);
+        box-shadow: 0 4px 14px var(--shadow-soft);
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .mobile-go-top svg { width: 20px; height: 20px; }
+      .mobile-go-top[hidden] { display: none !important; }
+    }
+
 </style>
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/minto-apple-theme.css') }}?v={{ asset_version }}">
@@ -2974,6 +2997,36 @@
   .minto-beta-dialog button { width: 100%; min-height: 48px; border: 0; border-radius: 12px; background: var(--accent, #b8becb); color: #17191d; font: inherit; font-weight: 750; cursor: pointer; }
   @media (prefers-reduced-motion: no-preference) { .minto-beta-dialog { animation: minto-beta-enter .18s ease-out; } @keyframes minto-beta-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } } }
 </style>
+<button class="mobile-go-top" id="mobileGoTop" type="button" aria-label="Go to top" title="Go to top" hidden>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m18 15-6-6-6 6"></path></svg>
+</button>
+<script>
+(function () {
+  var button = document.getElementById("mobileGoTop");
+  if (!button) return;
+  var mobileQuery = window.matchMedia("(max-width: 880px)");
+  var ticking = false;
+  function updateVisibility() {
+    button.hidden = !mobileQuery.matches || window.scrollY <= window.innerHeight;
+    ticking = false;
+  }
+  function onScroll() {
+    if (!ticking) {
+      ticking = true;
+      window.requestAnimationFrame(updateVisibility);
+    }
+  }
+  button.addEventListener("click", function () {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+  window.addEventListener("scroll", onScroll, { passive: true });
+  window.addEventListener("resize", updateVisibility);
+  if (mobileQuery.addEventListener) mobileQuery.addEventListener("change", updateVisibility);
+  else if (mobileQuery.addListener) mobileQuery.addListener(updateVisibility);
+  updateVisibility();
+})();
+</script>
+
 <script>
 (function () {
   var key = "minto-beta-notice-dismissed-this-session-v1";
