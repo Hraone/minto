@@ -25,7 +25,8 @@ Set these server-side variables (never expose the private key in HTML or client 
 Generate a key pair with Python after installing the project requirements:
 
 ```python
-import base64, json
+import base64
+from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 def b64url(value):
@@ -36,15 +37,16 @@ numbers = key.private_numbers()
 public = numbers.public_numbers
 x = public.x.to_bytes(32, "big")
 y = public.y.to_bytes(32, "big")
-d = numbers.private_value.to_bytes(32, "big")
-print("VAPID_PUBLIC_KEY=" + b64url(b"\x04" + x + y))
-print("VAPID_PRIVATE_KEY=" + json.dumps({
-    "kty": "EC", "crv": "P-256",
-    "x": b64url(x), "y": b64url(y), "d": b64url(d)
-}, separators=(",", ":")))
+private_der = key.private_bytes(
+    serialization.Encoding.DER,
+    serialization.PrivateFormat.TraditionalOpenSSL,
+    serialization.NoEncryption(),
+)
+print("VAPID_PUBLIC_KEY=" + b64url(b"\\x04" + x + y))
+print("VAPID_PRIVATE_KEY=" + base64.b64encode(private_der).decode())
 ```
 
-Keep the private JWK secret. If keys are rotated, existing browser subscriptions may need to be recreated.
+Keep the private DER key secret. If keys are rotated, existing browser subscriptions may need to be recreated.
 
 ## Scheduler
 
