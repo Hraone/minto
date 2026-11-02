@@ -87,6 +87,7 @@
     nextNode.textContent="Level "+level+" · Speed "+speed.toFixed(1)+"×";
   }
   function placeChicken(){
+    chicken.style.left="50%";
     chicken.style.bottom=(Math.max(0,4-lane)*20)+"%";
     chicken.style.transform="translateX(-50%)";
   }
