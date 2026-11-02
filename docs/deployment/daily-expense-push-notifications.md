@@ -17,7 +17,7 @@ Run `migrations/daily_expense_push_notifications.sql` in the Supabase SQL editor
 Set these server-side variables (never expose the private key in HTML or client JavaScript):
 
 - `VAPID_PUBLIC_KEY`: base64url-encoded uncompressed P-256 public point.
-- `VAPID_PRIVATE_KEY`: JSON object containing the P-256 private JWK (`kty`, `crv`, `x`, `y`, `d`).
+- `VAPID_PRIVATE_KEY`: base64-encoded DER P-256 private key.
 - `VAPID_SUBJECT`: a valid `mailto:` contact or HTTPS URL for the application operator.
 - `DAILY_EXPENSE_CRON_SECRET`: a long random secret used by the scheduler.
 - `SUPABASE_SERVICE_ROLE_KEY`: required by the server-side notification worker.
