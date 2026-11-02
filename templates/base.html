@@ -2212,7 +2212,7 @@
 
   </div>
 
-  {% if session.get('user_id') and app_mode != 'trip' %}
+  {% if session.get('user_id') and app_mode != 'trip' and request.endpoint != 'entry' %}
   <button class="mobile-add-fab" id="mobileAddFab" type="button" aria-haspopup="dialog" aria-controls="mobileEntryDialog" aria-label="Add a transaction">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
     <span>Add</span>
