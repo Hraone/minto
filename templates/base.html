@@ -2759,7 +2759,9 @@
   .fixed-reminder-name { font-weight:750; overflow-wrap:anywhere; }
   .fixed-reminder-meta { color:var(--muted); font-size:12px; margin-top:3px; }
   .fixed-reminder-amount { font-weight:750; white-space:nowrap; }
-  .fixed-reminder-item form { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .fixed-reminder-item form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:10px; }
+  .fixed-reminder-amount-label { display:flex; flex:1 1 130px; flex-direction:column; gap:5px; color:var(--muted); font-size:11px; font-weight:700; }
+  .fixed-reminder-amount-label input { width:100%; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font:inherit; font-size:14px; font-weight:650; }
   .fixed-reminder-item select { flex:1 1 180px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); }
   .fixed-reminder-item button, .fixed-reminder-footer button { border:0; border-radius:999px; padding:10px 15px; background:var(--positive); color:#fff; font-weight:700; cursor:pointer; }
   /* Override the broad global button defaults inside the reminder UI. */
@@ -2788,7 +2790,7 @@
 <div class="fixed-reminder-overlay" id="fixedReminderOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="fixedReminderTitle">
   <div class="fixed-reminder-card">
     <h2 id="fixedReminderTitle">Have these transactions happened?</h2>
-    <p class="fixed-reminder-intro">These recurring transactions are due or overdue. Confirm only the ones that actually happened; Minto will add them to your records.</p>
+    <p class="fixed-reminder-intro">These recurring transactions are due or overdue. Adjust the actual amount for this occurrence, then confirm it. Your regular recurring amount and future months will stay unchanged.</p>
     <div id="fixedReminderItems"></div>
     <div class="fixed-reminder-footer">
       <a href="{{ url_for('fixed_expenses') }}">Manage fixed transactions</a>
@@ -2922,6 +2924,18 @@
     button.type = 'submit';
     button.disabled = !(item.accounts || []).length;
     if (!button.disabled) button.formNoValidate = false;
+    var amountLabel = make('label', 'fixed-reminder-amount-label', 'Actual amount');
+    var amountInput = document.createElement('input');
+    amountInput.type = 'number';
+    amountInput.name = 'actual_amount';
+    amountInput.min = '0.01';
+    amountInput.step = '0.01';
+    amountInput.inputMode = 'decimal';
+    amountInput.required = true;
+    amountInput.value = String(item.amount);
+    amountInput.setAttribute('aria-label', 'Actual amount for this occurrence');
+    amountLabel.appendChild(amountInput);
+    form.appendChild(amountLabel);
     form.appendChild(select);
     form.appendChild(button);
     if (!item.accounts || !item.accounts.length) {
