@@ -2599,6 +2599,7 @@
           if (bad) bad.reportValidity();
           return;
         }
+        if ((form.method || "get").toLowerCase() !== "post") return;
         if (form.dataset.mintoSubmitting === "1") {
           event.preventDefault();
           return;
