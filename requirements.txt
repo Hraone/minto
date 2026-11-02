@@ -3,3 +3,4 @@ supabase
 python-dotenv
 gunicorn
 reportlab
+pywebpush

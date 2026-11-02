@@ -23,6 +23,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
+from pywebpush import webpush, WebPushException
 from report_pdf import build_report_pdf, build_cashflow_report_pdf, build_money_fun_facts_pdf
 from trip_accounting import calculate_trip_balances, suggested_settlements, trip_payables_for_user
 from dashboard_finance import (
@@ -430,6 +431,10 @@ SUPABASE_ANON_KEY = os.environ["SUPABASE_ANON_KEY"]
 # Never expose this key to the browser.
 SUPABASE_SERVICE_ROLE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 MONTHLY_REPORT_CRON_SECRET = os.environ.get("MONTHLY_REPORT_CRON_SECRET", "")
+DAILY_EXPENSE_CRON_SECRET = os.environ.get("DAILY_EXPENSE_CRON_SECRET", MONTHLY_REPORT_CRON_SECRET)
+VAPID_PUBLIC_KEY = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+VAPID_PRIVATE_KEY = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+VAPID_CLAIMS = {"sub": os.environ.get("VAPID_SUBJECT", "mailto:support@minto.app")}
 
 # SMTP is environment-driven so Minto is not tied to one mail provider.
 SMTP_HOST = os.environ.get("SMTP_HOST", "")
@@ -1750,9 +1755,219 @@ def profile():
         contact_phone=profile_data.get("phone") or "",
         share_phone=bool(profile_data.get("share_phone_with_friends")),
         share_email=bool(profile_data.get("share_email_with_friends")),
+        daily_expense_notifications_enabled=bool(profile_data.get("daily_expense_notifications_enabled")),
+        vapid_public_key=VAPID_PUBLIC_KEY,
     )
     log_profile_stage("template_render", render_started)
     return response
+
+
+@app.route("/profile/daily-expense-notifications", methods=["POST"])
+@login_required
+def update_daily_expense_notifications():
+    """Enable/disable daily expense push notifications for this account/device."""
+    payload = request.get_json(silent=True) or {}
+    enabled = payload.get("enabled") is True
+    client = get_user_client()
+    user_id = session["user_id"]
+
+    if enabled:
+        if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+            return jsonify(ok=False, error="Daily notifications are not configured yet."), 503
+        if not isinstance(payload.get("subscription"), dict):
+            return jsonify(ok=False, error="Allow notifications on this device and try again."), 400
+        subscription = payload["subscription"]
+        endpoint = subscription.get("endpoint")
+        keys = subscription.get("keys") or {}
+        p256dh, auth = keys.get("p256dh"), keys.get("auth")
+        if not all(isinstance(v, str) and v for v in (endpoint, p256dh, auth)):
+            return jsonify(ok=False, error="The browser returned an invalid notification subscription."), 400
+        # Push endpoints are user-supplied URLs. Restrict them to known public
+        # browser push services so an authenticated request cannot turn the
+        # delivery worker into an arbitrary URL fetcher.
+        parsed_endpoint = urlsplit(endpoint)
+        push_host = (parsed_endpoint.hostname or "").lower()
+        allowed_push_host = (
+            push_host == "fcm.googleapis.com"
+            or push_host == "updates.push.services.mozilla.com"
+            or push_host.endswith(".push.services.mozilla.com")
+            or push_host.endswith(".push.apple.com")
+        )
+        if (
+            parsed_endpoint.scheme != "https"
+            or not allowed_push_host
+            or parsed_endpoint.username
+            or parsed_endpoint.password
+            or parsed_endpoint.port not in (None, 443)
+        ):
+            return jsonify(ok=False, error="This browser's push service endpoint is not supported."), 400
+        try:
+            timezone_name = str(payload.get("timezone") or "Asia/Kolkata")
+            ZoneInfo(timezone_name)
+        except (TypeError, ValueError):
+            return jsonify(ok=False, error="Choose a valid device time zone."), 400
+        try:
+            client.table("profiles").upsert({
+                "id": user_id,
+                "daily_expense_notifications_enabled": True,
+                "daily_expense_timezone": timezone_name,
+            }).execute()
+            client.table("daily_expense_push_subscriptions").upsert({
+                "user_id": user_id,
+                "endpoint": endpoint,
+                "p256dh": p256dh,
+                "auth": auth,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }, on_conflict="endpoint").execute()
+        except Exception:
+            app.logger.exception("Could not enable daily expense notifications for user %s", user_id)
+            return jsonify(ok=False, error="Could not save notification settings. Run the notification SQL migration and try again."), 503
+        return jsonify(ok=True, enabled=True)
+
+    try:
+        client.table("profiles").upsert({
+            "id": user_id,
+            "daily_expense_notifications_enabled": False,
+        }).execute()
+        client.table("daily_expense_push_subscriptions").delete().eq("user_id", user_id).execute()
+    except Exception:
+        app.logger.exception("Could not disable daily expense notifications for user %s", user_id)
+        return jsonify(ok=False, error="Could not update notification settings. Please try again."), 503
+    return jsonify(ok=True, enabled=False)
+
+
+def send_daily_expense_notifications():
+    """Send one summary/reminder per user at their local midnight.
+
+    The scheduler should call this endpoint every minute. A unique user/date
+    claim makes overlapping runs and retries safe.
+    """
+    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        raise RuntimeError("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be configured.")
+    admin = _admin_client()
+    profiles = admin.table("profiles").select(
+        "id,daily_expense_timezone"
+    ).eq("daily_expense_notifications_enabled", True).execute().data or []
+    sent = skipped = failed = 0
+    now_utc = datetime.now(timezone.utc)
+
+    for profile in profiles:
+        user_id = str(profile["id"])
+        try:
+            timezone_name = profile.get("daily_expense_timezone") or "Asia/Kolkata"
+            user_tz = ZoneInfo(timezone_name)
+            local_now = now_utc.astimezone(user_tz)
+            if local_now.hour != 0 or local_now.minute != 0:
+                skipped += 1
+                continue
+            summary_date = local_now.date() - timedelta(days=1)
+            date_key = summary_date.isoformat()
+            subscriptions = admin.table("daily_expense_push_subscriptions").select(
+                "id,endpoint,p256dh,auth"
+            ).eq("user_id", user_id).execute().data or []
+            if not subscriptions:
+                skipped += 1
+                continue
+
+            try:
+                admin.table("daily_expense_notification_sends").insert({
+                    "user_id": user_id,
+                    "summary_date": date_key,
+                }).execute()
+            except Exception as claim_error:
+                if "duplicate" in str(claim_error).lower() or "unique" in str(claim_error).lower():
+                    skipped += 1
+                    continue
+                raise
+
+            rows = admin.table("transactions").select(
+                "amount,description,raw_text,expense_category"
+            ).eq("user_id", user_id).eq("category", "expense").eq(
+                "direction", "out"
+            ).eq("transaction_date", date_key).order("id").execute().data or []
+            total = sum(float(row.get("amount") or 0) for row in rows)
+            if rows:
+                details = []
+                for row in rows[:3]:
+                    label = (row.get("description") or row.get("raw_text") or row.get("expense_category") or "Expense").strip()
+                    label = " ".join(label.split())[:32]
+                    details.append(f"{label}: ₹{float(row.get('amount') or 0):,.0f}")
+                remaining = len(rows) - len(details)
+                detail_text = " · ".join(details)
+                if remaining:
+                    detail_text += f" · +{remaining} more"
+                body = f"₹{total:,.2f} spent · {detail_text}"
+                title = f"Your {summary_date.strftime('%d %b')} expenses"
+            else:
+                title = f"No expenses for {summary_date.strftime('%d %b')}"
+                body = "Forgot to add an entry? Open Minto to update your daily expenses."
+
+            notification = json.dumps({
+                "title": title,
+                "body": body[:240],
+                "url": "/",
+                "tag": f"daily-expenses-{date_key}",
+            })
+            delivered = 0
+            for subscription in subscriptions:
+                try:
+                    webpush(
+                        subscription_info={
+                            "endpoint": subscription["endpoint"],
+                            "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]},
+                        },
+                        data=notification,
+                        vapid_private_key=VAPID_PRIVATE_KEY,
+                        vapid_claims=dict(VAPID_CLAIMS),
+                        ttl=86400,
+                    )
+                    delivered += 1
+                except WebPushException as push_error:
+                    status = getattr(getattr(push_error, "response", None), "status_code", None)
+                    if status in (404, 410):
+                        admin.table("daily_expense_push_subscriptions").delete().eq(
+                            "id", subscription["id"]
+                        ).execute()
+                    else:
+                        app.logger.warning(
+                            "Daily expense push failed for user %s with status %s",
+                            user_id, status or "unknown",
+                        )
+                except Exception as push_error:
+                    app.logger.warning(
+                        "Daily expense push failed for user %s (%s)",
+                        user_id, type(push_error).__name__,
+                    )
+            if delivered:
+                sent += 1
+            else:
+                # Release the claim so a transient provider failure can retry.
+                admin.table("daily_expense_notification_sends").delete().eq(
+                    "user_id", user_id
+                ).eq("summary_date", date_key).execute()
+                failed += 1
+        except Exception as exc:
+            failed += 1
+            app.logger.warning(
+                "Daily expense notification processing failed for user %s (%s)",
+                user_id, type(exc).__name__, exc_info=True,
+            )
+    return {"sent": sent, "skipped": skipped, "failed": failed}
+
+
+@app.route("/internal/daily-expense-notifications", methods=["POST"])
+def daily_expense_notifications_cron():
+    """Call every minute from Railway Cron using X-Minto-Cron-Secret."""
+    if not DAILY_EXPENSE_CRON_SECRET:
+        return jsonify(error="Daily expense notification cron is not configured."), 503
+    supplied = request.headers.get("X-Minto-Cron-Secret", "")
+    if not secrets.compare_digest(supplied.encode("utf-8"), DAILY_EXPENSE_CRON_SECRET.encode("utf-8")):
+        return jsonify(error="Unauthorized."), 401
+    try:
+        return jsonify(send_daily_expense_notifications())
+    except Exception:
+        app.logger.exception("Daily expense notification run failed")
+        return jsonify(error="Daily expense notification run failed. See server logs."), 500
 
 
 @app.route("/profile/finance-audit", methods=["GET", "POST"])
