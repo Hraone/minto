@@ -23,6 +23,17 @@
     .total{font-size:13px;color:var(--accent);font-weight:800}
     .hint{margin:7px 0 10px;color:var(--muted);font-size:12px;line-height:1.45}
     .road{height:210px;position:relative;overflow:hidden;border-radius:10px;background:#343b45;border:1px solid #58616d;touch-action:manipulation;cursor:pointer}
+    .road{background:linear-gradient(90deg,#263c32 0 5%,#343d48 5% 95%,#263c32 95%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.06)}
+    .road:before,.road:after{content:"";position:absolute;z-index:1;left:0;right:0;height:5px;background:repeating-linear-gradient(90deg,#e7dcae 0 12px,transparent 12px 23px);opacity:.7;pointer-events:none}
+    .road:before{top:0}.road:after{bottom:0}
+    .lane{background:repeating-linear-gradient(90deg,transparent 0 26px,rgba(255,255,255,.035) 26px 29px);border-bottom:2px dashed rgba(255,255,255,.55)}
+    .car{height:19px;width:48px;border-radius:7px 11px 8px 8px;box-shadow:0 3px 5px rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.24)}
+    .car:before{left:11px;top:2px;width:19px;height:8px;border-radius:4px;background:rgba(20,36,48,.8);border:1px solid rgba(255,255,255,.18)}
+    .car:after{content:"";position:absolute;left:7px;bottom:-3px;width:8px;height:5px;border-radius:2px;background:#15191e;box-shadow:27px 0 #15191e}
+    .car.blue{background:#579bd7}.car.yellow{background:#e8b34f}
+    .chicken{font-size:27px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));z-index:3}
+    .game{box-shadow:0 14px 36px rgba(0,0,0,.12)}
+
     .lane{height:20%;border-bottom:2px dashed rgba(255,255,255,.5);position:relative}
     .lane:last-child{border:0}
     .car{position:absolute;left:0;top:calc(50% - 8px);width:34px;height:16px;border-radius:6px 9px 6px 6px;background:#ee6b63;will-change:transform}
@@ -63,92 +74,109 @@
     <div class="status" id="status" role="status" aria-live="polite">The game works without an internet connection.</div>
   </main>
   <script>
-  (function(){
-    try{var t=localStorage.getItem("minto-user-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}
-    var road=document.getElementById("road"),chicken=document.getElementById("chicken");
-    var totalNode=document.getElementById("total"),nextNode=document.getElementById("next");
-    var gameStatus=document.getElementById("game-status"),gameOver=document.getElementById("game-over");
-    var moveButton=document.getElementById("move"),restartButton=document.getElementById("restart");
-    var cars=[
-      {el:document.querySelector(".car.yellow"),lane:0,x:35,direction:1,base:105},
-      {el:document.querySelector(".car.blue"),lane:1,x:road.clientWidth-90,direction:-1,base:125},
-      {el:document.querySelector(".car:not(.blue):not(.yellow)"),lane:3,x:100,direction:1,base:145}
-    ];
-    var lane=4,score=0,level=1,steps=0,speed=1,playing=true,lastTime=0;
-    var carWidth=34,playerWidth=24;
-    function placeChicken(){chicken.style.bottom=(Math.max(0,4-lane)*20)+"%";}
-    function updateLabels(){
-      totalNode.textContent="₹"+score;
-      nextNode.textContent="Level "+level+" · Speed "+speed.toFixed(1)+"×";
+(function(){
+  try{var t=localStorage.getItem("minto-user-theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t)}catch(e){}
+  var road=document.getElementById("road"),chicken=document.getElementById("chicken");
+  var totalNode=document.getElementById("total"),nextNode=document.getElementById("next");
+  var gameStatus=document.getElementById("game-status"),gameOver=document.getElementById("game-over");
+  var moveButton=document.getElementById("move"),restartButton=document.getElementById("restart");
+  var lane=4,score=0,level=1,steps=0,speed=1,playing=true,lastTime=0;
+  var cars=[],carWidth=48,playerWidth=25,spawned=0;
+  function updateLabels(){
+    totalNode.textContent="₹"+score;
+    nextNode.textContent="Level "+level+" · Speed "+speed.toFixed(1)+"×";
+  }
+  function placeChicken(){
+    chicken.style.bottom=(Math.max(0,4-lane)*20)+"%";
+    chicken.style.transform="translateX(-50%)";
+  }
+  function createCar(laneIndex, direction, startX, color){
+    var el=document.createElement("span");
+    el.className="car "+(color||"");
+    el.style.top="calc(50% - 8px)";
+    road.querySelectorAll(".lane")[laneIndex].appendChild(el);
+    var item={el:el,lane:laneIndex,x:startX,direction:direction,base:105+Math.random()*55};
+    cars.push(item);return item;
+  }
+  function clearCars(){cars.forEach(function(c){c.el.remove()});cars=[];}
+  function seedCars(){
+    clearCars();
+    var width=road.clientWidth||360;
+    createCar(0,1,Math.max(12,width*.08),"yellow");
+    createCar(1,-1,Math.max(70,width*.72),"blue");
+    createCar(3,1,Math.max(25,width*.25),"");
+    if(level>=3)createCar(2,-1,width*.8,"yellow");
+    if(level>=5)createCar(0,-1,width*.72,"blue");
+    if(level>=7)createCar(3,-1,width*.76,"yellow");
+  }
+  function endGame(){
+    if(!playing)return;
+    playing=false;gameOver.classList.add("show");
+    gameStatus.textContent="Collision! Your score is ₹"+score+". Try another run.";
+    moveButton.disabled=true;moveButton.style.opacity=".55";
+  }
+  function reset(){
+    lane=4;score=0;level=1;steps=0;speed=1;playing=true;lastTime=0;spawned=0;
+    gameOver.classList.remove("show");moveButton.disabled=false;moveButton.style.opacity="";
+    seedCars();placeChicken();updateLabels();
+    gameStatus.textContent="Tap Move up to cross. Avoid the moving cars!";
+  }
+  function checkCollision(){
+    if(!playing||lane===4)return false;
+    var player=chicken.getBoundingClientRect();
+    var px=player.left+player.width*.5,py=player.top+player.height*.5;
+    for(var i=0;i<cars.length;i++){
+      var car=cars[i];if(car.lane!==lane)continue;
+      var r=car.el.getBoundingClientRect();
+      var overlapX=px+playerWidth*.38>r.left+5&&px-playerWidth*.38<r.right-5;
+      var overlapY=py+player.height*.38>r.top+3&&py-player.height*.38<r.bottom-3;
+      if(overlapX&&overlapY){endGame();return true;}
     }
-    function endGame(){
-      if(!playing)return;
-      playing=false;
-      gameOver.classList.add("show");
-      gameStatus.textContent="Collision! Your score is ₹"+score+". Try another run.";
-      moveButton.disabled=true;
-      moveButton.style.opacity=".55";
+    return false;
+  }
+  function move(){
+    if(!playing)return;
+    lane--;steps++;score+=10;
+    speed=Math.min(1+((level-1)*.16)+(steps*.006),2.8);
+    if(lane<0){
+      level++;lane=4;
+      gameStatus.textContent="Safe crossing! Level "+level+" · Traffic is busier now.";
+      seedCars();
+    }else{
+      gameStatus.textContent="Safe lane! +₹10. Watch the traffic.";
     }
-    function reset(){
-      lane=4;score=0;level=1;steps=0;speed=1;playing=true;lastTime=0;
-      cars[0].x=35;cars[1].x=Math.max(80,road.clientWidth-90);cars[2].x=100;
-      cars.forEach(function(car){car.el.style.transform="translateX("+car.x+"px)";});
-      gameOver.classList.remove("show");
-      moveButton.disabled=false;moveButton.style.opacity="";
-      gameStatus.textContent="Tap Move up to cross. Avoid the moving cars!";
-      placeChicken();updateLabels();
-    }
-    function move(){
-      if(!playing)return;
-      lane--;steps++;score+=10;
-      speed=Math.min(1+(steps*.035),4.5);
-      if(lane<0){
-        level++;lane=4;
-        gameStatus.textContent="Safe crossing! Level "+level+" — traffic is faster.";
-      } else {
-        gameStatus.textContent="Step "+steps+" · Traffic speed increased.";
-      }
-      placeChicken();updateLabels();
+    placeChicken();updateLabels();
+    requestAnimationFrame(checkCollision);
+  }
+  function tick(time){
+    if(!lastTime)lastTime=time;
+    var dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
+    if(playing){
+      var width=road.clientWidth;
+      cars.forEach(function(car){
+        car.x+=car.direction*car.base*speed*dt;
+        if(car.direction>0&&car.x>width+55)car.x=-55;
+        if(car.direction<0&&car.x<-55)car.x=width+55;
+        car.el.style.transform="translateX("+car.x+"px)";
+      });
       checkCollision();
     }
-    function checkCollision(){
-      if(!playing)return;
-      var roadRect=road.getBoundingClientRect();
-      var playerX=road.clientWidth/2;
-      cars.forEach(function(car){
-        if(car.lane!==lane)return;
-        var carCenter=car.x+carWidth/2;
-        if(Math.abs(carCenter-playerX)<(carWidth+playerWidth)/2-3)endGame();
-      });
-    }
-    function tick(time){
-      if(!lastTime)lastTime=time;
-      var dt=Math.min((time-lastTime)/1000,.05);lastTime=time;
-      if(playing){
-        var width=road.clientWidth;
-        cars.forEach(function(car){
-          car.x+=car.direction*car.base*speed*dt;
-          if(car.direction>0&&car.x>width+45)car.x=-45;
-          if(car.direction<0&&car.x<-45)car.x=width+45;
-          car.el.style.transform="translateX("+car.x+"px)";
-        });
-        checkCollision();
-      }
-      requestAnimationFrame(tick);
-    }
-    moveButton.addEventListener("click",move);
-    road.addEventListener("click",move);
-    road.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "){e.preventDefault();move()}});
-    restartButton.addEventListener("click",function(e){e.stopPropagation();reset();});
-    document.getElementById("status").textContent=navigator.onLine?"Connection may be unstable. Tap Try again when ready.":"The game works without an internet connection.";
-    var retry=document.createElement("button");retry.id="retry";retry.type="button";retry.textContent="Try again";
-    retry.style.cssText="margin-top:12px;padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer";
-    document.querySelector("main").appendChild(retry);
-    retry.addEventListener("click",function(){if(!navigator.onLine){document.getElementById("status").textContent="Still offline. Keep playing while you wait.";return}document.getElementById("status").textContent="Reconnecting to Minto…";location.href="/"});
-    window.addEventListener("online",function(){document.getElementById("status").textContent="You're back online. Tap Try again to return to Minto."});
-    window.addEventListener("offline",function(){document.getElementById("status").textContent="Connection lost. The game still works offline."});
-    reset();requestAnimationFrame(tick);
-  })();
-  </script>
+    requestAnimationFrame(tick);
+  }
+  moveButton.addEventListener("click",move);
+  road.addEventListener("click",move);
+  road.addEventListener("keydown",function(e){if(e.key==="Enter"||e.key===" "||e.key==="ArrowUp"){e.preventDefault();move()}});
+  restartButton.addEventListener("click",function(e){e.stopPropagation();reset()});
+  window.addEventListener("resize",function(){if(playing)seedCars()});
+  document.getElementById("status").textContent=navigator.onLine?"Connection may be unstable. Tap Try again when ready.":"The game works without an internet connection.";
+  var retry=document.createElement("button");retry.id="retry";retry.type="button";retry.textContent="Try again";
+  retry.style.cssText="margin-top:12px;padding:9px 16px;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--text);font:inherit;font-size:13px;font-weight:700;cursor:pointer";
+  document.querySelector("main").appendChild(retry);
+  retry.addEventListener("click",function(){if(!navigator.onLine){document.getElementById("status").textContent="Still offline. Keep playing while you wait.";return}document.getElementById("status").textContent="Reconnecting to Minto…";location.href="/"});
+  window.addEventListener("online",function(){document.getElementById("status").textContent="You're back online. Tap Try again to return to Minto."});
+  window.addEventListener("offline",function(){document.getElementById("status").textContent="Connection lost. The game still works offline."});
+  reset();requestAnimationFrame(tick);
+})();
+</script>
 </body>
 </html>
