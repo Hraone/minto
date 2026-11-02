@@ -688,3 +688,96 @@ def build_report_pdf(user_name, d_from, d_to, rows, prev_spend=None):
     doc.addPageTemplates([PageTemplate(id="p", frames=[frame], onPage=_footer)])
     doc.build(story)
     return buf.getvalue()
+
+
+
+def build_cashflow_report_pdf(user_name, d_from, d_to, rows):
+    """Full inflow/outflow report with transfers and lending in a separate grid."""
+    days = (d_to - d_from).days + 1
+    main_in = main_out = transfer_in = transfer_out = lending_in = lending_out = 0.0
+    monthly = defaultdict(lambda: [0.0, 0.0])
+    by_account = defaultdict(lambda: [0.0, 0.0])
+    special = []
+    for t in rows:
+        amount = float(t.get("amount") or 0)
+        direction, category = t.get("direction") or "", t.get("category") or ""
+        source = (t.get("user_sources") or {}).get("name") or "No account"
+        if category in ("transfer", "lending"):
+            special.append(t)
+            if category == "transfer" and direction == "in": transfer_in += amount
+            elif category == "transfer" and direction == "out": transfer_out += amount
+            elif category == "lending" and direction == "in": lending_in += amount
+            elif category == "lending" and direction == "out": lending_out += amount
+            continue
+        if category in NON_FLOW: continue
+        d = _day(t)
+        key = (d.year, d.month)
+        if direction == "in":
+            main_in += amount; monthly[key][0] += amount; by_account[source][0] += amount
+        elif direction == "out":
+            main_out += amount; monthly[key][1] += amount; by_account[source][1] += amount
+
+    story = []
+    logo = Image(LOGO, width=13 * mm, height=13 * mm) if os.path.exists(LOGO) else ""
+    title = [Paragraph("Income &amp; expense report", S_TITLE),
+             Paragraph(f"{fdate(d_from)} to {fdate(d_to)}  |  {days} days", S_SUB)]
+    right = [Paragraph(f"<b>{_esc(user_name)}</b>", S_RIGHT),
+             Paragraph(f"Generated {fdate(date.today())}", S_RIGHT_MUTED)]
+    header = Table([[logo, title, right]], colWidths=[16 * mm, CONTENT_W - 71 * mm, 55 * mm])
+    header.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+        ("LINEBELOW",(0,0),(-1,0),1.2,GREEN),("BOTTOMPADDING",(0,0),(-1,-1),8)]))
+    story += [header, Spacer(1,10)]
+    net = main_in - main_out
+    story.append(_card_row([
+        ("Total income", inr0(main_in), "Incoming transactions"),
+        ("Total outgoing", inr0(main_out), "Outgoing transactions"),
+        ("Net cash flow", inr0(net), "Income minus outgoing", GREEN if net >= 0 else CORAL),
+    ]))
+    story += [Paragraph("Main cash flow", S_H2),
+        Paragraph("Regular income, expenses, investments and other cash-flow transactions. Own-account transfers and lending/repayments are separated below.", S_NOTE)]
+    if monthly:
+        keys = sorted(monthly)
+        names = [date(y,m,1).strftime("%b %y") for y,m in keys]
+        story += [Paragraph("Income vs. outgoing by month", S_H2),
+                  _vbar(CONTENT_W,165,[[monthly[k][0] for k in keys],[monthly[k][1] for k in keys]],names,[GREEN,CORAL],value_labels=len(keys)<=6),
+                  Paragraph("Green is incoming; red is outgoing.", S_NOTE)]
+    if by_account:
+        story.append(Paragraph("Main cash flow by account", S_H2))
+        data = [[Paragraph("ACCOUNT",S_HEAD),Paragraph("INCOME",S_HEAD_R),Paragraph("OUTGOING",S_HEAD_R),Paragraph("NET",S_HEAD_R)]]
+        for account,(inc,out) in sorted(by_account.items(),key=lambda x:x[1][0]-x[1][1],reverse=True):
+            data.append([Paragraph(_esc(account),S_CELL),Paragraph(inr2(inc),S_CELL_R),Paragraph(inr2(out),S_CELL_R),Paragraph(inr2(inc-out),S_CELL_R)])
+        story.append(_table(data,[CONTENT_W-210,70,70,70]))
+
+    story += [Spacer(1,10), Paragraph("Bank transfers &amp; lending / repayments", S_H2),
+        Paragraph("These movements are itemized separately and are not included in the main cash-flow totals.", S_NOTE),
+        _card_row([
+            ("Transfers in",inr0(transfer_in),"Into your accounts"),
+            ("Transfers out",inr0(transfer_out),"Between your accounts"),
+            ("Lent out",inr0(lending_out),"Given to others"),
+            ("Repaid to you",inr0(lending_in),"Received back"),
+        ])]
+    if special:
+        data = [[Paragraph("DATE",S_HEAD),Paragraph("TYPE / DETAILS",S_HEAD),Paragraph("ACCOUNT",S_HEAD),Paragraph("DIRECTION",S_HEAD),Paragraph("AMOUNT",S_HEAD_R)]]
+        for t in sorted(special,key=lambda x:(str(x.get("transaction_date") or ""),str(x.get("id") or ""))):
+            cat=t.get("category") or ""; direction=t.get("direction") or ""
+            details=t.get("description") or t.get("raw_text") or ""
+            if cat=="lending":
+                details=(t.get("counterparty") or "Unspecified person")+(" · "+details if details else "")
+                label="Lending / repayment"
+            else: label="Own-account transfer"
+            account=(t.get("user_sources") or {}).get("name") or "No account"
+            data.append([Paragraph(_esc(str(t.get("transaction_date") or "")[:10]),S_CELL),
+                Paragraph(_esc(_trim(details or label,38)),S_CELL),Paragraph(_esc(account),S_CELL),
+                Paragraph("Incoming" if direction=="in" else "Outgoing",S_CELL),
+                Paragraph(inr2(t.get("amount") or 0),S_CELL_R)])
+        story.append(_table(data,[58,CONTENT_W-263,78,62,65]))
+    else:
+        story.append(Paragraph("No bank transfers or lending/repayment transactions in this period.",S_NOTE))
+    buf=io.BytesIO()
+    doc=BaseDocTemplate(buf,pagesize=A4,leftMargin=MARGIN,rightMargin=MARGIN,topMargin=MARGIN,bottomMargin=18*mm,
+        title="Minto income and expense report",author="Minto")
+    frame=Frame(MARGIN,18*mm,CONTENT_W,PAGE_H-MARGIN-18*mm,id="main",leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0)
+    doc.addPageTemplates([PageTemplate(id="p",frames=[frame],onPage=_footer)])
+    doc.build(story)
+    return buf.getvalue()
