@@ -360,6 +360,7 @@ create table if not exists public.report_history (
     user_id uuid not null references auth.users(id) on delete cascade,
     date_from date not null,
     date_to date not null,
+    report_type text not null default 'expense' check (report_type in ('expense', 'cashflow', 'funfacts')),
     row_count integer not null default 0,
     file_format text not null default 'pdf',
     created_at timestamp with time zone not null default now()
