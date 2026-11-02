@@ -1782,6 +1782,25 @@ def update_daily_expense_notifications():
         p256dh, auth = keys.get("p256dh"), keys.get("auth")
         if not all(isinstance(v, str) and v for v in (endpoint, p256dh, auth)):
             return jsonify(ok=False, error="The browser returned an invalid notification subscription."), 400
+        # Push endpoints are user-supplied URLs. Restrict them to known public
+        # browser push services so an authenticated request cannot turn the
+        # delivery worker into an arbitrary URL fetcher.
+        parsed_endpoint = urlsplit(endpoint)
+        push_host = (parsed_endpoint.hostname or "").lower()
+        allowed_push_host = (
+            push_host == "fcm.googleapis.com"
+            or push_host == "updates.push.services.mozilla.com"
+            or push_host.endswith(".push.services.mozilla.com")
+            or push_host.endswith(".push.apple.com")
+        )
+        if (
+            parsed_endpoint.scheme != "https"
+            or not allowed_push_host
+            or parsed_endpoint.username
+            or parsed_endpoint.password
+            or parsed_endpoint.port not in (None, 443)
+        ):
+            return jsonify(ok=False, error="This browser's push service endpoint is not supported."), 400
         try:
             timezone_name = str(payload.get("timezone") or "Asia/Kolkata")
             ZoneInfo(timezone_name)
