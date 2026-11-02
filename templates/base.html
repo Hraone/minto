@@ -1983,7 +1983,7 @@
 
 </head>
 
-<body class="{% if session.get('user_id') and app_mode != 'trip' %}has-avatar{% endif %}{% if request.args.get('modal') == '1' %} entry-modal-mode{% endif %}">
+<body class="{% if session.get('user_id') and app_mode != 'trip' %}has-avatar{% if request.endpoint != 'entry' %} has-mobile-add-fab{% endif %}{% endif %}{% if request.args.get('modal') == '1' %} entry-modal-mode{% endif %}">
 
   {% if request.args.get('modal') == '1' %}
   <style>
@@ -2776,15 +2776,24 @@
   @media(prefers-reduced-motion:reduce) { .fixed-reminder-chip { transition:none; transform:none; } }
   .fixed-reminder-count { position:absolute; top:-5px; right:-5px; min-width:20px; height:20px; display:flex; align-items:center; justify-content:center; padding:0 4px; border-radius:999px; background:var(--negative); color:#fff; font-size:11px; line-height:1; border:2px solid var(--surface); }
   .fixed-reminder-chip-label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; }
+  @media(max-width:600px) {
+    /* The bell uses the Add button's slot when Add is not rendered on this page. */
+    .fixed-reminder-chip {
+      left:auto;
+      right:16px;
+      bottom:calc(var(--fixed-reminder-bottom, 88px) + env(safe-area-inset-bottom, 0px));
+      width:48px;
+      height:48px;
+    }
+    body.has-mobile-add-fab { --fixed-reminder-bottom:152px; }
+    body:not(.has-mobile-add-fab) { --fixed-reminder-bottom:88px; }
+    body { padding-bottom:calc(154px + env(safe-area-inset-bottom)); }
+  }
   @media(max-width:480px) {
     .fixed-reminder-card { padding:17px; border-radius:18px; }
     .fixed-reminder-card h2 { font-size:19px; }
     .fixed-reminder-item form button { width:100%; }
     #fixedReminderItems { grid-template-columns:1fr; }
-    /* Compact notification bell stays above the fixed bottom navigation. */
-    .fixed-reminder-chip { left:auto; right:16px; bottom:calc(150px + env(safe-area-inset-bottom)); width:48px; height:48px; }
-    /* Reserve space for the bottom navigation and the floating Add control. */
-    body { padding-bottom:calc(154px + env(safe-area-inset-bottom)); }
   }
 </style>
 <div class="fixed-reminder-overlay" id="fixedReminderOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="fixedReminderTitle">
