@@ -5552,6 +5552,13 @@ def pay_fixed_expense(fixed_expense_id):
         flash("That fixed expense could not be found.")
         return redirect(return_to)
     expense = rows[0]
+    actual_amount = parse_money(
+        request.form.get("actual_amount"),
+        default=float(expense["amount"]),
+    )
+    if actual_amount is None:
+        flash("Enter a valid amount greater than zero.")
+        return redirect(return_to)
     source_id = request.form.get("source_id") or expense.get("source_id")
     if not source_id:
         flash("Choose the account used to pay this expense.")
@@ -5581,10 +5588,14 @@ def pay_fixed_expense(fixed_expense_id):
         if already_paid:
             flash("This fixed expense is already marked paid for this month.")
             return redirect(return_to)
-        amount = min(float(expense["amount"]), float(loan.get("outstanding_amount") or 0))
-        if amount <= 0:
+        outstanding_amount = float(loan.get("outstanding_amount") or 0)
+        if outstanding_amount <= 0:
             flash("There is no remaining loan balance to pay.")
             return redirect(return_to)
+        if actual_amount > outstanding_amount:
+            flash(f"The amount cannot exceed the remaining loan balance of ₹{outstanding_amount:,.2f}.")
+            return redirect(return_to)
+        amount = actual_amount
         transfer_group = str(uuid.uuid4())
         description = f"CC loan / EMI: {loan.get('name') or expense['name']}"
         created_ids = []
@@ -5679,7 +5690,7 @@ def pay_fixed_expense(fixed_expense_id):
                 "expense_category": None if is_investment else (expense.get("category") or "other"),
                 "investment_category": (expense.get("category") or "other") if is_investment else None,
                 "source_id": int(source_id),
-                "amount": float(expense["amount"]),
+                "amount": actual_amount,
                 "description": expense["name"],
                 "raw_text": f"{entry_label}: {expense['name']}",
                 "transaction_date": today.isoformat(),
@@ -5778,6 +5789,13 @@ def receive_fixed_income(fixed_income_id):
         flash("That recurring income could not be found.")
         return redirect(url_for("fixed_expenses"))
     income = rows[0]
+    actual_amount = parse_money(
+        request.form.get("actual_amount"),
+        default=float(income["amount"]),
+    )
+    if actual_amount is None:
+        flash("Enter a valid amount greater than zero.")
+        return redirect(url_for("fixed_expenses"))
     source_id = request.form.get("source_id") or income.get("source_id")
     valid_destinations = {
         str(r["id"]) for r in client.table("user_sources").select("id")
@@ -5799,7 +5817,7 @@ def receive_fixed_income(fixed_income_id):
     try:
         entry_id = insert_entry_and_transaction(client, user_id, f"Fixed income: {income['name']}", {
             "direction": "in", "category": "income", "expense_category": None,
-            "source_id": int(source_id), "amount": float(income["amount"]),
+            "source_id": int(source_id), "amount": actual_amount,
             "description": income["name"], "raw_text": f"Fixed income: {income['name']}",
             "transaction_date": today.isoformat(),
         })
