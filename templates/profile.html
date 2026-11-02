@@ -1542,6 +1542,23 @@
       <p id="style-save-status" class="preference-status" role="status" aria-live="polite" hidden></p>
     </div>
 
+    <div class="profile-card" id="daily-expense-notification-settings">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <div style="min-width:0;flex:1 1 220px;">
+          <h2 style="margin:0 0 5px;font-size:16px;font-weight:750;">Daily expense summary</h2>
+          <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.5;">At midnight, get yesterday's expense total and a few transaction details. If you haven't recorded any expenses, Minto will send a reminder instead.</p>
+          <p id="daily-expense-notification-status" role="status" aria-live="polite" style="margin:9px 0 0;color:var(--muted);font-size:12px;">{{ 'Notifications enabled on this account.' if daily_expense_notifications_enabled else 'Notifications are currently off.' }}</p>
+        </div>
+        <label style="display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:13px;font-weight:700;">
+          <input type="checkbox" id="daily-expense-notification-toggle" {% if daily_expense_notifications_enabled %}checked{% endif %} {% if not vapid_public_key %}disabled{% endif %} style="width:18px;height:18px;accent-color:var(--positive);">
+          <span>Enable</span>
+        </label>
+      </div>
+      {% if not vapid_public_key %}
+      <p style="margin:12px 0 0;color:var(--muted);font-size:12px;">Push notifications are not configured on the server yet.</p>
+      {% endif %}
+    </div>
+
     <div class="profile-card-footer">
       <p>Your profile details and preferences help personalize your Minto experience.</p>
       <button type="button" class="section-action" data-open-profile-modal="password-modal">Reset password</button>
@@ -1779,6 +1796,77 @@
           document.documentElement.setAttribute('data-theme', fallback);
           if (status) status.textContent = fallback === 'dark' ? 'Dark mode' : 'Light mode';
           alert('Could not save your appearance preference. Please try again.');
+        }
+      });
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const toggle = document.getElementById('daily-expense-notification-toggle');
+      const status = document.getElementById('daily-expense-notification-status');
+      if (!toggle) return;
+
+      const publicKey = {{ vapid_public_key|tojson }};
+      function setStatus(message, isError) {
+        if (!status) return;
+        status.textContent = message;
+        status.style.color = isError ? 'var(--negative)' : 'var(--muted)';
+      }
+      function decodeBase64Url(value) {
+        const padding = '='.repeat((4 - value.length % 4) % 4);
+        const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+        const raw = atob(base64);
+        return Uint8Array.from(raw, char => char.charCodeAt(0));
+      }
+      async function savePreference(payload) {
+        const response = await fetch('{{ url_for("update_daily_expense_notifications") }}', {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || !data.ok) throw new Error(data.error || 'Could not save notification settings.');
+        return data;
+      }
+
+      toggle.addEventListener('change', async function () {
+        const enabled = toggle.checked;
+        toggle.disabled = true;
+        try {
+          if (enabled) {
+            if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+              throw new Error('Push notifications are not supported by this browser. On iPhone, install Minto to your Home Screen first.');
+            }
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') throw new Error('Allow notifications in your browser settings to enable the daily summary.');
+            const registration = await navigator.serviceWorker.ready;
+            let subscription = await registration.pushManager.getSubscription();
+            if (!subscription) {
+              subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey: decodeBase64Url(publicKey)
+              });
+            }
+            await savePreference({
+              enabled: true,
+              timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata',
+              subscription: subscription.toJSON()
+            });
+            setStatus('Daily expense notifications enabled on this device.');
+          } else {
+            await savePreference({ enabled: false });
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            if (subscription) await subscription.unsubscribe();
+            setStatus('Daily expense notifications turned off.');
+          }
+        } catch (error) {
+          toggle.checked = !enabled;
+          setStatus(error.message || 'Could not update notifications. Please try again.', true);
+        } finally {
+          toggle.disabled = false;
         }
       });
     })();
