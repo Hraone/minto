@@ -50,14 +50,14 @@ Keep the private DER key secret. If keys are rotated, existing browser subscript
 
 ## Scheduler
 
-Configure a Railway Cron service to call the deployed app **every minute**:
+Configure a Railway Cron service to call the deployed app every five minutes:
 
 - Method: `POST`
 - Path: `/internal/daily-expense-notifications`
 - Header: `X-Minto-Cron-Secret: <DAILY_EXPENSE_CRON_SECRET>`
-- Schedule: `* * * * *`
+- Schedule: `*/5 * * * *`
 
-The worker checks each enabled user's local time and only processes users whose local clock is in the 00:00 minute. It summarizes the previous local calendar date. The unique send claim makes repeated cron calls safe.
+Railway Cron supports a five-minute minimum interval, so the worker accepts the first ten minutes after midnight in each enabled user's local time zone. It summarizes the previous local calendar date. The unique `(user_id, summary_date)` claim ensures repeated or overlapping cron calls cannot send a duplicate for the same user and date.
 
 ## Verification checklist
 
