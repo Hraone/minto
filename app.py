@@ -556,16 +556,32 @@ def parse_iso_date(raw):
         return None
 
 
-def insert_entry_and_transaction(client, user_id, entry_text, txn_fields):
-    """One entries row plus the transactions row that shares its id. If the
-    second insert fails the first is removed, so a failure never leaves an
-    orphan entry behind. Returns the new id."""
-    entry_row = client.table("entries").insert({
+def insert_entry_and_transaction(client, user_id, entry_text, txn_fields, idempotency_key=None):
+    """Insert an entry/transaction pair, optionally deduplicating a retried form POST."""
+    entry_payload = {
         "user_id": user_id,
         "entry_text": entry_text,
         "mode": "manual",
-    }).execute()
-    entry_id = entry_row.data[0]["id"]
+    }
+    if idempotency_key:
+        entry_payload["idempotency_key"] = idempotency_key
+    try:
+        entry_row = client.table("entries").insert(entry_payload).execute()
+        entry_id = entry_row.data[0]["id"]
+    except Exception:
+        if idempotency_key:
+            existing = (
+                client.table("entries")
+                .select("id")
+                .eq("user_id", user_id)
+                .eq("idempotency_key", idempotency_key)
+                .limit(1)
+                .execute()
+                .data
+            )
+            if existing:
+                return existing[0]["id"]
+        raise
     try:
         client.table("transactions").insert({
             "id": entry_id,
@@ -2890,6 +2906,7 @@ def net_worth():
         card_forecasts=card_forecasts,
         snapshots=snapshots,
         today=datetime.now(APP_TZ).date().isoformat(),
+        submission_key=str(uuid.uuid4()),
     )
 
 
@@ -3015,7 +3032,11 @@ def entry():
         # explicitly sending null here would fail the not-null constraint.
         try:
             insert_entry_and_transaction(
-                client, user_id, notes or f"{direction} {amount} {category}", transaction_row
+                client,
+                user_id,
+                notes or f"{direction} {amount} {category}",
+                transaction_row,
+                idempotency_key=(request.form.get("submission_key") or "").strip() or None,
             )
         except Exception:
             flash("Couldn't save that entry. Please try again.")
