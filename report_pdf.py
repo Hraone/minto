@@ -781,3 +781,106 @@ def build_cashflow_report_pdf(user_name, d_from, d_to, rows):
     doc.addPageTemplates([PageTemplate(id="p",frames=[frame],onPage=_footer)])
     doc.build(story)
     return buf.getvalue()
+
+
+def build_money_fun_facts_pdf(user_name, d_from, d_to, rows):
+    """Generate concise, data-backed money facts for the selected period."""
+    days = (d_to - d_from).days + 1
+    expenses, incomes, special = [], [], []
+    cats, spend_days, income_days, income_sources = defaultdict(lambda: [0.0, 0]), defaultdict(float), defaultdict(float), defaultdict(float)
+    weekday_spend = [0.0] * 7
+    transfers_in = transfers_out = lent = repaid = 0.0
+    transfer_count = lending_count = 0
+    for t in rows:
+        amount = float(t.get("amount") or 0)
+        cat, direction = (t.get("category") or "").lower(), (t.get("direction") or "").lower()
+        d = _day(t)
+        if cat in ("transfer", "lending"):
+            special.append(t)
+            if cat == "transfer":
+                transfer_count += 1
+                if direction == "in": transfers_in += amount
+                elif direction == "out": transfers_out += amount
+            else:
+                lending_count += 1
+                if direction == "in": repaid += amount
+                elif direction == "out": lent += amount
+            continue
+        if cat in NON_FLOW: continue
+        if cat == "expense" and direction == "out":
+            expenses.append((amount, d, t)); spend_days[d] += amount
+            weekday_spend[d.weekday()] += amount
+            label = pretty(t.get("expense_category"))
+            cats[label][0] += amount; cats[label][1] += 1
+        elif direction == "in":
+            incomes.append((amount, d, t)); income_days[d] += amount
+            income_sources[(t.get("user_sources") or {}).get("name") or "No account"] += amount
+
+    story = []
+    logo = Image(LOGO, width=13 * mm, height=13 * mm) if os.path.exists(LOGO) else ""
+    header = Table([[logo,
+        [Paragraph("Money fun facts", S_TITLE), Paragraph(f"{fdate(d_from)} to {fdate(d_to)}  |  {days} days", S_SUB)],
+        [Paragraph(f"<b>{_esc(user_name)}</b>", S_RIGHT), Paragraph(f"Generated {fdate(date.today())}", S_RIGHT_MUTED)]],
+        colWidths=[16 * mm, CONTENT_W - 71 * mm, 55 * mm])
+    header.setStyle(TableStyle([("VALIGN",(0,0),(-1,-1),"MIDDLE"),("LEFTPADDING",(0,0),(-1,-1),0),
+        ("RIGHTPADDING",(0,0),(-1,-1),0),("LINEBELOW",(0,0),(-1,0),1.2,GREEN),("BOTTOMPADDING",(0,0),(-1,-1),8)]))
+    story += [header, Spacer(1,12), Paragraph("Your money, in little discoveries", S_H2),
+        Paragraph("Every insight is calculated from transactions in the selected date range.", S_NOTE), Spacer(1,8)]
+    def fact(text):
+        story.append(Paragraph(text, _style("fun_fact", fontSize=10, leading=15, spaceAfter=8)))
+
+    if expenses:
+        expenses.sort(key=lambda x: x[0], reverse=True)
+        total = sum(x[0] for x in expenses)
+        story.append(_card_row([
+            ("Expenses recorded", str(len(expenses)), f"Across {len(spend_days)} active days"),
+            ("Average expense", inr0(total / len(expenses)), "Per transaction"),
+            ("No-spend days", str(max(days-len(spend_days),0)), f"Out of {days} days")]))
+        story.append(Spacer(1,10))
+        amount, day, txn = expenses[0]
+        desc = _esc(_trim(txn.get("description") or txn.get("raw_text") or "Unspecified purchase", 60))
+        fact(f"Your biggest expense was <b>{inr0(amount)}</b> on <b>{fdate(day)}</b> for {desc}.")
+        if cats:
+            name, data = max(cats.items(), key=lambda x:x[1][0])
+            fact(f"<b>{_esc(name)}</b> was your top category at {inr0(data[0])}, across {data[1]} transaction{'s' if data[1] != 1 else ''} ({data[0]/total*100:.0f}% of expenses).")
+            often, count = max(cats.items(), key=lambda x:x[1][1])
+            if often != name: fact(f"You recorded the most expense entries in <b>{_esc(often)}</b> ({count[1]} times).")
+        if days >= 14:
+            counts=[0]*7; cursor=d_from
+            while cursor<=d_to: counts[cursor.weekday()]+=1; cursor+=timedelta(days=1)
+            averages=[weekday_spend[i]/counts[i] if counts[i] else 0 for i in range(7)]
+            if max(averages)>0:
+                i=max(range(7),key=lambda j:averages[j])
+                fact(f"<b>{WEEKDAYS_LONG[i]}s</b> had your highest average daily spend ({inr0(averages[i])}).")
+        busy_day,busy_amount=max(spend_days.items(),key=lambda x:x[1])
+        if busy_day != day: fact(f"Your highest-spend day was <b>{fdate(busy_day)}</b>, totaling {inr0(busy_amount)}.")
+
+    if incomes:
+        story.append(Paragraph("Income discoveries", S_H2))
+        total_in=sum(x[0] for x in incomes)
+        story.append(_card_row([("Income entries",str(len(incomes)),"Incoming transactions"),
+            ("Total recorded income",inr0(total_in),"In this period")]))
+        story.append(Spacer(1,8))
+        d,amt=max(income_days.items(),key=lambda x:x[1])
+        fact(f"Your highest-income day was <b>{fdate(d)}</b>, with {inr0(amt)} recorded.")
+        source,amt=max(income_sources.items(),key=lambda x:x[1])
+        fact(f"<b>{_esc(source)}</b> received the most income ({inr0(amt)}).")
+
+    if special:
+        story.append(Paragraph("Transfers and lending", S_H2))
+        story.append(_card_row([
+            ("Transfers",str(transfer_count),f"In {inr0(transfers_in)} · Out {inr0(transfers_out)}"),
+            ("Lending entries",str(lending_count),f"Lent {inr0(lent)} · Repaid {inr0(repaid)}")]))
+        story.append(Spacer(1,8))
+        if transfer_count: fact(f"You recorded <b>{transfer_count} own-account transfer{'s' if transfer_count != 1 else ''}</b>, kept separate from spending.")
+        if lending_count: fact(f"You recorded <b>{lending_count} lending / repayment entr{'ies' if lending_count != 1 else 'y'}</b>: {inr0(lent)} lent and {inr0(repaid)} received back.")
+    if not expenses and not incomes and not special:
+        story.append(Paragraph("There aren't enough transactions in this period to uncover money facts yet.", S_BODY))
+    story += [Spacer(1,8), Paragraph("These are descriptive observations, not financial advice. Transfers and lending / repayments are not counted as regular income or expenses.", S_NOTE)]
+    buf=io.BytesIO()
+    doc=BaseDocTemplate(buf,pagesize=A4,leftMargin=MARGIN,rightMargin=MARGIN,topMargin=MARGIN,bottomMargin=18*mm,
+        title="Minto money fun facts",author="Minto")
+    frame=Frame(MARGIN,18*mm,CONTENT_W,PAGE_H-MARGIN-18*mm,id="main",leftPadding=0,rightPadding=0,topPadding=0,bottomPadding=0)
+    doc.addPageTemplates([PageTemplate(id="p",frames=[frame],onPage=_footer)])
+    doc.build(story)
+    return buf.getvalue()
