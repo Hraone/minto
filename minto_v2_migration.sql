@@ -1369,4 +1369,10 @@ $function$;
 revoke all on function public.list_trip_friend_suggestions(integer) from public;
 grant execute on function public.list_trip_friend_suggestions(integer) to authenticated;
 
+-- Prevent duplicate manual entry creation when a slow mobile request is submitted twice.
+alter table public.entries add column if not exists idempotency_key text;
+create unique index if not exists entries_user_id_idempotency_key_uidx
+    on public.entries (user_id, idempotency_key)
+    where idempotency_key is not null;
+
 commit;
