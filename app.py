@@ -23,7 +23,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
-from report_pdf import build_report_pdf
+from report_pdf import build_report_pdf, build_cashflow_report_pdf
 from trip_accounting import calculate_trip_balances, suggested_settlements, trip_payables_for_user
 from dashboard_finance import (
     calculate_dashboard_flow,
@@ -2492,9 +2492,15 @@ def download_report():
     app.logger.info("report_stage=previous_period_comparison elapsed_ms=%.1f", (time.perf_counter() - stage_started) * 1000)
 
     name = (session.get("display_name") or "").strip() or (session.get("email") or "").split("@")[0] or "Minto user"
+    report_type = (request.args.get("type") or "expense").strip().lower()
+    if report_type not in ("expense", "cashflow"):
+        report_type = "expense"
     stage_started = time.perf_counter()
     try:
-        pdf = build_report_pdf(name, d_from, d_to, rows, prev_spend)
+        if report_type == "cashflow":
+            pdf = build_cashflow_report_pdf(name, d_from, d_to, rows)
+        else:
+            pdf = build_report_pdf(name, d_from, d_to, rows, prev_spend)
     except Exception as e:
         app.logger.exception("Report PDF failed")
         flash("Couldn't build the report. Please try again.")
@@ -2514,7 +2520,7 @@ def download_report():
     except Exception:
         pass
 
-    filename = f"minto-report-{d_from.isoformat()}-to-{d_to.isoformat()}.pdf"
+    filename = f"minto-{report_type}-report-{d_from.isoformat()}-to-{d_to.isoformat()}.pdf"
     return Response(
         pdf,
         mimetype="application/pdf",
