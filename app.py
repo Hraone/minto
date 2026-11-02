@@ -2452,7 +2452,7 @@ def download_transactions_csv():
         "\ufeff" + output.getvalue(),
         mimetype="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f'{"inline" if request.args.get("view") == "1" else "attachment"}; filename="{filename}"',
+            "Content-Disposition": f'attachment; filename="{filename}"',
             "Cache-Control": "no-store",
         },
     )
@@ -2529,7 +2529,7 @@ def download_report():
         pdf,
         mimetype="application/pdf",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Disposition": f'{"inline" if request.args.get("view") == "1" else "attachment"}; filename="{filename}"',
             "Cache-Control": "no-store",
         },
     )
