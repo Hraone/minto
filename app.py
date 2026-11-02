@@ -23,7 +23,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
-from report_pdf import build_report_pdf, build_cashflow_report_pdf
+from report_pdf import build_report_pdf, build_cashflow_report_pdf, build_money_fun_facts_pdf
 from trip_accounting import calculate_trip_balances, suggested_settlements, trip_payables_for_user
 from dashboard_finance import (
     calculate_dashboard_flow,
@@ -2493,12 +2493,14 @@ def download_report():
 
     name = (session.get("display_name") or "").strip() or (session.get("email") or "").split("@")[0] or "Minto user"
     report_type = (request.args.get("type") or "expense").strip().lower()
-    if report_type not in ("expense", "cashflow"):
+    if report_type not in ("expense", "cashflow", "funfacts"):
         report_type = "expense"
     stage_started = time.perf_counter()
     try:
         if report_type == "cashflow":
             pdf = build_cashflow_report_pdf(name, d_from, d_to, rows)
+        elif report_type == "funfacts":
+            pdf = build_money_fun_facts_pdf(name, d_from, d_to, rows)
         else:
             pdf = build_report_pdf(name, d_from, d_to, rows, prev_spend)
     except Exception as e:
