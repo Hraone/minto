@@ -42,7 +42,7 @@ private_der = key.private_bytes(
     serialization.PrivateFormat.TraditionalOpenSSL,
     serialization.NoEncryption(),
 )
-print("VAPID_PUBLIC_KEY=" + b64url(b"\\x04" + x + y))
+print("VAPID_PUBLIC_KEY=" + b64url(b"\x04" + x + y))
 print("VAPID_PRIVATE_KEY=" + base64.b64encode(private_der).decode())
 ```
 
