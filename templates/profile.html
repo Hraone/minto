@@ -1550,7 +1550,7 @@
           <p id="daily-expense-notification-status" role="status" aria-live="polite" style="margin:9px 0 0;color:var(--muted);font-size:12px;">{{ 'Notifications enabled on this account.' if daily_expense_notifications_enabled else 'Notifications are currently off.' }}</p>
         </div>
         <label style="display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:13px;font-weight:700;">
-          <input type="checkbox" id="daily-expense-notification-toggle" {% if daily_expense_notifications_enabled %}checked{% endif %} {% if not vapid_public_key %}disabled{% endif %} style="width:18px;height:18px;accent-color:var(--positive);">
+          <input type="checkbox" id="daily-expense-notification-toggle" {% if daily_expense_notifications_enabled %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--positive);">
           <span>Enable</span>
         </label>
       </div>
@@ -1857,9 +1857,17 @@
             setStatus('Daily expense notifications enabled on this device.');
           } else {
             await savePreference({ enabled: false });
-            const registration = await navigator.serviceWorker.ready;
-            const subscription = await registration.pushManager.getSubscription();
-            if (subscription) await subscription.unsubscribe();
+            try {
+              if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.ready;
+                if (registration.pushManager) {
+                  const subscription = await registration.pushManager.getSubscription();
+                  if (subscription) await subscription.unsubscribe();
+                }
+              }
+            } catch (_) {
+              // The account preference is already disabled server-side.
+            }
             setStatus('Daily expense notifications turned off.');
           }
         } catch (error) {
