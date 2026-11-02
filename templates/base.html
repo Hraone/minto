@@ -2597,7 +2597,22 @@
           event.preventDefault();
           var bad = form.querySelector("input[data-minto-date]:invalid");
           if (bad) bad.reportValidity();
+          return;
         }
+        if (form.dataset.mintoSubmitting === "1") {
+          event.preventDefault();
+          return;
+        }
+        form.dataset.mintoSubmitting = "1";
+        form.setAttribute("aria-busy", "true");
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (button) {
+          if (!button.dataset.mintoOriginalText) {
+            button.dataset.mintoOriginalText = button.tagName === "INPUT" ? button.value : button.textContent;
+          }
+          button.disabled = true;
+          if (button.tagName === "INPUT") button.value = "Saving...";
+          else button.textContent = "Saving...";
+        });
       });
     })();
 
