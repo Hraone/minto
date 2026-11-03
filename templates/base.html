@@ -3151,17 +3151,17 @@
   overlay.hidden = false;
   document.body.style.overflow = "hidden";
   button.focus();
-  function dismiss() {
+  function dismiss(saveAcceptance) {
     try {
-      if (checkbox.checked) localStorage.setItem(acceptedKey, "1");
+      if (saveAcceptance && checkbox.checked) localStorage.setItem(acceptedKey, "1");
       else sessionStorage.setItem(sessionKey, "1");
     } catch (e) {}
     overlay.hidden = true;
     document.body.style.overflow = "";
   }
-  button.addEventListener("click", dismiss);
-  overlay.addEventListener("click", function (event) { if (event.target === overlay) dismiss(); });
-  document.addEventListener("keydown", function (event) { if (!overlay.hidden && event.key === "Escape") dismiss(); });
+  button.addEventListener("click", function () { dismiss(true); });
+  overlay.addEventListener("click", function (event) { if (event.target === overlay) dismiss(false); });
+  document.addEventListener("keydown", function (event) { if (!overlay.hidden && event.key === "Escape") dismiss(false); });
 })();
 </script>
 
