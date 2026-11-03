@@ -6666,6 +6666,42 @@ def _wrapped_period(kind, period_key):
     return start, end
 
 
+@app.before_request
+def auto_open_wrapped_on_release_day():
+    # Check only the app's main Personal landing pages; do not interrupt
+    # Trip mode, API calls, forms, or users browsing other sections.
+    if request.method != "GET" or request.endpoint not in ("entry", "dashboard"):
+        return None
+    user_id = session.get("user_id")
+    if not user_id or session.get("mode") == "trip":
+        return None
+    today = datetime.now(APP_TZ).date()
+    try:
+        client = get_user_client()
+        rows = client.table("profiles").select(
+            "monthly_wrapped_seen, yearly_wrapped_seen"
+        ).eq("id", user_id).limit(1).execute().data
+        seen = rows[0] if rows else {}
+        if today.month == 1 and today.day == 5:
+            year_key = today.year - 1
+            if seen.get("yearly_wrapped_seen") != year_key:
+                client.table("profiles").upsert({
+                    "id": user_id, "yearly_wrapped_seen": year_key
+                }).execute()
+                return redirect(url_for("wrapped", kind="yearly", period_key=str(year_key)))
+        if today.day == 1:
+            prior_month = today.replace(day=1) - timedelta(days=1)
+            month_key = prior_month.strftime("%Y-%m")
+            if seen.get("monthly_wrapped_seen") != month_key:
+                client.table("profiles").upsert({
+                    "id": user_id, "monthly_wrapped_seen": month_key
+                }).execute()
+                return redirect(url_for("wrapped", kind="monthly", period_key=month_key))
+    except Exception:
+        app.logger.exception("Wrapped auto-open check failed")
+    return None
+
+
 @app.route("/wrapped/<kind>/<period_key>")
 @login_required
 def wrapped(kind, period_key):
