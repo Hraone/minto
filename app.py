@@ -6668,8 +6668,9 @@ def _wrapped_period(kind, period_key):
 
 @app.before_request
 def auto_open_wrapped_on_release_day():
-    # Check only the app's main Personal landing pages; do not interrupt
-    # Trip mode, API calls, forms, or users browsing other sections.
+    # Open completed-period Wrapped automatically on the first Personal
+    # landing-page visit after a month/year ends. Never add a manual nav link.
+    # Do not interrupt Trip mode, API calls, forms, or other sections.
     if request.method != "GET" or request.endpoint not in ("entry", "dashboard"):
         return None
     user_id = session.get("user_id")
@@ -6682,7 +6683,7 @@ def auto_open_wrapped_on_release_day():
             "monthly_wrapped_seen, yearly_wrapped_seen"
         ).eq("id", user_id).limit(1).execute().data
         seen = rows[0] if rows else {}
-        if today.month == 1 and today.day == 5:
+        if today.month == 1 and today.day == 1:
             year_key = today.year - 1
             if seen.get("yearly_wrapped_seen") != year_key:
                 client.table("profiles").upsert({
