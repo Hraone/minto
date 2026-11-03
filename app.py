@@ -6760,23 +6760,6 @@ def dashboard():
     client = get_user_client()
     log_dashboard_stage("client_setup", stage_started)
     user_id = session["user_id"]
-    today_for_wrapped = datetime.now(APP_TZ).date()
-    try:
-        seen_rows = client.table("profiles").select("monthly_wrapped_seen, yearly_wrapped_seen").eq("id", user_id).limit(1).execute().data
-        seen = seen_rows[0] if seen_rows else {}
-        if today_for_wrapped.month == 1 and today_for_wrapped.day == 5:
-            year_key = today_for_wrapped.year - 1
-            if seen.get("yearly_wrapped_seen") != year_key:
-                client.table("profiles").upsert({"id": user_id, "yearly_wrapped_seen": year_key}).execute()
-                return redirect(url_for("wrapped", kind="yearly", period_key=str(year_key)))
-        if today_for_wrapped.day == 1:
-            prior_month = today_for_wrapped.replace(day=1) - timedelta(days=1)
-            month_key = prior_month.strftime("%Y-%m")
-            if seen.get("monthly_wrapped_seen") != month_key:
-                client.table("profiles").upsert({"id": user_id, "monthly_wrapped_seen": month_key}).execute()
-                return redirect(url_for("wrapped", kind="monthly", period_key=month_key))
-    except Exception:
-        app.logger.exception("Wrapped auto-open check failed")
     period = request.args.get("period", "month")
     if period not in ("today", "week", "month", "year", "all"):
         period = "month"
