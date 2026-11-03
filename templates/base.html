@@ -2764,13 +2764,13 @@
 <style>
   .fixed-reminder-overlay { position:fixed; inset:0; z-index:10050; display:flex; align-items:center; justify-content:center; padding:16px; background:rgba(10,15,25,.62); backdrop-filter:blur(5px); }
   .fixed-reminder-overlay[hidden], .fixed-reminder-chip[hidden] { display:none !important; }
-  .fixed-reminder-card { width:min(820px,100%); max-height:min(82vh,760px); overflow:auto; border:1px solid var(--border); border-radius:22px; padding:22px; background:var(--surface); color:var(--text); box-shadow:0 24px 90px rgba(0,0,0,.3); }
-  #fixedReminderItems { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); column-gap:20px; }
+  .fixed-reminder-card { width:min(680px,100%); max-height:min(82vh,760px); overflow:auto; border:1px solid var(--border); border-radius:20px; padding:22px; background:var(--surface); color:var(--text); box-shadow:0 24px 90px rgba(0,0,0,.3); }
+  #fixedReminderItems { display:grid; grid-template-columns:1fr; }
   #fixedReminderItems .fixed-reminder-item { min-width:0; }
-  #fixedReminderItems .fixed-reminder-item-head { gap:8px; }
+  #fixedReminderItems .fixed-reminder-item-head { gap:12px; align-items:center; }
   #fixedReminderItems .fixed-reminder-amount { font-size:14px; }
-  #fixedReminderItems .fixed-reminder-item form { align-items:stretch; }
-  #fixedReminderItems .fixed-reminder-item select { flex:1 1 140px; font-size:13px; padding:8px; }
+  #fixedReminderItems .fixed-reminder-item form { align-items:end; gap:8px; }
+  #fixedReminderItems .fixed-reminder-item select { flex:0 1 190px; min-height:44px; height:44px; font-size:13px; padding:8px 30px 8px 10px; }
   #fixedReminderItems .fixed-reminder-item button { padding:9px 12px; font-size:13px; }
   .fixed-reminder-card h2 { margin:0 0 6px; font-size:22px; }
   .fixed-reminder-intro { margin:0 0 16px; color:var(--muted); font-size:13px; line-height:1.5; }
@@ -2780,11 +2780,11 @@
   .fixed-reminder-name { font-weight:750; overflow-wrap:anywhere; }
   .fixed-reminder-meta { color:var(--muted); font-size:12px; margin-top:3px; }
   .fixed-reminder-amount { font-weight:750; white-space:nowrap; }
-  .fixed-reminder-item form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:10px; }
-  .fixed-reminder-amount-label { display:flex; flex:1 1 130px; flex-direction:column; gap:5px; color:var(--muted); font-size:11px; font-weight:700; }
-  .fixed-reminder-amount-label input { width:100%; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font:inherit; font-size:14px; font-weight:650; }
+  .fixed-reminder-item form { display:flex; gap:8px; flex-wrap:wrap; align-items:end; margin-top:12px; }
+  .fixed-reminder-amount-label { display:flex; flex:0 1 180px; min-width:130px; flex-direction:column; gap:5px; color:var(--muted); font-size:11px; font-weight:700; }
+  .fixed-reminder-amount-label input { width:100%; min-width:0; height:44px; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); font:inherit; font-size:14px; font-weight:650; }
   .fixed-reminder-item select { flex:1 1 180px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); }
-  .fixed-reminder-item button, .fixed-reminder-footer button { border:0; border-radius:999px; padding:10px 15px; background:var(--positive); color:#fff; font-weight:700; cursor:pointer; }
+  .fixed-reminder-item button, .fixed-reminder-footer button { border:0; border-radius:9px; min-height:44px; padding:10px 15px; background:var(--positive); color:#fff; font-weight:700; cursor:pointer; }
   /* Override the broad global button defaults inside the reminder UI. */
   .fixed-reminder-overlay button { width:auto; margin-top:0; }
   .fixed-reminder-chip { margin-top:0; }
@@ -2813,8 +2813,9 @@
   @media(max-width:480px) {
     .fixed-reminder-card { padding:17px; border-radius:18px; }
     .fixed-reminder-card h2 { font-size:19px; }
+    .fixed-reminder-item form { display:grid; grid-template-columns:1fr; }
+    .fixed-reminder-amount-label, #fixedReminderItems .fixed-reminder-item select { width:100%; max-width:none; }
     .fixed-reminder-item form button { width:100%; }
-    #fixedReminderItems { grid-template-columns:1fr; }
   }
 </style>
 <div class="fixed-reminder-overlay" id="fixedReminderOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="fixedReminderTitle">
@@ -2978,32 +2979,80 @@
     box.appendChild(form);
     return box;
   }
-  fetch('/api/fixed-reminders', {credentials:'same-origin', headers:{'Accept':'application/json'}})
-    .then(function (response) { if (!response.ok) throw new Error('reminders unavailable'); return response.json(); })
-    .then(function (data) {
-      var items = Array.isArray(data.items) ? data.items : [];
-      pendingCount = items.length;
-      if (!pendingCount) return;
-      items.forEach(function (item) { list.appendChild(buildItem(item)); });
-      chipCount.textContent = String(pendingCount);
-      chip.setAttribute('aria-label', 'Open ' + pendingCount + ' pending fixed transaction reminder' + (pendingCount === 1 ? '' : 's'));
-      /* Keep reminders non-intrusive: show only the bell automatically.
-         Open the modal only when the user taps the notification icon. */
-      chip.hidden = false;
-      /* A push reminder opens this same, live modal after fresh server data loads. */
-      var notificationParams = new URLSearchParams(window.location.search);
-      if (notificationParams.get('minto_open') === 'reminders') {
-        notificationParams.delete('minto_open');
-        var cleanUrl = window.location.pathname + (notificationParams.toString() ? '?' + notificationParams.toString() : '') + window.location.hash;
-        window.history.replaceState({}, '', cleanUrl);
-        showModal();
-      } else {
-        /* Let the bell slide in gently once the pending count is known. */
-        window.requestAnimationFrame(function () {
-          window.requestAnimationFrame(function () { chip.classList.add('is-visible'); });
-        });
-      }
-    }).catch(function () {});
+  var cacheKey = 'minto-fixed-reminders-cache-v1';
+  var cacheTtl = 2 * 60 * 1000;
+  var cacheInvalidationKey = 'minto-fixed-reminders-invalidated-v1';
+  function clearReminderCache(broadcast) {
+    try { sessionStorage.removeItem(cacheKey); } catch (e) {}
+    if (broadcast) {
+      try { localStorage.setItem(cacheInvalidationKey, String(Date.now())); } catch (e) {}
+    }
+  }
+  function refreshRemindersFromServer() {
+    clearReminderCache(false);
+    fetch('/api/fixed-reminders', {credentials:'same-origin', headers:{'Accept':'application/json'}})
+      .then(function (response) { if (!response.ok) throw new Error('reminders unavailable'); return response.json(); })
+      .then(function (data) {
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({savedAt:Date.now(), data:data})); } catch (e) {}
+        displayReminders(data, false);
+      }).catch(function () {});
+  }
+  /* localStorage events notify other tabs when one tab changes a commitment. */
+  window.addEventListener('storage', function (event) {
+    if (event.key === cacheInvalidationKey) refreshRemindersFromServer();
+  });
+  function displayReminders(data, openRequested) {
+    list.textContent = '';
+    var items = Array.isArray(data.items) ? data.items : [];
+    pendingCount = items.length;
+    chip.hidden = !pendingCount;
+    chip.classList.remove('is-visible');
+    if (!pendingCount) return;
+    items.forEach(function (item) { list.appendChild(buildItem(item)); });
+    chipCount.textContent = String(pendingCount);
+    chip.setAttribute('aria-label', 'Open ' + pendingCount + ' pending fixed transaction reminder' + (pendingCount === 1 ? '' : 's'));
+    if (openRequested) {
+      showModal();
+    } else {
+      window.requestAnimationFrame(function () {
+        window.requestAnimationFrame(function () { chip.classList.add('is-visible'); });
+      });
+    }
+  }
+  var notificationParams = new URLSearchParams(window.location.search);
+  var openRequested = notificationParams.get('minto_open') === 'reminders';
+  if (openRequested) {
+    notificationParams.delete('minto_open');
+    var cleanUrl = window.location.pathname + (notificationParams.toString() ? '?' + notificationParams.toString() : '') + window.location.hash;
+    window.history.replaceState({}, '', cleanUrl);
+    clearReminderCache();
+  }
+  var cached = null;
+  try {
+    cached = JSON.parse(sessionStorage.getItem(cacheKey) || 'null');
+  } catch (e) { clearReminderCache(); }
+  if (!openRequested && cached && cached.savedAt && Date.now() - cached.savedAt < cacheTtl && cached.data) {
+    displayReminders(cached.data, false);
+  } else {
+    fetch('/api/fixed-reminders', {credentials:'same-origin', headers:{'Accept':'application/json'}})
+      .then(function (response) { if (!response.ok) throw new Error('reminders unavailable'); return response.json(); })
+      .then(function (data) {
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({savedAt:Date.now(), data:data})); } catch (e) {}
+        displayReminders(data, openRequested);
+      }).catch(function () {});
+  }
+  /* A confirmed payment/receipt or changes to fixed transactions must refresh the cached bell on the next page. */
+  document.addEventListener('submit', function (event) {
+    if (event.target && event.target.matches('#fixedReminderItems form')) clearReminderCache(true);
+  });
+  document.querySelectorAll('#fixedReminderItems form').forEach(function (form) {
+    form.addEventListener('submit', function () { clearReminderCache(true); });
+  });
+  var manageLink = overlay.querySelector('.fixed-reminder-footer a');
+  if (manageLink) manageLink.addEventListener('click', function () { clearReminderCache(true); });
+  document.querySelectorAll('form.login-form, form.signup-form, form[action*="logout"]').forEach(function (form) {
+    form.addEventListener('submit', function () { clearReminderCache(true); });
+  });
   later.addEventListener('click', hideModal);
   chip.addEventListener('click', showModal);
   overlay.addEventListener('click', function (event) { if (event.target === overlay) hideModal(); });
