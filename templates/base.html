@@ -2044,7 +2044,6 @@
 
       <a class="nav-link {{ 'active' if request.endpoint == 'dashboard' else '' }}" href="{{ url_for('dashboard') }}">Overview</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'planner' else '' }}" href="{{ url_for('planner') }}">Planner</a>
-      <a class="nav-link {{ 'active' if request.endpoint == 'wrapped' else '' }}" href="{{ url_for('wrapped', kind='monthly', period_key=wrapped_default_month) }}">Wrapped</a>
       <a class="nav-link {{ 'active' if request.endpoint == 'entry' else '' }}" href="{{ url_for('entry') }}">Add</a>
 
       <div class="nav-menu" id="navAccounts">
