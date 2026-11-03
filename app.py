@@ -2124,7 +2124,9 @@ def daily_expense_notifications_cron():
     if not secrets.compare_digest(supplied.encode("utf-8"), DAILY_EXPENSE_CRON_SECRET.encode("utf-8")):
         return jsonify(error="Unauthorized."), 401
     try:
-        daily = send_daily_expense_notifications()\n        scheduled = send_due_and_trip_notifications()\n        return jsonify({"daily_expenses": daily, "scheduled": scheduled})
+        daily = send_daily_expense_notifications()
+        scheduled = send_due_and_trip_notifications()
+        return jsonify({"daily_expenses": daily, "scheduled": scheduled})
     except Exception:
         app.logger.exception("Daily expense notification run failed")
         return jsonify(error="Daily expense notification run failed. See server logs."), 500
