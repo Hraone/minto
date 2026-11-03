@@ -48,7 +48,10 @@
     .profile-modal-actions .profile-save { width:100%; }
 
     .profile-page {
-      padding: 18px 12px 40px;
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 18px 0 40px;
     }
 
     .profile-page .profile-card {
@@ -64,7 +67,6 @@
       grid-template-columns: minmax(0, 1fr);
       gap: 12px;
       padding: 14px;
-      padding-top: 48px;
       border-radius: 14px;
     }
 
@@ -76,13 +78,16 @@
       width: 100%;
     }
 
+    /* Keep Edit profile in the document flow on narrow screens so it
+       cannot cover the name, email, or account details in mobile Safari. */
     .profile-page .profile-edit-profile-action {
-      top: 10px;
-      right: 10px;
-      max-width: calc(100% - 20px);
-      margin: 0;
+      position: static;
+      grid-column: 1 / -1;
+      justify-self: end;
+      max-width: 100%;
+      margin: 2px 0 0;
       padding: 7px 10px;
-      font-size: 11px;
+      font-size: 12px;
     }
 
     .profile-page .profile-avatar-button {
