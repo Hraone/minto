@@ -38,6 +38,13 @@
   <div class="finance-audit-card"><h2 style="margin-top:0">Audit history</h2><p>Use the month navigation to review or edit earlier audits. Reconciliation entries affect account balances but should not count as ordinary income or expenses.</p></div>
 </section>
 <script>
+function toggleAuditAccount(button) {
+  const details = document.getElementById(button.getAttribute('aria-controls'));
+  if (!details) return;
+  const open = details.hidden;
+  details.hidden = !open;
+  button.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
 function toggleAuditEditor(button, forceOpen) {
   const account = button.closest('[data-audit-account]');
   if (!account) return;
