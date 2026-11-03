@@ -6644,6 +6644,71 @@ def transactions():
     )
 
 
+def _wrapped_period(kind, period_key):
+    if kind == "monthly":
+        try:
+            year, month = (int(part) for part in period_key.split("-"))
+            start = date(year, month, 1)
+            end = date(year, month, calendar.monthrange(year, month)[1])
+        except (TypeError, ValueError):
+            abort(404)
+    elif kind == "yearly":
+        try:
+            year = int(period_key)
+            start, end = date(year, 1, 1), date(year, 12, 31)
+        except (TypeError, ValueError):
+            abort(404)
+    else:
+        abort(404)
+    if start > datetime.now(APP_TZ).date():
+        abort(404)
+    return start, end
+
+
+@app.route("/wrapped/<kind>/<period_key>")
+@login_required
+def wrapped(kind, period_key):
+    start, end = _wrapped_period(kind, period_key)
+    client = get_user_client()
+    rows = _fetch_transactions(client, session["user_id"], start, end,
+        "id, direction, category, expense_category, amount, transaction_date, description")
+    expenses = [r for r in rows if r.get("direction") == "out" and r.get("category") == "expense"]
+    incomes = [r for r in rows if r.get("direction") == "in" and r.get("category") == "income"]
+    investments = [r for r in rows if r.get("category") == "investment"]
+    total_expense = round(sum(float(r.get("amount") or 0) for r in expenses), 2)
+    total_income = round(sum(float(r.get("amount") or 0) for r in incomes), 2)
+    total_investment = round(sum(float(r.get("amount") or 0) for r in investments), 2)
+    categories = defaultdict(float)
+    monthly = defaultdict(lambda: {"income": 0.0, "expense": 0.0})
+    for row in expenses:
+        categories[row.get("expense_category") or "Other"] += float(row.get("amount") or 0)
+    for row in rows:
+        key = str(row.get("transaction_date") or "")[:7]
+        amount = float(row.get("amount") or 0)
+        if row.get("direction") == "in" and row.get("category") == "income":
+            monthly[key]["income"] += amount
+        elif row.get("direction") == "out" and row.get("category") == "expense":
+            monthly[key]["expense"] += amount
+    top_categories = sorted([{"name": k, "amount": round(v, 2)} for k, v in categories.items()],
+        key=lambda item: item["amount"], reverse=True)[:5]
+    largest = max(expenses, key=lambda r: float(r.get("amount") or 0), default=None)
+    month_labels = []
+    cursor = start.replace(day=1)
+    while cursor <= end:
+        item = monthly[cursor.strftime("%Y-%m")]
+        month_labels.append({"label": cursor.strftime("%b"), "income": round(item["income"], 2), "expense": round(item["expense"], 2)})
+        cursor = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return render_template("wrapped.html", kind=kind,
+        title=start.strftime("%B %Y") if kind == "monthly" else str(start.year),
+        start=start, end=end, total_income=total_income, total_expense=total_expense,
+        total_investment=total_investment, net=round(total_income-total_expense-total_investment, 2),
+        transaction_count=len(rows), expense_count=len(expenses), top_categories=top_categories,
+        largest=largest, month_labels=month_labels,
+        max_category=max([x["amount"] for x in top_categories], default=1) or 1,
+        max_income=max([x["income"] for x in month_labels], default=1) or 1,
+        max_expense=max([x["expense"] for x in month_labels], default=1) or 1)
+
+
 @app.route("/dashboard")
 @login_required
 def dashboard():
@@ -6658,6 +6723,23 @@ def dashboard():
     client = get_user_client()
     log_dashboard_stage("client_setup", stage_started)
     user_id = session["user_id"]
+    today_for_wrapped = datetime.now(APP_TZ).date()
+    try:
+        seen_rows = client.table("profiles").select("monthly_wrapped_seen, yearly_wrapped_seen").eq("id", user_id).limit(1).execute().data
+        seen = seen_rows[0] if seen_rows else {}
+        if today_for_wrapped.month == 1 and today_for_wrapped.day == 5:
+            year_key = today_for_wrapped.year - 1
+            if seen.get("yearly_wrapped_seen") != year_key:
+                client.table("profiles").upsert({"id": user_id, "yearly_wrapped_seen": year_key}).execute()
+                return redirect(url_for("wrapped", kind="yearly", period_key=str(year_key)))
+        if today_for_wrapped.day == 1:
+            prior_month = today_for_wrapped.replace(day=1) - timedelta(days=1)
+            month_key = prior_month.strftime("%Y-%m")
+            if seen.get("monthly_wrapped_seen") != month_key:
+                client.table("profiles").upsert({"id": user_id, "monthly_wrapped_seen": month_key}).execute()
+                return redirect(url_for("wrapped", kind="monthly", period_key=month_key))
+    except Exception:
+        app.logger.exception("Wrapped auto-open check failed")
     period = request.args.get("period", "month")
     if period not in ("today", "week", "month", "year", "all"):
         period = "month"
