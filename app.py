@@ -1757,10 +1757,48 @@ def profile():
         share_phone=bool(profile_data.get("share_phone_with_friends")),
         share_email=bool(profile_data.get("share_email_with_friends")),
         daily_expense_notifications_enabled=bool(profile_data.get("daily_expense_notifications_enabled")),
+        trip_chat_notifications_enabled=profile_data.get("trip_chat_notifications_enabled") is not False,
         vapid_public_key=VAPID_PUBLIC_KEY,
     )
     log_profile_stage("template_render", render_started)
     return response
+
+
+@app.route("/profile/trip-chat-notifications", methods=["POST"])
+@login_required
+def update_trip_chat_notifications():
+    payload = request.get_json(silent=True) or {}
+    enabled = payload.get("enabled") is True
+    client = get_user_client()
+    user_id = session["user_id"]
+    if enabled:
+        if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+            return jsonify(ok=False, error="Push notifications are not configured on the server yet."), 503
+        subscription = payload.get("subscription")
+        keys = (subscription or {}).get("keys") or {}
+        endpoint = (subscription or {}).get("endpoint")
+        p256dh, auth = keys.get("p256dh"), keys.get("auth")
+        if not all(isinstance(v, str) and v for v in (endpoint, p256dh, auth)):
+            return jsonify(ok=False, error="Allow notifications on this device and try again."), 400
+        parsed = urlsplit(endpoint)
+        host = (parsed.hostname or "").lower()
+        allowed = host == "fcm.googleapis.com" or host == "updates.push.services.mozilla.com" or host.endswith(".push.services.mozilla.com") or host.endswith(".push.apple.com")
+        if parsed.scheme != "https" or not allowed or parsed.username or parsed.password or parsed.port not in (None, 443):
+            return jsonify(ok=False, error="This browser's push service endpoint is not supported."), 400
+        try:
+            client.table("profiles").upsert({"id": user_id, "trip_chat_notifications_enabled": True}).execute()
+            client.table("trip_chat_push_subscriptions").upsert({"user_id": user_id, "endpoint": endpoint, "p256dh": p256dh, "auth": auth, "updated_at": datetime.now(timezone.utc).isoformat()}, on_conflict="endpoint").execute()
+        except Exception:
+            app.logger.exception("Could not enable trip chat notifications for user %s", user_id)
+            return jsonify(ok=False, error="Could not save Trip Chat notification settings. Apply the trip chat notification SQL migration and retry."), 503
+    else:
+        try:
+            client.table("profiles").upsert({"id": user_id, "trip_chat_notifications_enabled": False}).execute()
+            client.table("trip_chat_push_subscriptions").delete().eq("user_id", user_id).execute()
+        except Exception:
+            app.logger.exception("Could not disable trip chat notifications for user %s", user_id)
+            return jsonify(ok=False, error="Could not update Trip Chat notification settings."), 503
+    return jsonify(ok=True, enabled=enabled)
 
 
 @app.route("/profile/daily-expense-notifications", methods=["POST"])
@@ -5079,6 +5117,35 @@ def _trip_chat_unread_count(client, trip_id, user_id):
         return 0
 
 
+def _send_trip_chat_push(trip_id, sender_user_id, trip, sender_name, body):
+    """Send a private push to other active members of this trip."""
+    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        return
+    admin = _admin_client()
+    members = admin.table("trip_members").select("user_id").eq("trip_id", trip_id).eq("active", True).execute().data or []
+    recipients = {str(row.get("user_id")) for row in members if row.get("user_id")}
+    if trip.get("user_id"):
+        recipients.add(str(trip["user_id"]))
+    recipients.discard(str(sender_user_id))
+    if not recipients:
+        return
+    profiles = admin.table("profiles").select("id,trip_chat_notifications_enabled").in_("id", list(recipients)).execute().data or []
+    enabled_ids = {str(row["id"]) for row in profiles if row.get("trip_chat_notifications_enabled") is not False}
+    if not enabled_ids:
+        return
+    subscriptions = admin.table("trip_chat_push_subscriptions").select("id,user_id,endpoint,p256dh,auth").in_("user_id", list(enabled_ids)).execute().data or []
+    payload = json.dumps({"title": f"{sender_name} · {trip.get('name') or 'Trip chat'}", "body": body[:180], "url": url_for("trip_chat", trip_id=trip_id), "tag": f"trip-chat-{trip_id}"})
+    for subscription in subscriptions:
+        try:
+            webpush(subscription_info={"endpoint": subscription["endpoint"], "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]}}, data=payload, vapid_private_key=VAPID_PRIVATE_KEY, vapid_claims=dict(VAPID_CLAIMS), ttl=86400)
+        except WebPushException as exc:
+            status = getattr(getattr(exc, "response", None), "status_code", None)
+            if status in (404, 410):
+                admin.table("trip_chat_push_subscriptions").delete().eq("id", subscription["id"]).execute()
+            else:
+                app.logger.warning("Trip chat push failed for recipient %s status %s", subscription["user_id"], status or "unknown")
+
+
 @app.route("/api/trips/<int:trip_id>/chat", methods=["GET", "POST"])
 @login_required
 def trip_chat_api(trip_id):
@@ -5134,7 +5201,13 @@ def trip_chat_api(trip_id):
             if not saved:
                 return jsonify({"error": "The message could not be confirmed as saved. Please retry."}), 503
             message = saved[0]
-            message["sender_name"] = (session.get("display_name") or "").strip() or (session.get("email") or "Trip member")
+            sender_profile = (client.table("profiles").select("display_name, username").eq("id", user_id).limit(1).execute().data or [{}])[0]
+            sender_name = (sender_profile.get("display_name") or "").strip() or (sender_profile.get("username") or "").strip() or (session.get("display_name") or "").strip() or (session.get("email") or "").split("@")[0] or "Member"
+            message["sender_name"] = sender_name
+            try:
+                _send_trip_chat_push(trip_id, user_id, trip, sender_name, body)
+            except Exception:
+                app.logger.exception("Trip chat push delivery failed for trip %s", trip_id)
             return jsonify({"message": message}), 201
         except Exception as exc:
             app.logger.exception("Could not persist trip chat message")
@@ -5169,7 +5242,7 @@ def trip_chat_api(trip_id):
                 return jsonify({"names": {}})
             profile_rows = (
                 client.table("profiles")
-                .select("id, display_name")
+                .select("id, display_name, username")
                 .in_("id", requested_ids)
                 .execute()
                 .data
@@ -5177,7 +5250,7 @@ def trip_chat_api(trip_id):
             )
             return jsonify({
                 "names": {
-                    str(row["id"]): (row.get("display_name") or "").strip() or "Trip member"
+                    str(row["id"]): (row.get("display_name") or "").strip() or (row.get("username") or "").strip() or "Member"
                     for row in profile_rows
                 }
             })
