@@ -6284,6 +6284,29 @@ def fixed_reminders():
             "kind": "income", "due_date": item["due_date"].isoformat(),
             "source_id": str(item.get("source_id") or ""), "accounts": accounts,
         })
+    # Credit-card forecasts are read live so a changed statement/payment cycle
+    # is reflected when the notification opens the modal.
+    try:
+        active_sources = client.table("user_sources").select("*").eq(
+            "user_id", user_id
+        ).eq("active", True).execute().data or []
+        card_sources = [source for source in active_sources if source.get("source_type") == "credit_card"]
+        transactions = client.table("transactions").select(
+            "source_id,amount,direction,category,transaction_date,is_previous_card_bill,affects_source_balance"
+        ).eq("user_id", user_id).execute().data or []
+        loans = get_active_cc_loans(client, user_id)
+        forecasts = get_credit_card_forecasts(card_sources, transactions, today=today, cc_loans=loans)
+        for card in forecasts:
+            due = card.get("due_date")
+            amount = float(card.get("expected_bill") or 0)
+            if due and today <= due <= reminder_through and amount > 0:
+                items.append({
+                    "id": int(card["id"]), "name": f"{card['name']} card bill",
+                    "amount": amount, "kind": "credit_card", "due_date": due.isoformat(),
+                    "source_id": "", "accounts": [],
+                })
+    except Exception:
+        app.logger.exception("Could not load credit-card reminder details for user %s", user_id)
     items.sort(key=lambda item: (item["due_date"], item["kind"], item["name"].lower()))
     return jsonify({"items": items, "today": today.isoformat()})
 
