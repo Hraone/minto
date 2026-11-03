@@ -26,7 +26,7 @@
     .road{background:linear-gradient(90deg,#263c32 0 5%,#343d48 5% 95%,#263c32 95%);box-shadow:inset 0 0 0 3px rgba(255,255,255,.06)}
     .road:before,.road:after{content:"";position:absolute;z-index:1;left:0;right:0;height:5px;background:repeating-linear-gradient(90deg,#e7dcae 0 12px,transparent 12px 23px);opacity:.7;pointer-events:none}
     .road:before{top:0}.road:after{bottom:0}
-    .lane{background:repeating-linear-gradient(90deg,transparent 0 26px,rgba(255,255,255,.035) 26px 29px);border-bottom:2px dashed rgba(255,255,255,.55)}
+    .lane{position:relative;height:20%;background:repeating-linear-gradient(90deg,transparent 0 26px,rgba(255,255,255,.035) 26px 29px);border-bottom:2px dashed rgba(255,255,255,.55)}
     .obstacle{position:absolute;top:50%;z-index:2;display:grid;place-items:center;line-height:1;will-change:left;filter:drop-shadow(0 3px 3px rgba(0,0,0,.35))}
     .vacuum{width:52px;height:29px;margin-top:-14px;border-radius:16px;background:linear-gradient(180deg,#e5ebef 0 35%,#697783 36%);border:2px solid #b8c3cc}
     .vacuum:before{content:"";position:absolute;width:14px;height:14px;left:17px;top:4px;border:3px solid #29343d;border-radius:50%;background:#9baab7}
