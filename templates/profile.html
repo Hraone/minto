@@ -1569,6 +1569,17 @@
       {% endif %}
     </div>
 
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">
+      <div style="min-width:0;">
+        <h2 style="margin:0;font-size:16px;font-weight:750;">Trip Chat messages</h2>
+        <p style="margin:5px 0 0;color:var(--muted);font-size:13px;line-height:1.5;">Get a push notification when another trip member sends a message. Tap it to open that trip's chat.</p>
+        <p id="trip-chat-notification-status" role="status" aria-live="polite" style="margin:9px 0 0;color:var(--muted);font-size:12px;">{{ 'Trip Chat notifications are enabled.' if trip_chat_notifications_enabled else 'Trip Chat notifications are off.' }}</p>
+      </div>
+      <label style="display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:13px;font-weight:700;">
+        <input type="checkbox" id="trip-chat-notification-toggle" {% if trip_chat_notifications_enabled %}checked{% endif %} style="width:18px;height:18px;accent-color:var(--positive);">
+        <span>Enable</span>
+      </label>
+    </div>
     <div class="profile-card-footer">
       <p>Your profile details and preferences help personalize your Minto experience.</p>
       <button type="button" class="section-action" data-open-profile-modal="password-modal">Reset password</button>
@@ -1917,6 +1928,54 @@
         } catch (error) {
           toggle.checked = !enabled;
           setStatus(error.message || 'Could not update notifications. Please try again.', true);
+        } finally {
+          toggle.disabled = false;
+        }
+      });
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const toggle = document.getElementById('trip-chat-notification-toggle');
+      const status = document.getElementById('trip-chat-notification-status');
+      if (!toggle) return;
+      const publicKey = {{ vapid_public_key|tojson }};
+      function setStatus(message, failed) {
+        status.textContent = message;
+        status.style.color = failed ? 'var(--negative)' : 'var(--muted)';
+      }
+      function decodeKey(value) {
+        const padding = '='.repeat((4 - value.length % 4) % 4);
+        const raw = atob((value + padding).replace(/-/g, '+').replace(/_/g, '/'));
+        return Uint8Array.from(raw, ch => ch.charCodeAt(0));
+      }
+      toggle.addEventListener('change', async function () {
+        const enabled = toggle.checked;
+        toggle.disabled = true;
+        try {
+          let subscription = null;
+          if (enabled) {
+            if (!publicKey || !('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+              throw new Error('Push notifications are not available in this browser or are not configured on the server.');
+            }
+            const permission = await Notification.requestPermission();
+            if (permission !== 'granted') throw new Error('Allow notifications in your browser settings to enable Trip Chat alerts.');
+            const registration = await navigator.serviceWorker.ready;
+            subscription = await registration.pushManager.getSubscription();
+            if (!subscription) subscription = await registration.pushManager.subscribe({userVisibleOnly:true, applicationServerKey:decodeKey(publicKey)});
+          }
+          const response = await fetch('{{ url_for("update_trip_chat_notifications") }}', {
+            method:'POST', credentials:'same-origin',
+            headers:{'Content-Type':'application/json','X-Requested-With':'XMLHttpRequest','Accept':'application/json'},
+            body:JSON.stringify({enabled:enabled, subscription:subscription ? subscription.toJSON() : undefined})
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok || !data.ok) throw new Error(data.error || 'Could not save Trip Chat notification settings.');
+          setStatus(enabled ? 'Trip Chat notifications enabled on this device.' : 'Trip Chat notifications turned off.', false);
+        } catch (error) {
+          toggle.checked = !enabled;
+          setStatus(error.message || 'Could not update notification settings.', true);
         } finally {
           toggle.disabled = false;
         }
