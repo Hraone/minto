@@ -410,6 +410,7 @@ def inject_template_globals():
         )
 
     return {
+        "wrapped_default_month": (datetime.now(APP_TZ).date().replace(day=1) - timedelta(days=1)).strftime("%Y-%m"),
         "asset_version": "6",
         "minto_version": MINTO_VERSION,
         "app_mode": mode,
