@@ -377,3 +377,113 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             app.logger.warning("Admin activity log load failed (%s)", type(exc).__name__)
             logs_error = "Administrative activity logs could not be loaded."
         return render_template("admin/activity.html", logs=logs, logs_error=logs_error, page=page, total_pages=total_pages, has_previous=page > 1, has_next=page < total_pages)
+
+    @app.context_processor
+    def inject_minto_announcements():
+        if not session.get("user_id") or request.path.startswith("/admin") or request.path == "/whats-new":
+            return {"minto_announcements": []}
+        try:
+            rows = admin_client().table("app_announcements").select(
+                "id,title,message,category,link,published_at,expires_at"
+            ).eq("is_active", True).order("published_at", desc=True).limit(20).execute().data or []
+            now = datetime.now(timezone.utc)
+            live = []
+            for row in rows:
+                expiry = parse_timestamp(row.get("expires_at"))
+                if expiry is None or expiry > now:
+                    live.append(row)
+                if len(live) == 8:
+                    break
+            return {"minto_announcements": live}
+        except Exception as exc:
+            app.logger.warning("Minto announcements unavailable (%s)", type(exc).__name__)
+            return {"minto_announcements": []}
+
+    @app.route("/whats-new")
+    @login_required
+    def whats_new():
+        try:
+            announcements = admin_client().table("app_announcements").select(
+                "id,title,message,category,link,published_at"
+            ).order("published_at", desc=True).limit(100).execute().data or []
+        except Exception as exc:
+            app.logger.warning("What's New history unavailable (%s)", type(exc).__name__)
+            announcements = []
+            flash("Updates are temporarily unavailable. Please try again later.")
+        return render_template("whats_new.html", announcements=announcements)
+
+    @app.route("/admin/announcements", methods=["GET", "POST"])
+    @login_required
+    @admin_required
+    def admin_announcements():
+        service = admin_client()
+        if request.method == "POST":
+            title = (request.form.get("title") or "").strip()
+            message = (request.form.get("message") or "").strip()
+            category = (request.form.get("category") or "Improvement").strip()
+            link = (request.form.get("link") or "").strip() or None
+            expiry_input = (request.form.get("expires_at") or "").strip()
+            errors = []
+            if not 3 <= len(title) <= 100:
+                errors.append("Title must be between 3 and 100 characters.")
+            if not 5 <= len(message) <= 500:
+                errors.append("Message must be between 5 and 500 characters.")
+            if category not in ("Feature", "Improvement", "Fix", "Notice"):
+                errors.append("Choose a valid announcement category.")
+            if link and (not link.startswith("/") or link.startswith("//")):
+                errors.append("Use an internal Minto path for the optional link.")
+            expires_at = None
+            if expiry_input:
+                try:
+                    parsed = datetime.fromisoformat(expiry_input)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    expires_at = parsed.astimezone(timezone.utc).isoformat()
+                    if parsed <= datetime.now(timezone.utc):
+                        errors.append("Expiry must be a future date and time.")
+                except ValueError:
+                    errors.append("Enter a valid expiry date and time.")
+            if errors:
+                for error in errors:
+                    flash(error)
+            else:
+                try:
+                    service.table("app_announcements").insert({
+                        "title": title, "message": message, "category": category,
+                        "link": link, "expires_at": expires_at,
+                        "created_by": str(session["user_id"]), "is_active": True,
+                    }).execute()
+                    flash("Announcement published.")
+                    return redirect(url_for("admin_announcements"))
+                except Exception as exc:
+                    app.logger.warning("Announcement publish failed (%s)", type(exc).__name__)
+                    flash("The announcement could not be published. Confirm the Supabase migration has been applied.")
+        try:
+            announcements = service.table("app_announcements").select(
+                "id,title,message,category,link,is_active,published_at,expires_at"
+            ).order("published_at", desc=True).limit(100).execute().data or []
+        except Exception as exc:
+            app.logger.warning("Announcement admin list unavailable (%s)", type(exc).__name__)
+            announcements = []
+            flash("Announcements could not be loaded. Confirm the Supabase migration has been applied.")
+        return render_template("admin/announcements.html", announcements=announcements)
+
+    @app.route("/admin/announcements/<int:announcement_id>/toggle", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_toggle_announcement(announcement_id):
+        try:
+            service = admin_client()
+            found = service.table("app_announcements").select("is_active").eq("id", announcement_id).limit(1).execute().data or []
+            if not found:
+                abort(404)
+            service.table("app_announcements").update(
+                {"is_active": not bool(found[0].get("is_active"))}
+            ).eq("id", announcement_id).execute()
+            flash("Announcement visibility updated.")
+        except HTTPException:
+            raise
+        except Exception as exc:
+            app.logger.warning("Announcement visibility update failed (%s)", type(exc).__name__)
+            flash("Announcement visibility could not be updated.")
+        return redirect(url_for("admin_announcements"))
