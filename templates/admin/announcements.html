@@ -1,0 +1,23 @@
+{% extends "admin/base.html" %}
+{% block title %}What's New · Minto Admin{% endblock %}
+{% block admin_content %}
+<div class="admin-heading"><div><h1>What's New</h1><p>Publish updates that appear in the Minto announcement strip.</p></div></div>
+<form method="post" class="admin-panel" style="display:grid;gap:14px;max-width:720px">
+  <div class="admin-field"><label for="announcement-title">Title</label><input id="announcement-title" name="title" maxlength="100" minlength="3" required placeholder="e.g. Recurring Transactions"></div>
+  <div class="admin-field"><label for="announcement-message">Message</label><textarea id="announcement-message" name="message" rows="3" maxlength="500" minlength="5" required placeholder="Briefly explain what's new and why it helps."></textarea></div>
+  <div class="admin-toolbar">
+    <div class="admin-field"><label for="announcement-category">Category</label><select id="announcement-category" name="category"><option>Feature</option><option selected>Improvement</option><option>Fix</option><option>Notice</option></select></div>
+    <div class="admin-field"><label for="announcement-link">Internal link (optional)</label><input id="announcement-link" name="link" placeholder="/planner"></div>
+    <div class="admin-field"><label for="announcement-expiry">Expiry (optional)</label><input id="announcement-expiry" name="expires_at" type="datetime-local"></div>
+  </div>
+  <div><button class="admin-btn admin-primary" type="submit">Publish announcement</button></div>
+</form>
+<div class="admin-section"><h2>Announcement history</h2></div>
+{% if announcements %}
+<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Update</th><th>Category</th><th>Published</th><th>Status</th><th></th></tr></thead><tbody>
+{% for item in announcements %}
+<tr><td><strong>{{ item.title }}</strong><div class="admin-muted">{{ item.message }}</div></td><td>{{ item.category }}</td><td>{{ item.published_at|replace('T',' ')|replace('Z',' UTC') }}</td><td><span class="admin-badge">{{ 'Active' if item.is_active else 'Archived' }}</span></td><td><form method="post" action="{{ url_for('admin_toggle_announcement',announcement_id=item.id) }}"><button class="admin-btn" type="submit">{{ 'Archive' if item.is_active else 'Republish' }}</button></form></td></tr>
+{% endfor %}
+</tbody></table></div>
+{% else %}<div class="admin-panel"><p class="admin-muted">No announcements have been published yet.</p></div>{% endif %}
+{% endblock %}
