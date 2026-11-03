@@ -50,4 +50,20 @@ function toggleAuditEditor(button, forceOpen) {
   </div>
   <div class="finance-audit-card"><h2 style="margin-top:0">Audit history</h2><p>Use the month navigation to review or edit earlier audits. Reconciliation entries affect account balances but should not count as ordinary income or expenses.</p></div>
 </section>
+<script>
+function toggleAuditEditor(button, forceOpen) {
+  const account = button.closest('[data-audit-account]');
+  if (!account) return;
+  const editor = account.querySelector('.finance-audit-editor');
+  const editButton = account.querySelector('.finance-audit-edit');
+  const open = typeof forceOpen === 'boolean' ? forceOpen : editor.hidden;
+  editor.hidden = !open;
+  editButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+  editButton.textContent = open ? 'Close' : 'Edit';
+  if (open) {
+    const field = editor.querySelector('input[name="actual_balance"]');
+    if (field) field.focus({ preventScroll: true });
+  }
+}
+</script>
 {% endblock %}
