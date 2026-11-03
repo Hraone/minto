@@ -1550,7 +1550,7 @@
             <span style="display:inline-flex;align-items:center;padding:3px 7px;border:1px solid #d94b4b;border-radius:5px;color:#ef6464;font-size:10px;font-weight:800;letter-spacing:.05em;">BETA</span>
           </div>
           <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.5;">Get yesterday's spending summary every midnight.</p>
-          <button type="button" class="section-action" data-open-profile-modal="daily-expense-example-modal" style="margin-top:10px;">Show example</button>
+          <button type="button" class="section-action" id="daily-expense-show-example" style="margin-top:10px;">Show example</button>
           <p id="daily-expense-notification-status" role="status" aria-live="polite" style="margin:9px 0 0;color:var(--muted);font-size:12px;">{{ 'Notifications enabled on this account.' if daily_expense_notifications_enabled else 'Notifications are currently off.' }}</p>
         </div>
         <label style="display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:13px;font-weight:700;">
@@ -1588,18 +1588,7 @@
 
 
 
-  <dialog class="profile-modal" id="daily-expense-example-modal" aria-labelledby="daily-expense-example-title">
-    <div class="profile-modal-head"><div><h2 id="daily-expense-example-title">Daily expense summary</h2><p>Here's an example of the notification you'll receive.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
-    <div class="profile-modal-body">
-      <div style="padding:15px;border:1px solid var(--border);border-radius:14px;background:var(--surface-2, var(--surface));">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><strong style="font-size:13px;">Minto</strong><span style="color:var(--muted);font-size:11px;">· Now</span></div>
-        <strong style="display:block;margin-bottom:5px;">Yesterday's expense summary</strong>
-        <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.5;">You spent <strong style="color:var(--text);">₹1,240</strong> yesterday.</p>
-        <p style="margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.6;">Groceries · ₹540<br>Fuel · ₹500<br>Tea & snacks · ₹200</p>
-      </div>
-      <p style="margin:12px 0 0;color:var(--muted);font-size:12px;">This is sample content only. Your notification will use your own recorded expenses.</p>
-    </div>
-  </dialog>
+
 
   <dialog class="profile-modal" id="theme-modal" aria-labelledby="theme-modal-title">
     <div class="profile-modal-head"><div><h2 id="theme-modal-title">Choose a theme</h2><p>Select an accent colour. Your choice applies across Minto.</p></div><button type="button" class="profile-modal-close" data-close-profile-modal onclick="this.closest('dialog').close()" aria-label="Close">×</button></div>
@@ -1813,6 +1802,38 @@
           document.documentElement.setAttribute('data-theme', fallback);
           if (status) status.textContent = fallback === 'dark' ? 'Dark mode' : 'Light mode';
           alert('Could not save your appearance preference. Please try again.');
+        }
+      });
+    })();
+  </script>
+
+  <script>
+    (function () {
+      const button = document.getElementById('daily-expense-show-example');
+      const status = document.getElementById('daily-expense-notification-status');
+      if (!button) return;
+      button.addEventListener('click', async function () {
+        if (!('serviceWorker' in navigator) || !('Notification' in window)) {
+          if (status) status.textContent = 'Notifications are not supported by this browser.';
+          return;
+        }
+        try {
+          let permission = Notification.permission;
+          if (permission === 'default') permission = await Notification.requestPermission();
+          if (permission !== 'granted') {
+            if (status) status.textContent = 'Allow notifications in your browser settings to see the example.';
+            return;
+          }
+          const registration = await navigator.serviceWorker.ready;
+          await registration.showNotification('Minto · Yesterday’s expense summary', {
+            body: 'You spent ₹1,240 yesterday. Groceries ₹540 · Fuel ₹500 · Tea & snacks ₹200',
+            tag: 'minto-daily-expense-example',
+            renotify: false,
+            data: { url: '/profile' }
+          });
+          if (status) status.textContent = 'Sample notification sent to this device. Actual summaries use your expenses.';
+        } catch (error) {
+          if (status) status.textContent = 'Could not show the example notification. Please try again.';
         }
       });
     })();
