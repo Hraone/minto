@@ -2922,11 +2922,15 @@
     var head = make('div', 'fixed-reminder-item-head');
     var detail = make('div');
     detail.appendChild(make('div', 'fixed-reminder-name', item.name));
-    var kindLabel = item.kind === 'income' ? 'Income expected' : (item.kind === 'investment' ? 'Investment due' : 'Expense due');
+    var kindLabel = item.kind === 'income' ? 'Income expected' : (item.kind === 'investment' ? 'Investment due' : (item.kind === 'credit_card' ? 'Credit-card bill due' : 'Expense due'));
     detail.appendChild(make('div', 'fixed-reminder-meta', kindLabel + ' · due ' + dateLabel(item.due_date)));
     head.appendChild(detail);
     head.appendChild(make('div', 'fixed-reminder-amount', money(item.amount)));
     box.appendChild(head);
+    if (item.kind === 'credit_card') {
+      box.appendChild(make('div', 'fixed-reminder-meta', 'Review this bill in your credit-card account details.'));
+      return box;
+    }
     var form = document.createElement('form');
     form.method = 'post';
     form.action = item.kind === 'income' ? '/fixed-income/' + item.id + '/receive' : '/fixed-expenses/' + item.id + '/pay';
