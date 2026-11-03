@@ -2981,9 +2981,26 @@
   }
   var cacheKey = 'minto-fixed-reminders-cache-v1';
   var cacheTtl = 2 * 60 * 1000;
-  function clearReminderCache() {
+  var cacheInvalidationKey = 'minto-fixed-reminders-invalidated-v1';
+  function clearReminderCache(broadcast) {
     try { sessionStorage.removeItem(cacheKey); } catch (e) {}
+    if (broadcast) {
+      try { localStorage.setItem(cacheInvalidationKey, String(Date.now())); } catch (e) {}
+    }
   }
+  function refreshRemindersFromServer() {
+    clearReminderCache(false);
+    fetch('/api/fixed-reminders', {credentials:'same-origin', headers:{'Accept':'application/json'}})
+      .then(function (response) { if (!response.ok) throw new Error('reminders unavailable'); return response.json(); })
+      .then(function (data) {
+        try { sessionStorage.setItem(cacheKey, JSON.stringify({savedAt:Date.now(), data:data})); } catch (e) {}
+        displayReminders(data, false);
+      }).catch(function () {});
+  }
+  /* localStorage events notify other tabs when one tab changes a commitment. */
+  window.addEventListener('storage', function (event) {
+    if (event.key === cacheInvalidationKey) refreshRemindersFromServer();
+  });
   function displayReminders(data, openRequested) {
     list.textContent = '';
     var items = Array.isArray(data.items) ? data.items : [];
@@ -3026,15 +3043,15 @@
   }
   /* A confirmed payment/receipt or changes to fixed transactions must refresh the cached bell on the next page. */
   document.addEventListener('submit', function (event) {
-    if (event.target && event.target.matches('#fixedReminderItems form')) clearReminderCache();
+    if (event.target && event.target.matches('#fixedReminderItems form')) clearReminderCache(true);
   });
   document.querySelectorAll('#fixedReminderItems form').forEach(function (form) {
-    form.addEventListener('submit', clearReminderCache);
+    form.addEventListener('submit', function () { clearReminderCache(true); });
   });
   var manageLink = overlay.querySelector('.fixed-reminder-footer a');
-  if (manageLink) manageLink.addEventListener('click', clearReminderCache);
+  if (manageLink) manageLink.addEventListener('click', function () { clearReminderCache(true); });
   document.querySelectorAll('form.login-form, form.signup-form, form[action*="logout"]').forEach(function (form) {
-    form.addEventListener('submit', clearReminderCache);
+    form.addEventListener('submit', function () { clearReminderCache(true); });
   });
   later.addEventListener('click', hideModal);
   chip.addEventListener('click', showModal);
