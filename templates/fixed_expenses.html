@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Fixed Expenses · Minto{% endblock %}
+{% block title %}Recurring Transactions · Minto{% endblock %}
 
 {% block content %}
 <style>
@@ -258,7 +258,7 @@
   {% set paid_total = expenses|selectattr('paid')|sum(attribute='amount') %}
 
   <div class="fx-head">
-    <h1>Fixed transactions</h1>
+    <h1>Recurring transactions</h1>
     <p>Monthly bills, investments, and income. Minto reminds you when a due transaction has not yet been recorded.</p>
   </div>
 

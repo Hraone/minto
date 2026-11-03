@@ -2103,7 +2103,7 @@
         </a>
         <div class="nav-dropdown" id="navAccountsMenu" role="menu" hidden>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'sources' else '' }}" href="{{ url_for('sources') }}">Accounts</a>
-          <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Fixed Expenses</a>
+          <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">Recurring Transactions</a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">Budgets</a>
         </div>
       </div>
@@ -2356,7 +2356,7 @@
         <div class="more-group">
           <div class="more-group-label">Money setup</div>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'fixed_expenses' else '' }}" href="{{ url_for('fixed_expenses') }}">
-            <span>Fixed Expenses</span><small>Recurring commitments</small>
+            <span>Recurring Transactions</span><small>Bills, income &amp; investments</small>
           </a>
           <a role="menuitem" class="{{ 'active' if request.endpoint == 'budgets' else '' }}" href="{{ url_for('budgets') }}">
             <span>Budgets</span><small>Set spending limits</small>
@@ -2674,7 +2674,7 @@
         "Transfers": "Move money",
         "Profile": "You",
         "Log Out": "Log out",
-        "Fixed Expenses": "Monthly bills",
+        "Recurring Transactions": "Recurring",
         "Fixed": "Bills",
         "Protected Net Worth": "Net Worth",
         "Download Report": "Grab report",
@@ -2866,7 +2866,7 @@
     <p class="fixed-reminder-intro">These recurring transactions are due or overdue. Adjust the actual amount for this occurrence, then confirm it. Your regular recurring amount and future months will stay unchanged.</p>
     <div id="fixedReminderItems"></div>
     <div class="fixed-reminder-footer">
-      <a href="{{ url_for('fixed_expenses') }}">Manage fixed transactions</a>
+      <a href="{{ url_for('fixed_expenses') }}">Manage recurring transactions</a>
       <button type="button" id="fixedReminderLater">Remind me next time</button>
     </div>
   </div>
