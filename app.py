@@ -5240,8 +5240,10 @@ def trip_chat_api(trip_id):
             ))[:100]
             if not requested_ids:
                 return jsonify({"names": {}})
+            # Use the server-side client for this narrowly scoped public-name
+            # lookup; profile RLS may otherwise hide other trip members.
             profile_rows = (
-                client.table("profiles")
+                _admin_client().table("profiles")
                 .select("id, display_name, username")
                 .in_("id", requested_ids)
                 .execute()
