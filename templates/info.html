@@ -29,6 +29,10 @@
   .about-beta-status-label { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; font-weight: 850; letter-spacing: .9px; }
   .about-beta-status strong { display: block; color: var(--text); font-size: 14px; }
   .about-beta-status p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+  .about-beta-status { max-width:620px; margin:0 auto 20px; padding:15px 18px; text-align:left; border:1px solid var(--border); border-radius:14px; background:var(--surface-subtle); }
+  .about-beta-status-label { display:block; margin-bottom:6px; color:var(--muted); font-size:10px; font-weight:850; letter-spacing:.9px; }
+  .about-beta-status strong { display:block; color:var(--text); font-size:14px; }
+  .about-beta-status p { margin:5px 0 0; color:var(--muted); font-size:13px; line-height:1.55; }
   .about-hero h1 { margin: 0; color: var(--text); font-size: clamp(34px, 6vw, 52px); line-height: 1.05; letter-spacing: -1.8px; }
   .about-hero .lead { max-width: 700px; margin: 16px auto 0; color: var(--muted); font-size: 17px; line-height: 1.7; }
   .about-kicker { display: inline-flex; padding: 7px 11px; border-radius: 999px; background: var(--surface-subtle); border: 1px solid var(--border); color: var(--muted); font-size: 12px; font-weight: 800; margin-bottom: 15px; }
@@ -198,6 +202,11 @@
     </div>
     <div class="about-kicker">PERSONAL FINANCE · TRIP EXPENSES</div>
     <div class="about-version">Minto {{ minto_version }}</div>
+    <div class="about-beta-status" role="status">
+      <span class="about-beta-status-label">BETA · EARLY ACCESS</span>
+      <strong>Minto is currently in beta</strong>
+      <p>Some features are still being refined and occasional bugs may occur. Please double-check important financial entries and reports. Your feedback helps improve Minto.</p>
+    </div>
     <div class="about-beta-status" role="status">
       <span class="about-beta-status-label">BETA · EARLY ACCESS</span>
       <strong>Minto is currently in beta</strong>
