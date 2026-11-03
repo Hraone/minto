@@ -6711,7 +6711,7 @@ def wrapped(kind, period_key):
         "id, direction, category, expense_category, amount, transaction_date, description")
     expenses = [r for r in rows if r.get("direction") == "out" and r.get("category") == "expense"]
     incomes = [r for r in rows if r.get("direction") == "in" and r.get("category") == "income"]
-    investments = [r for r in rows if r.get("category") == "investment"]
+    investments = [r for r in rows if r.get("direction") == "out" and r.get("category") == "investment"]
     total_expense = round(sum(float(r.get("amount") or 0) for r in expenses), 2)
     total_income = round(sum(float(r.get("amount") or 0) for r in incomes), 2)
     total_investment = round(sum(float(r.get("amount") or 0) for r in investments), 2)
