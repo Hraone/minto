@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}What's New · Minto{% endblock %}
+{% block content %}
+<section style="max-width:900px;margin:0 auto;padding:24px 16px 48px">
+  <header style="margin-bottom:24px"><p style="color:var(--muted);font-size:13px;margin:0 0 6px">MINTO UPDATES</p><h1 style="margin:0;font-size:clamp(24px,4vw,32px)">What's New</h1><p style="color:var(--text-secondary);margin:8px 0 0">Recent features, improvements, and fixes.</p></header>
+  {% if announcements %}
+  <div style="display:grid;gap:12px">
+    {% for item in announcements %}
+    <article style="padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--surface)">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px"><span class="admin-badge">{{ item.category }}</span><time style="font-size:12px;color:var(--muted)">{{ item.published_at|replace('T',' ')|replace('Z',' UTC') }}</time></div>
+      <h2 style="font-size:17px;margin:0 0 6px">{{ item.title }}</h2><p style="white-space:pre-wrap;line-height:1.6;margin:0;color:var(--text-secondary)">{{ item.message }}</p>
+      {% if item.link %}<a href="{{ item.link }}" style="display:inline-block;margin-top:10px">Explore update</a>{% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}<p style="color:var(--muted)">No updates have been published yet.</p>{% endif %}
+</section>
+{% endblock %}
