@@ -2922,11 +2922,15 @@
     var head = make('div', 'fixed-reminder-item-head');
     var detail = make('div');
     detail.appendChild(make('div', 'fixed-reminder-name', item.name));
-    var kindLabel = item.kind === 'income' ? 'Income expected' : (item.kind === 'investment' ? 'Investment due' : 'Expense due');
+    var kindLabel = item.kind === 'income' ? 'Income expected' : (item.kind === 'investment' ? 'Investment due' : (item.kind === 'credit_card' ? 'Credit-card bill due' : 'Expense due'));
     detail.appendChild(make('div', 'fixed-reminder-meta', kindLabel + ' · due ' + dateLabel(item.due_date)));
     head.appendChild(detail);
     head.appendChild(make('div', 'fixed-reminder-amount', money(item.amount)));
     box.appendChild(head);
+    if (item.kind === 'credit_card') {
+      box.appendChild(make('div', 'fixed-reminder-meta', 'Review this bill in your credit-card account details.'));
+      return box;
+    }
     var form = document.createElement('form');
     form.method = 'post';
     form.action = item.kind === 'income' ? '/fixed-income/' + item.id + '/receive' : '/fixed-expenses/' + item.id + '/pay';
@@ -2986,10 +2990,19 @@
       /* Keep reminders non-intrusive: show only the bell automatically.
          Open the modal only when the user taps the notification icon. */
       chip.hidden = false;
-      /* Let the bell slide in gently once the pending count is known. */
-      window.requestAnimationFrame(function () {
-        window.requestAnimationFrame(function () { chip.classList.add('is-visible'); });
-      });
+      /* A push reminder opens this same, live modal after fresh server data loads. */
+      var notificationParams = new URLSearchParams(window.location.search);
+      if (notificationParams.get('minto_open') === 'reminders') {
+        notificationParams.delete('minto_open');
+        var cleanUrl = window.location.pathname + (notificationParams.toString() ? '?' + notificationParams.toString() : '') + window.location.hash;
+        window.history.replaceState({}, '', cleanUrl);
+        showModal();
+      } else {
+        /* Let the bell slide in gently once the pending count is known. */
+        window.requestAnimationFrame(function () {
+          window.requestAnimationFrame(function () { chip.classList.add('is-visible'); });
+        });
+      }
     }).catch(function () {});
   later.addEventListener('click', hideModal);
   chip.addEventListener('click', showModal);

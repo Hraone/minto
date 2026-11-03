@@ -1959,6 +1959,162 @@ def send_daily_expense_notifications():
     return {"sent": sent, "skipped": skipped, "failed": failed}
 
 
+
+def send_due_and_trip_notifications():
+    """Send one consolidated due-payment alert and one trip-start alert per user/day."""
+    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        raise RuntimeError("VAPID keys must be configured.")
+    admin = _admin_client()
+    profiles = admin.table("profiles").select(
+        "id,daily_expense_timezone"
+    ).eq("daily_expense_notifications_enabled", True).execute().data or []
+    sent = skipped = failed = 0
+    now_utc = datetime.now(timezone.utc)
+
+    for profile in profiles:
+        user_id = str(profile["id"])
+        try:
+            user_tz = ZoneInfo(profile.get("daily_expense_timezone") or "Asia/Kolkata")
+            local_now = now_utc.astimezone(user_tz)
+            if local_now.hour != 8 or local_now.minute >= 10:
+                continue
+            tomorrow = local_now.date() + timedelta(days=1)
+            subscriptions = admin.table("daily_expense_push_subscriptions").select(
+                "id,endpoint,p256dh,auth"
+            ).eq("user_id", user_id).execute().data or []
+            if not subscriptions:
+                skipped += 1
+                continue
+
+            client = admin
+            notifications = []
+
+            # Build a fresh snapshot so paid, removed, and rescheduled items are excluded.
+            try:
+                sources = client.table("user_sources").select("*").eq(
+                    "user_id", user_id
+                ).eq("active", True).execute().data or []
+                transactions = client.table("transactions").select(
+                    "source_id,amount,direction,category,transaction_date,is_previous_card_bill,affects_source_balance"
+                ).eq("user_id", user_id).execute().data or []
+                cards = [row for row in sources if row.get("source_type") == "credit_card"]
+                loans = get_active_cc_loans(client, user_id)
+                forecasts = get_credit_card_forecasts(cards, transactions, today=local_now.date(), cc_loans=loans)
+                commitments = get_upcoming_commitments(client, user_id, forecasts, horizon_days=1)
+                # Include recurring income alongside fixed expenses and card bills.
+                incomes = get_fixed_incomes_for_month(client, user_id, tomorrow.year, tomorrow.month)
+                for item in incomes:
+                    due = item.get("due_date")
+                    if isinstance(due, datetime):
+                        due = due.date()
+                    if due == tomorrow and not item.get("paid"):
+                        commitments.append({
+                            "kind": "income", "name": item.get("name") or "Recurring income",
+                            "amount": float(item.get("amount") or 0), "due_date": due,
+                        })
+                due_items = [item for item in commitments if item.get("due_date") == tomorrow]
+                due_items.sort(key=lambda item: (item.get("kind", ""), item.get("name", "").lower()))
+                if due_items:
+                    total = sum(float(item.get("amount") or 0) for item in due_items)
+                    lines = [
+                        f"{item['name']}: ₹{float(item.get('amount') or 0):,.0f}"
+                        for item in due_items[:4]
+                    ]
+                    if len(due_items) > 4:
+                        lines.append(f"+{len(due_items) - 4} more")
+                    notifications.append({
+                        "type": "upcoming_due",
+                        "title": f"{len(due_items)} item{'s' if len(due_items) != 1 else ''} due tomorrow",
+                        "body": f"Total ₹{total:,.0f} · " + " · ".join(lines),
+                        "url": "/?minto_open=reminders",
+                        "tag": f"upcoming-due-{tomorrow.isoformat()}",
+                    })
+            except Exception:
+                app.logger.exception("Could not build due reminders for user %s", user_id)
+
+            try:
+                trips = get_accessible_trip_rows(
+                    client, user_id,
+                    "id,name,destination,start_date,end_date,status,active,created_at"
+                )
+                starting = []
+                for trip in trips:
+                    start = parse_iso_date(trip.get("start_date"))
+                    if start == tomorrow and trip.get("status") == "planned" and trip.get("active", True):
+                        starting.append(trip)
+                starting.sort(key=lambda trip: (trip.get("name") or "").lower())
+                if starting:
+                    lines = [
+                        f"{trip.get('name') or 'Trip'}" + (f" · {trip['destination']}" if trip.get("destination") else "")
+                        for trip in starting[:4]
+                    ]
+                    if len(starting) > 4:
+                        lines.append(f"+{len(starting) - 4} more")
+                    target = f"/trips/{starting[0]['id']}" if len(starting) == 1 else "/trips?notification=upcoming"
+                    notifications.append({
+                        "type": "trip_start",
+                        "title": "Your trip starts tomorrow" if len(starting) == 1 else f"{len(starting)} trips start tomorrow",
+                        "body": " · ".join(lines),
+                        "url": target,
+                        "tag": f"trip-start-{tomorrow.isoformat()}",
+                    })
+            except Exception:
+                app.logger.exception("Could not build trip reminders for user %s", user_id)
+
+            for notification in notifications:
+                try:
+                    admin.table("scheduled_notification_sends").insert({
+                        "user_id": user_id,
+                        "notification_type": notification["type"],
+                        "notification_date": tomorrow.isoformat(),
+                    }).execute()
+                except Exception as claim_error:
+                    if "duplicate" in str(claim_error).lower() or "unique" in str(claim_error).lower():
+                        skipped += 1
+                        continue
+                    raise
+
+                delivered = 0
+                payload = json.dumps({
+                    "title": notification["title"],
+                    "body": notification["body"][:240],
+                    "url": notification["url"],
+                    "tag": notification["tag"],
+                })
+                for subscription in subscriptions:
+                    try:
+                        webpush(
+                            subscription_info={
+                                "endpoint": subscription["endpoint"],
+                                "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]},
+                            },
+                            data=payload,
+                            vapid_private_key=VAPID_PRIVATE_KEY,
+                            vapid_claims=dict(VAPID_CLAIMS),
+                            ttl=86400,
+                        )
+                        delivered += 1
+                    except WebPushException as push_error:
+                        status = getattr(getattr(push_error, "response", None), "status_code", None)
+                        if status in (404, 410):
+                            admin.table("daily_expense_push_subscriptions").delete().eq(
+                                "id", subscription["id"]
+                            ).execute()
+                if delivered:
+                    sent += 1
+                else:
+                    admin.table("scheduled_notification_sends").delete().eq(
+                        "user_id", user_id
+                    ).eq("notification_type", notification["type"]).eq(
+                        "notification_date", tomorrow.isoformat()
+                    ).execute()
+                    failed += 1
+        except Exception:
+            failed += 1
+            app.logger.exception("Scheduled notification processing failed for user %s", user_id)
+    return {"sent": sent, "skipped": skipped, "failed": failed}
+
+
 @app.route("/internal/daily-expense-notifications", methods=["POST"])
 def daily_expense_notifications_cron():
     """Call every minute from Railway Cron using X-Minto-Cron-Secret."""
@@ -1968,7 +2124,9 @@ def daily_expense_notifications_cron():
     if not secrets.compare_digest(supplied.encode("utf-8"), DAILY_EXPENSE_CRON_SECRET.encode("utf-8")):
         return jsonify(error="Unauthorized."), 401
     try:
-        return jsonify(send_daily_expense_notifications())
+        daily = send_daily_expense_notifications()
+        scheduled = send_due_and_trip_notifications()
+        return jsonify({"daily_expenses": daily, "scheduled": scheduled})
     except Exception:
         app.logger.exception("Daily expense notification run failed")
         return jsonify(error="Daily expense notification run failed. See server logs."), 500
@@ -6128,6 +6286,29 @@ def fixed_reminders():
             "kind": "income", "due_date": item["due_date"].isoformat(),
             "source_id": str(item.get("source_id") or ""), "accounts": accounts,
         })
+    # Credit-card forecasts are read live so a changed statement/payment cycle
+    # is reflected when the notification opens the modal.
+    try:
+        active_sources = client.table("user_sources").select("*").eq(
+            "user_id", user_id
+        ).eq("active", True).execute().data or []
+        card_sources = [source for source in active_sources if source.get("source_type") == "credit_card"]
+        transactions = client.table("transactions").select(
+            "source_id,amount,direction,category,transaction_date,is_previous_card_bill,affects_source_balance"
+        ).eq("user_id", user_id).execute().data or []
+        loans = get_active_cc_loans(client, user_id)
+        forecasts = get_credit_card_forecasts(card_sources, transactions, today=today, cc_loans=loans)
+        for card in forecasts:
+            due = card.get("due_date")
+            amount = float(card.get("expected_bill") or 0)
+            if due and today <= due <= reminder_through and amount > 0:
+                items.append({
+                    "id": int(card["id"]), "name": f"{card['name']} card bill",
+                    "amount": amount, "kind": "credit_card", "due_date": due.isoformat(),
+                    "source_id": "", "accounts": [],
+                })
+    except Exception:
+        app.logger.exception("Could not load credit-card reminder details for user %s", user_id)
     items.sort(key=lambda item: (item["due_date"], item["kind"], item["name"].lower()))
     return jsonify({"items": items, "today": today.isoformat()})
 
