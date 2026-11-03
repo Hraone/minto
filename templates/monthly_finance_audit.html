@@ -3,7 +3,7 @@
 {% block content %}
 <style>
 .finance-audit{max-width:1050px;margin:0 auto;padding:26px 16px 60px;color:var(--text)}.finance-audit *{box-sizing:border-box}
-.finance-audit-head,.finance-audit-nav,.finance-audit-row-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.finance-audit-head,.finance-audit-nav{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .finance-audit h1{font-size:clamp(23px,4vw,30px);margin:0}.finance-audit p{color:var(--muted);line-height:1.55}
 .finance-audit-card{margin-top:16px;padding:18px;border:1px solid var(--border);border-radius:16px;background:var(--surface);min-width:0}
 .finance-audit-nav a,.finance-audit-link{color:var(--primary);font-weight:700;text-decoration:none}
@@ -13,7 +13,15 @@
 .finance-audit-value{padding:10px;border:1px solid var(--border);border-radius:10px;min-width:0}.finance-audit-value span{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}.finance-audit-value strong{font-size:14px;overflow-wrap:anywhere}
 .finance-audit label{display:block;font-size:13px;font-weight:650;margin:10px 0 5px}.finance-audit input,.finance-audit textarea{width:100%;min-width:0;padding:11px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--text);font:inherit}.finance-audit textarea{resize:vertical;min-height:66px}
 .finance-audit button{width:auto;padding:10px 14px;margin:10px 6px 0 0;border:1px solid var(--border);border-radius:9px;background:var(--surface-subtle);color:var(--text);font:inherit;font-weight:700;cursor:pointer}.finance-audit button.primary{background:var(--positive);color:white;border-color:transparent}
-.finance-audit button:focus-visible,.finance-audit a:focus-visible,.finance-audit input:focus-visible{outline:2px solid var(--primary);outline-offset:3px}.finance-audit-status{font-size:12px;font-weight:750;color:var(--positive)}.finance-audit-account-toggle{display:flex!important;align-items:center;justify-content:space-between;gap:12px;width:100%!important;margin:0!important;padding:8px 0!important;border:0!important;border-radius:0!important;background:transparent!important;text-align:left}.finance-audit-account-title{display:flex;flex-direction:column;min-width:0}.finance-audit-account-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}.finance-audit-chevron{font-size:20px;transition:transform .18s ease}.finance-audit-account-toggle[aria-expanded="true"] .finance-audit-chevron{transform:rotate(180deg)}.finance-audit-account-details[hidden]{display:none}.finance-audit-account-details{padding-top:4px}.finance-audit-edit{margin:0!important;padding:7px 12px!important}.finance-audit-editor{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}.finance-audit-editor[hidden]{display:none}.finance-audit-editor-actions{display:flex;gap:8px;flex-wrap:wrap}.finance-audit-editor-actions button{margin:10px 0 0}.finance-audit-cancel{background:transparent!important}.finance-audit-account-title{min-width:0;flex:1}.finance-audit-account-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.finance-audit-account-actions button{margin:0}.finance-audit-edit{padding:7px 12px!important}.finance-audit-editor{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}.finance-audit-editor[hidden]{display:none}.finance-audit-editor-actions{display:flex;gap:8px;flex-wrap:wrap}.finance-audit-editor-actions button{margin:10px 0 0}.finance-audit-cancel{background:transparent!important}.finance-audit-empty{padding:20px;border:1px dashed var(--border);border-radius:12px}
+.finance-audit button:focus-visible,.finance-audit a:focus-visible,.finance-audit input:focus-visible{outline:2px solid var(--primary);outline-offset:3px}.finance-audit-status{font-size:12px;font-weight:750;color:var(--positive)}
+.finance-audit-account-toggle{display:flex!important;align-items:center;justify-content:space-between;gap:12px;width:100%!important;margin:0!important;padding:8px 10px!important;border:0!important;border-left:4px solid var(--audit-accent)!important;border-radius:7px!important;background:var(--audit-tint)!important;text-align:left}
+.finance-audit-account-title{display:flex;flex-direction:column;min-width:0;flex:1}.finance-audit-account-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}.finance-audit-chevron{font-size:20px;transition:transform .18s ease}.finance-audit-account-toggle[aria-expanded="true"] .finance-audit-chevron{transform:rotate(180deg)}
+.finance-audit-account-details[hidden],.finance-audit-editor[hidden]{display:none}.finance-audit-account-details{padding-top:4px}
+.finance-audit-type{display:inline-flex;align-items:center;gap:6px;color:var(--audit-accent);font-weight:700}.finance-audit-type::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.finance-audit-editor{margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}.finance-audit-editor-actions{display:flex;gap:8px;flex-wrap:wrap}.finance-audit-editor-actions button{margin:10px 0 0}.finance-audit-empty{padding:20px;border:1px dashed var(--border);border-radius:12px}
+.finance-audit-account[data-account-type="savings"]{--audit-accent:#269b70;--audit-tint:rgba(38,155,112,.10)}
+.finance-audit-account[data-account-type="credit_card"]{--audit-accent:#d58b36;--audit-tint:rgba(213,139,54,.12)}
+.finance-audit-account[data-account-type="cash"]{--audit-accent:#568bd5;--audit-tint:rgba(86,139,213,.11)}
 @media(max-width:640px){.finance-audit{padding:18px 12px 40px}.finance-audit-card{padding:14px}.finance-audit-values{grid-template-columns:1fr 1fr}.finance-audit-value:last-child{grid-column:1/-1}}
 </style>
 <section class="finance-audit">
@@ -22,15 +30,14 @@
   <div class="finance-audit-card"><h2 style="margin-top:0">Reminder preferences</h2><p>These settings apply only to {{ audit_month.strftime('%B %Y') }}. You can always open this page manually from Profile.</p><div class="finance-audit-meta">Current status: {{ (reminder.status or 'Not set')|replace('_',' ')|title }}{% if reminder.snooze_until %} · Snoozed until {{ reminder.snooze_until }}{% endif %}</div>
     <form method="post" action="{{ url_for('monthly_finance_audit', month=audit_month.isoformat()) }}"><input type="hidden" name="audit_month" value="{{ audit_month.isoformat() }}"><button name="reminder_action" value="later">Remind me later (24 hours)</button><button name="reminder_action" value="suppress">Do not show for this month</button><button name="reminder_action" value="pending">Reset reminder</button></form>
   </div>
-  <div class="finance-audit-card"><h2 style="margin-top:0">Accounts to reconcile</h2><p>Review each account and expand only the ones you want to update. Saving creates or updates the linked Balance Reconciliation entry.</p>
-    {% if audits %}{% for item in audits %}<article class="finance-audit-row finance-audit-account" data-audit-account>
-      <button class="finance-audit-account-toggle" type="button" aria-expanded="false" aria-controls="audit-details-{{ item.source.id }}" onclick="toggleAuditAccount(this)"><span class="finance-audit-account-title"><span class="finance-audit-name">{{ item.source.name }}</span><span class="finance-audit-meta">{{ {'savings': 'Savings account', 'credit_card': 'Credit card', 'cash': 'Cash'} .get(item.source.source_type, item.source.source_type|replace('_',' ')|title) }}</span></span><span class="finance-audit-account-actions">{% if item.audit.get('adjustment_transaction_id') %}<span class="finance-audit-status">Reconciled</span>{% elif item.audit.get('actual_balance') is not none %}<span class="finance-audit-meta">Saved</span>{% else %}<span class="finance-audit-meta">Pending</span>{% endif %}<span class="finance-audit-chevron" aria-hidden="true">⌄</span></span></button>
+  <div class="finance-audit-card"><h2 style="margin-top:0">Accounts to reconcile</h2><p>Tap an account to expand its balance fields and reconciliation note. Save directly without an extra Edit step.</p>
+    {% if audits %}{% for item in audits %}<article class="finance-audit-row finance-audit-account" data-audit-account data-account-type="{{ item.source.source_type }}">
+      <button class="finance-audit-account-toggle" type="button" aria-expanded="false" aria-controls="audit-details-{{ item.source.id }}" onclick="toggleAuditAccount(this)"><span class="finance-audit-account-title"><span class="finance-audit-name">{{ item.source.name }}</span><span class="finance-audit-meta finance-audit-type">{{ {'savings': 'Savings account', 'credit_card': 'Credit card', 'cash': 'Cash'} .get(item.source.source_type, item.source.source_type|replace('_',' ')|title) }}</span></span><span class="finance-audit-account-actions">{% if item.audit.get('adjustment_transaction_id') %}<span class="finance-audit-status">Reconciled</span>{% elif item.audit.get('actual_balance') is not none %}<span class="finance-audit-meta">Saved</span>{% else %}<span class="finance-audit-meta">Pending</span>{% endif %}<span class="finance-audit-chevron" aria-hidden="true">⌄</span></span></button>
       <div id="audit-details-{{ item.source.id }}" class="finance-audit-account-details" hidden>
       <div class="finance-audit-values"><div class="finance-audit-value"><span>Expected balance</span><strong>{{ item.expected|inr }}</strong></div><div class="finance-audit-value"><span>Actual balance</span><strong>{% if item.audit.get('actual_balance') is not none %}{{ item.audit.get('actual_balance')|inr }}{% else %}Not entered{% endif %}</strong></div><div class="finance-audit-value"><span>Difference</span><strong>{% if item.difference is not none %}{{ item.difference|inr }}{% else %}—{% endif %}</strong></div></div>
-      <button class="finance-audit-edit" type="button" aria-expanded="false" aria-controls="audit-edit-{{ item.source.id }}" onclick="toggleAuditEditor(this)">Edit</button>
-      <form id="audit-edit-{{ item.source.id }}" class="finance-audit-editor" method="post" action="{{ url_for('monthly_finance_audit', month=audit_month.isoformat()) }}" hidden><input type="hidden" name="audit_month" value="{{ audit_month.isoformat() }}"><input type="hidden" name="source_id" value="{{ item.source.id }}"><input type="hidden" name="expected_balance" value="{{ '%.2f'|format(item.expected) }}">
+      <form id="audit-edit-{{ item.source.id }}" class="finance-audit-editor" method="post" action="{{ url_for('monthly_finance_audit', month=audit_month.isoformat()) }}"><input type="hidden" name="audit_month" value="{{ audit_month.isoformat() }}"><input type="hidden" name="source_id" value="{{ item.source.id }}"><input type="hidden" name="expected_balance" value="{{ '%.2f'|format(item.expected) }}">
         <label for="actual-{{ item.source.id }}">Actual balance (₹)</label><input id="actual-{{ item.source.id }}" name="actual_balance" type="number" min="0" step="0.01" required value="{{ item.audit.get('actual_balance') if item.audit.get('actual_balance') is not none else '' }}" placeholder="Enter actual balance">
-        <label for="note-{{ item.source.id }}">Note (optional)</label><textarea id="note-{{ item.source.id }}" name="note" maxlength="1000" placeholder="Optional explanation or reference">{{ item.audit.get('note') or '' }}</textarea><div class="finance-audit-editor-actions"><button class="primary" type="submit">{{ 'Save changes' if item.audit.get('actual_balance') is not none else 'Save reconciliation' }}</button><button type="button" class="finance-audit-cancel" onclick="toggleAuditEditor(this, false)">Cancel</button></div>
+        <label for="note-{{ item.source.id }}">Note (optional)</label><textarea id="note-{{ item.source.id }}" name="note" maxlength="1000" placeholder="Optional explanation or reference">{{ item.audit.get('note') or '' }}</textarea><div class="finance-audit-editor-actions"><button class="primary" type="submit">{{ 'Save changes' if item.audit.get('actual_balance') is not none else 'Save reconciliation' }}</button></div>
       </form>
       </div>
     </article>{% endfor %}{% else %}<div class="finance-audit-empty">No active accounts found, or the database migration has not been installed.</div>{% endif %}
@@ -44,20 +51,6 @@ function toggleAuditAccount(button) {
   const open = details.hidden;
   details.hidden = !open;
   button.setAttribute('aria-expanded', open ? 'true' : 'false');
-}
-function toggleAuditEditor(button, forceOpen) {
-  const account = button.closest('[data-audit-account]');
-  if (!account) return;
-  const editor = account.querySelector('.finance-audit-editor');
-  const editButton = account.querySelector('.finance-audit-edit');
-  const open = typeof forceOpen === 'boolean' ? forceOpen : editor.hidden;
-  editor.hidden = !open;
-  editButton.setAttribute('aria-expanded', open ? 'true' : 'false');
-  editButton.textContent = open ? 'Close' : 'Edit';
-  if (open) {
-    const field = editor.querySelector('input[name="actual_balance"]');
-    if (field) field.focus({ preventScroll: true });
-  }
 }
 </script>
 {% endblock %}
