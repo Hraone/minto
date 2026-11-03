@@ -1551,6 +1551,7 @@
           </div>
           <p style="margin:0;color:var(--muted);font-size:13px;line-height:1.5;">Get yesterday's spending summary every midnight.</p>
           <button type="button" class="section-action" id="daily-expense-show-example" style="margin-top:10px;">Show example</button>
+          <p style="margin:7px 0 0;color:var(--muted);font-size:12px;line-height:1.4;">Preview uses sample data. Your daily notification will use your actual expenses.</p>
           <p id="daily-expense-notification-status" role="status" aria-live="polite" style="margin:9px 0 0;color:var(--muted);font-size:12px;">{{ 'Notifications enabled on this account.' if daily_expense_notifications_enabled else 'Notifications are currently off.' }}</p>
         </div>
         <label style="display:flex;align-items:center;gap:9px;white-space:nowrap;font-size:13px;font-weight:700;">
@@ -1825,13 +1826,13 @@
             return;
           }
           const registration = await navigator.serviceWorker.ready;
-          await registration.showNotification('Minto · Yesterday’s expense summary', {
-            body: 'You spent ₹1,240 yesterday. Groceries ₹540 · Fuel ₹500 · Tea & snacks ₹200',
+          await registration.showNotification('Minto · Sample expense summary', {
+            body: 'Sample: You spent ₹1,240 yesterday. Groceries ₹540 · Fuel ₹500 · Tea & snacks ₹200',
             tag: 'minto-daily-expense-example',
             renotify: false,
             data: { url: '/profile' }
           });
-          if (status) status.textContent = 'Sample notification sent to this device. Actual summaries use your expenses.';
+          if (status) status.textContent = 'Sample notification sent. Your daily summaries will use your actual expenses.';
         } catch (error) {
           if (status) status.textContent = 'Could not show the example notification. Please try again.';
         }
