@@ -177,6 +177,31 @@
     cursor: pointer;
   }
 
+  .reports-type-control {
+    display: grid;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .reports-type-control > label {
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 650;
+  }
+
+  .reports-type-select {
+    width: 100%;
+    min-width: 0;
+    min-height: 48px;
+    padding: 12px 40px 12px 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font: inherit;
+    font-size: 14px;
+  }
+
   .reports-history-label {
     display: block;
     margin: 0 0 7px;
@@ -309,7 +334,15 @@
                  value="{{ default_to }}" autocomplete="off" required>
         </div>
       </div>
-      <div class="reports-download-actions" style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px"><button type="submit" class="reports-download" name="type" value="expense" style="margin-top:0">Expense Report</button><button type="submit" class="reports-download" name="type" value="cashflow" style="margin-top:0;background:var(--surface-subtle);color:var(--text);border:1px solid var(--border)">Income &amp; Expense</button><button type="submit" class="reports-download" name="type" value="funfacts" style="margin-top:0;background:var(--surface-subtle);color:var(--text);border:1px solid var(--border)">Money Fun Facts</button></div>
+      <div class="reports-type-control">
+        <label for="report-type">Report type</label>
+        <select class="reports-type-select" id="report-type" name="type">
+          <option value="expense">Expense Report</option>
+          <option value="cashflow">Income &amp; Expense</option>
+          <option value="funfacts">Money Fun Facts</option>
+        </select>
+        <button type="submit" class="reports-download">Generate report</button>
+      </div>
     </form>
   </div>
 
