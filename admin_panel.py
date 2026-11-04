@@ -199,110 +199,112 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             selected_user = next((u for u in users if u["id"] == target_user_id), None)
             if recipient_type == "user" and not selected_user:
                 errors.append("Choose a valid user.")
-            if recipient_type == "user" and selected_user and not selected_user.get("push_ready"):
-                errors.append("This user has not enabled push notifications on a device.")
             if users_error:
                 errors.append(users_error)
-            public_key = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
-            private_key = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
-            if not public_key or not private_key:
-                errors.append("Push notifications are not configured on the server.")
             if errors:
                 for error in errors:
                     flash(error)
             else:
                 try:
-                    enabled_ids = {u["id"] for u in users if u.get("push_ready")}
-                    query = service.table("daily_expense_push_subscriptions").select(
-                        "user_id,endpoint,p256dh,auth"
+                    # The in-app inbox is available to every account. Web Push
+                    # is an optional extra for recipients with an enabled device.
+                    recipient_user_ids = (
+                        [selected_user["id"]] if recipient_type == "user"
+                        else sorted({str(user["id"]) for user in users if user.get("id")})
                     )
-                    if recipient_type == "user":
-                        query = query.eq("user_id", target_user_id)
-                    subscriptions = query.execute().data or []
-                    subscriptions = [
-                        row for row in subscriptions
-                        if str(row.get("user_id")) in enabled_ids
-                    ]
-                    if not subscriptions:
-                        flash("No eligible devices are registered for the selected recipient.")
-                    else:
-                        # Persist one inbox item per recipient (not per device).
-                        # This is independent of push delivery and remains until
-                        # each user explicitly clears it from their inbox.
-                        recipient_user_ids = sorted({
-                            str(row.get("user_id")) for row in subscriptions if row.get("user_id")
-                        })
-                        if not recipient_user_ids:
-                            flash("No eligible recipients were found.")
-                            return redirect(url_for("admin_notifications"))
-                        service.table("user_notifications").insert([
-                            {"user_id": recipient_id, "title": title, "message": message}
-                            for recipient_id in recipient_user_ids
-                        ]).execute()
-
-                        payload = json.dumps({
-                            "title": title,
-                            "body": message,
-                            "url": "/",
-                            "tag": "minto-admin-" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
-                        })
-                        sent = 0
-                        expired = 0
-                        failed = 0
-                        for subscription in subscriptions:
-                            try:
-                                webpush(
-                                    subscription_info={
-                                        "endpoint": subscription["endpoint"],
-                                        "keys": {
-                                            "p256dh": subscription["p256dh"],
-                                            "auth": subscription["auth"],
-                                        },
-                                    },
-                                    data=payload,
-                                    vapid_private_key=private_key,
-                                    vapid_claims={"sub": os.environ.get("VAPID_SUBJECT", "mailto:support@minto.app")},
-                                    ttl=300,
-                                )
-                                sent += 1
-                            except WebPushException as push_error:
-                                status_code = getattr(getattr(push_error, "response", None), "status_code", None)
-                                if status_code in (404, 410):
-                                    service.table("daily_expense_push_subscriptions").delete().eq(
-                                        "endpoint", subscription["endpoint"]
-                                    ).execute()
-                                    expired += 1
-                                else:
-                                    failed += 1
-                                    app.logger.warning("Admin push failed (HTTP %s)", status_code or "unknown")
-                            except Exception as push_error:
-                                failed += 1
-                                app.logger.warning("Admin push failed (%s)", type(push_error).__name__)
-                        try:
-                            service.table("admin_activity_logs").insert({
-                                "actor_user_id": str(session["user_id"]),
-                                "target_type": "push_notification",
-                                "target_id": target_user_id if recipient_type == "user" else "all",
-                                "action": "send_push_notification",
-                                "outcome": "success" if sent else "failed",
-                                "details": {
-                                    "title": title,
-                                    "recipient_type": recipient_type,
-                                    "sent_devices": sent,
-                                    "failed_devices": failed,
-                                    "expired_devices": expired,
-                                },
-                            }).execute()
-                        except Exception as log_error:
-                            app.logger.warning("Admin push audit log failed (%s)", type(log_error).__name__)
-                        if sent:
-                            flash(f"Saved to {len(recipient_user_ids)} user inbox(es) and sent to {sent} device(s). {failed} push delivery(s) failed; {expired} expired subscription(s) removed.")
-                        else:
-                            flash(f"Saved to {len(recipient_user_ids)} user inbox(es). Push delivery failed for {failed} device(s); {expired} expired subscription(s) removed.")
+                    if not recipient_user_ids:
+                        flash("There are no registered users to notify.")
                         return redirect(url_for("admin_notifications"))
+
+                    service.table("user_notifications").insert([
+                        {"user_id": recipient_id, "title": title, "message": message}
+                        for recipient_id in recipient_user_ids
+                    ]).execute()
+
+                    public_key = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+                    private_key = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+                    push_configured = bool(public_key and private_key)
+                    enabled_ids = {u["id"] for u in users if u.get("push_ready")}
+                    subscriptions = []
+                    if push_configured:
+                        subscriptions = service.table("daily_expense_push_subscriptions").select(
+                            "user_id,endpoint,p256dh,auth"
+                        ).execute().data or []
+                        recipient_set = set(recipient_user_ids)
+                        subscriptions = [
+                            row for row in subscriptions
+                            if str(row.get("user_id")) in enabled_ids
+                            and str(row.get("user_id")) in recipient_set
+                        ]
+
+                    payload = json.dumps({
+                        "title": title,
+                        "body": message,
+                        "url": "/",
+                        "tag": "minto-admin-" + datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S"),
+                    })
+                    sent = 0
+                    expired = 0
+                    failed = 0
+                    for subscription in subscriptions:
+                        try:
+                            webpush(
+                                subscription_info={
+                                    "endpoint": subscription["endpoint"],
+                                    "keys": {
+                                        "p256dh": subscription["p256dh"],
+                                        "auth": subscription["auth"],
+                                    },
+                                },
+                                data=payload,
+                                vapid_private_key=private_key,
+                                vapid_claims={"sub": os.environ.get("VAPID_SUBJECT", "mailto:support@minto.app")},
+                                ttl=300,
+                            )
+                            sent += 1
+                        except WebPushException as push_error:
+                            status_code = getattr(getattr(push_error, "response", None), "status_code", None)
+                            if status_code in (404, 410):
+                                service.table("daily_expense_push_subscriptions").delete().eq(
+                                    "endpoint", subscription["endpoint"]
+                                ).execute()
+                                expired += 1
+                            else:
+                                failed += 1
+                                app.logger.warning("Admin push failed (HTTP %s)", status_code or "unknown")
+                        except Exception as push_error:
+                            failed += 1
+                            app.logger.warning("Admin push failed (%s)", type(push_error).__name__)
+
+                    try:
+                        service.table("admin_activity_logs").insert({
+                            "actor_user_id": str(session["user_id"]),
+                            "target_type": "push_notification",
+                            "target_id": target_user_id if recipient_type == "user" else "all",
+                            "action": "send_push_notification",
+                            "outcome": "success",
+                            "details": {
+                                "title": title,
+                                "recipient_type": recipient_type,
+                                "recipient_count": len(recipient_user_ids),
+                                "sent_devices": sent,
+                                "failed_devices": failed,
+                                "expired_devices": expired,
+                            },
+                        }).execute()
+                    except Exception as log_error:
+                        app.logger.warning("Admin notification audit log failed (%s)", type(log_error).__name__)
+
+                    if not push_configured:
+                        flash(f"Saved to {len(recipient_user_ids)} user inbox(es). Web Push is not configured on the server.")
+                    elif sent:
+                        flash(f"Saved to {len(recipient_user_ids)} user inbox(es) and sent to {sent} device(s). {failed} push delivery(s) failed; {expired} expired subscription(s) removed.")
+                    else:
+                        flash(f"Saved to {len(recipient_user_ids)} user inbox(es). No push alerts were delivered; {failed} failed and {expired} expired subscription(s) removed.")
+                    return redirect(url_for("admin_notifications"))
                 except Exception as exc:
                     app.logger.exception("Admin notification send failed (%s)", type(exc).__name__)
-                    flash("The notification could not be sent. Check server configuration and try again.")
+                    flash("The notification could not be saved. Check the inbox migration and server configuration, then try again.")
 
         return render_template("admin/notifications.html", users=users, users_error=users_error)
 
