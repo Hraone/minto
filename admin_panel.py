@@ -411,6 +411,19 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                 row for row in announcements
                 if (expiry := parse_timestamp(row.get("expires_at"))) is None or expiry > now
             ]
+            india_timezone = timezone(timedelta(hours=5, minutes=30))
+            for row in announcements:
+                published = parse_timestamp(row.get("published_at"))
+                if published:
+                    local_time = published.astimezone(india_timezone)
+                    hour = local_time.hour % 12 or 12
+                    period = "AM" if local_time.hour < 12 else "PM"
+                    row["published_at_display"] = (
+                        f"{local_time.day} {local_time:%b %Y}, "
+                        f"{hour}:{local_time:%M} {period} IST"
+                    )
+                else:
+                    row["published_at_display"] = ""
         except Exception as exc:
             app.logger.warning("What's New history unavailable (%s)", type(exc).__name__)
             announcements = []
