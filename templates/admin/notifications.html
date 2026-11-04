@@ -3,7 +3,7 @@
 {% block admin_content %}
 <div class="admin-section" style="margin-top:0"><div><h2>Send a notification</h2><p class="admin-muted">Send an in-app notification to one user or all registered users. A push alert is also sent when available.</p></div></div>
 {% if users_error %}<div class="admin-alert" role="alert">{{ users_error }}</div>{% endif %}
-<form class="admin-panel" method="post" onsubmit="return confirm('Send this push notification now? This action cannot be undone.');" style="max-width:760px">
+<form class="admin-panel" method="post" onsubmit="return confirm('Send this notification to the selected recipients? This action cannot be undone.');" style="max-width:760px">
   <div class="admin-field" style="margin-bottom:16px">
     <label for="recipient_type">Recipients</label>
     <select id="recipient_type" name="recipient_type" required>
