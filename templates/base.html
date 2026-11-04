@@ -3388,6 +3388,19 @@
   }
 
   chip.addEventListener('click', openInbox);
+  // Open the inbox when a push notification is tapped.
+  navigator.serviceWorker && navigator.serviceWorker.addEventListener('message', function (event) {
+    if (event.data && event.data.type === 'MINTO_OPEN_NOTIFICATIONS') openInbox();
+  });
+  // A fresh app launch from a push notification uses this flag.
+  try {
+    const launchUrl = new URL(window.location.href);
+    if (launchUrl.searchParams.get('minto_open') === 'notifications') {
+      launchUrl.searchParams.delete('minto_open');
+      window.history.replaceState({}, '', launchUrl.pathname + launchUrl.search + launchUrl.hash);
+      openInbox();
+    }
+  } catch (_) {}
   closeButton.addEventListener('click', closeInbox);
   clearAll.addEventListener('click', clearAllNotifications);
   overlay.addEventListener('click', function (event) {
