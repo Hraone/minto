@@ -404,8 +404,13 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
     def whats_new():
         try:
             announcements = admin_client().table("app_announcements").select(
-                "id,title,message,category,link,published_at"
-            ).order("published_at", desc=True).limit(100).execute().data or []
+                "id,title,message,category,link,published_at,expires_at"
+            ).eq("is_active", True).order("published_at", desc=True).limit(100).execute().data or []
+            now = datetime.now(timezone.utc)
+            announcements = [
+                row for row in announcements
+                if (expiry := parse_timestamp(row.get("expires_at"))) is None or expiry > now
+            ]
         except Exception as exc:
             app.logger.warning("What's New history unavailable (%s)", type(exc).__name__)
             announcements = []
