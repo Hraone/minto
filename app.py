@@ -6459,6 +6459,50 @@ def delete_fixed_income(fixed_income_id):
     return redirect(url_for("fixed_expenses"))
 
 
+@app.route("/api/notifications", methods=["GET", "DELETE"])
+@login_required
+def user_notifications():
+    """Persistent inbox scoped to the signed-in recipient; items remain until cleared."""
+    service = get_service_client()
+    if service is None:
+        return jsonify(ok=False, error="Notifications are temporarily unavailable."), 503
+
+    user_id = str(session["user_id"])
+    try:
+        if request.method == "GET":
+            rows = (
+                service.table("user_notifications")
+                .select("id,title,message,created_at")
+                .eq("user_id", user_id)
+                .is_("cleared_at", "null")
+                .order("created_at", desc=True)
+                .limit(100)
+                .execute()
+                .data or []
+            )
+            return jsonify(ok=True, items=rows, count=len(rows))
+
+        # DELETE without an id clears all active notifications for this user.
+        now = datetime.now(timezone.utc).isoformat()
+        notification_id = (request.args.get("id") or "").strip()
+        query = (
+            service.table("user_notifications")
+            .update({"cleared_at": now})
+            .eq("user_id", user_id)
+            .is_("cleared_at", "null")
+        )
+        if notification_id:
+            try:
+                query = query.eq("id", int(notification_id))
+            except ValueError:
+                return jsonify(ok=False, error="Invalid notification."), 400
+        query.execute()
+        return jsonify(ok=True)
+    except Exception as exc:
+        app.logger.warning("Notification inbox request failed (%s)", type(exc).__name__)
+        return jsonify(ok=False, error="Could not load or update notifications. Please try again."), 500
+
+
 @app.route("/api/fixed-reminders", methods=["GET"])
 @login_required
 def fixed_reminders():
