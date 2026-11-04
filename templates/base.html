@@ -3350,6 +3350,7 @@
 
   async function clearAllNotifications() {
     if (busy || !notifications.length) return;
+    if (!window.confirm('Clear all notifications? This cannot be undone.')) return;
     busy = true;
     clearAll.disabled = true;
     try {
