@@ -55,7 +55,7 @@ def start_request_timing():
 # How long a logged-in session survives with no activity at all — separate
 # from the Supabase access token's 1-hour life, which refresh_if_needed()
 # renews automatically as long as this outer session is still alive.
-app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=30)
+app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=365)
 # Cookie hardening. Lax stops other sites from making a logged-in browser
 # submit this app's POST forms (there are no CSRF tokens). Secure keeps the
 # cookie off plain HTTP; set SESSION_COOKIE_SECURE=0 only for local http dev.
@@ -919,30 +919,45 @@ def get_upcoming_commitments(client, user_id, credit_card_forecasts, horizon_day
     return commitments
 
 
+class SessionRefreshUnavailable(Exception):
+    """A temporary Auth API failure; preserve the user's existing session."""
+
+
 def refresh_if_needed(client):
-    """Proactively swaps the access token for a fresh one via the stored
-    refresh token when it's expired or about to be, so the user isn't
-    bounced to /login every hour just because Supabase's JWTs are
-    short-lived. Runs on a plain (unauthenticated) client — refresh_session
-    talks to the Auth API, not postgrest, so it doesn't need the old token
-    set first."""
+    """Refresh the Supabase access token without logging users out on transient
+    Auth API/network failures. Refresh requests can overlap across mobile tabs;
+    a failed concurrent refresh must not erase a session updated by another
+    request. Definitively invalid refresh tokens still require a new login."""
     expires_at = session.get("expires_at")
     refresh_token = session.get("refresh_token")
     if not refresh_token or expires_at is None:
         return
-    if datetime.now(timezone.utc).timestamp() < expires_at - 60:
-        return  # still valid for at least another minute, nothing to do
+    if datetime.now(timezone.utc).timestamp() < float(expires_at) - 60:
+        return
     try:
         result = client.auth.refresh_session(refresh_token)
         session["access_token"] = result.session.access_token
-        # Supabase rotates refresh tokens on every use — the old one stops
-        # working, so this MUST be re-saved or the next refresh will fail.
+        # Supabase rotates refresh tokens; always persist the newest value.
         session["refresh_token"] = result.session.refresh_token
         session["expires_at"] = result.session.expires_at
-    except Exception:
-        # Refresh token itself is dead (e.g. expired after long inactivity,
-        # or revoked) — nothing left to do but require a real login.
-        session.clear()
+    except Exception as exc:
+        message = str(exc).lower()
+        terminal_auth_errors = (
+            "invalid refresh token",
+            "refresh token not found",
+            "refresh token expired",
+            "refresh token revoked",
+        )
+        if any(marker in message for marker in terminal_auth_errors):
+            app.logger.warning("Supabase refresh token is no longer valid (%s)", type(exc).__name__)
+            session.clear()
+            return
+
+        # Do not clear the signed Flask session for a timeout, network error,
+        # temporary Supabase outage, or a concurrent refresh race. Stop this
+        # request before it makes database calls with an expired access token.
+        app.logger.warning("Supabase token refresh temporarily failed (%s)", type(exc).__name__)
+        raise SessionRefreshUnavailable from exc
 
 
 def get_user_client() -> Client:
@@ -959,6 +974,13 @@ def get_user_client() -> Client:
 
 @app.errorhandler(Exception)
 def handle_unexpected_error(e):
+    if isinstance(e, SessionRefreshUnavailable):
+        return (
+            "Minto is temporarily reconnecting to your account. Your login is محفوظ; please retry in a moment.",
+            503,
+            {"Retry-After": "5"},
+        )
+
     # Ordinary web errors (unknown address, wrong method) used to fall through
     # to `raise e` below and turn into "Internal Server Error". Visitors who
     # aren't logged in get the public info page instead; everyone else gets
