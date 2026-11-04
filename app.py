@@ -1577,6 +1577,32 @@ def update_wishlist_item(item_id):
         elif action in ("active", "paused", "purchased"):
             client.table("wishlists").update({"status": action, "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", item_id).eq("user_id", user_id).execute()
             flash("Wishlist status updated.", "success")
+        elif action == "edit":
+            name = (request.form.get("name") or "").strip()
+            target = parse_money(request.form.get("target_amount") or "")
+            saved = parse_money(request.form.get("saved_amount") or "")
+            target_date = (request.form.get("target_date") or "").strip() or None
+            priority = request.form.get("priority") or "medium"
+            notes = (request.form.get("notes") or "").strip() or None
+            if not name or len(name) > 120:
+                flash("Enter an item name up to 120 characters.", "error")
+            elif target is None or target <= 0 or saved is None or saved < 0:
+                flash("Enter valid target and saved amounts.", "error")
+            elif priority not in ("low", "medium", "high"):
+                flash("Choose a valid priority.", "error")
+            elif target_date and parse_iso_date(target_date) is None:
+                flash("Choose a valid target date.", "error")
+            else:
+                client.table("wishlists").update({
+                    "name": name,
+                    "target_amount": target,
+                    "saved_amount": min(saved, target),
+                    "target_date": target_date,
+                    "priority": priority,
+                    "notes": notes,
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", item_id).eq("user_id", user_id).execute()
+                flash("Wishlist item updated.", "success")
         else:
             target = parse_money(request.form.get("target_amount") or "")
             saved = parse_money(request.form.get("saved_amount") or "")
