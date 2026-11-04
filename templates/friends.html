@@ -133,7 +133,7 @@
 </style>
 <div class="friends-page">
   <div class="friends-user-card">
-    <span class="friends-user-avatar"><img src="{{ url_for('static', filename='avatars/' ~ (profile_avatar if profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}" alt="" aria-hidden="true"></span>
+    <span class="friends-user-avatar"><img src="{{ url_for('static', filename='avatars/' ~ (profile_avatar if profile_avatar in profile_avatars else 'avatar-01') ~ '.webp') }}?v={{ asset_version }}&amp;account={{ session.get('user_id', '') }}" alt="" aria-hidden="true"></span>
     <div class="friends-user-copy">
       <strong>{{ nav_name }}</strong>
       <small>{% if username %}@{{ username }}{% else %}Username not set{% endif %}</small>
