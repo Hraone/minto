@@ -7,7 +7,7 @@
   <div class="admin-field" style="margin-bottom:16px">
     <label for="recipient_type">Recipients</label>
     <select id="recipient_type" name="recipient_type" required>
-      <option value="all">All users with push notifications enabled</option>
+      <option value="all">All registered users</option>
       <option value="user">One selected user</option>
     </select>
   </div>
@@ -16,10 +16,10 @@
     <select id="target_user_id" name="target_user_id">
       <option value="">Choose a user</option>
       {% for user in users %}
-      <option value="{{ user.id }}" {% if not user.push_ready %}disabled{% endif %}>{{ user.display_name or user.email or 'Unnamed user' }} · {{ user.email or user.id }}{% if user.push_ready %} · Push enabled{% else %} · No active push device{% endif %}</option>
+      <option value="{{ user.id }}">{{ user.display_name or user.email or 'Unnamed user' }} · {{ user.email or user.id }}{% if user.push_ready %} · Push enabled{% else %} · In-app only{% endif %}</option>
       {% endfor %}
     </select>
-    <p class="admin-muted">Users without an active push subscription are shown but cannot be selected.</p>
+    <p class="admin-muted">Every selected user receives an in-app notification. A push alert is also sent when they have push notifications enabled on a device.</p>
   </div>
   <div class="admin-field" style="margin-bottom:16px">
     <label for="title">Notification title</label>
