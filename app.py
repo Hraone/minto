@@ -74,6 +74,12 @@ def validate_unsafe_request_origin():
     if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
         return None
 
+    # Server-to-server cron calls do not carry browser Origin/Referer headers.
+    # This exact endpoint has its own constant-time X-Minto-Cron-Secret check,
+    # so it can safely bypass browser-only origin validation.
+    if request.path == "/internal/daily-expense-notifications":
+        return None
+
     fetch_site = request.headers.get("Sec-Fetch-Site", "").strip().lower()
     if fetch_site == "cross-site":
         return "Cross-site request blocked.", 403
