@@ -1,7 +1,7 @@
 {% extends "admin/base.html" %}
 {% block title %}Send Notifications · Minto Admin{% endblock %}
 {% block admin_content %}
-<div class="admin-section" style="margin-top:0"><div><h2>Send a push notification</h2><p class="admin-muted">Send a one-time notification to one user or every eligible user.</p></div></div>
+<div class="admin-section" style="margin-top:0"><div><h2>Send a notification</h2><p class="admin-muted">Send a push notification and save it to each recipient’s in-app inbox until they clear it.</p></div></div>
 {% if users_error %}<div class="admin-alert" role="alert">{{ users_error }}</div>{% endif %}
 <form class="admin-panel" method="post" onsubmit="return confirm('Send this push notification now? This action cannot be undone.');" style="max-width:760px">
   <div class="admin-field" style="margin-bottom:16px">
