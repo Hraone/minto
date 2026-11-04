@@ -2010,44 +2010,49 @@ def send_daily_expense_notification_test():
 
 
 def send_daily_expense_notifications():
-    """Send one summary/reminder per user shortly after their local midnight.
+    """Save one daily expense summary in each opted-in user's inbox.
 
     The scheduler may run every five minutes. The first ten minutes of the
     local day form a delivery window, and a unique user/date claim ensures
-    only one notification is sent even when multiple runs overlap.
+    only one inbox item is created even when multiple runs overlap. Web Push
+    is optional and is attempted only when keys and subscriptions exist.
     """
-    # In-app summaries are saved regardless of whether Web Push is configured
-    # or the user currently has an active push subscription.
     admin = _admin_client()
     profiles = admin.table("profiles").select(
         "id,daily_expense_timezone"
     ).eq("daily_expense_notifications_enabled", True).execute().data or []
     sent = skipped = failed = 0
     now_utc = datetime.now(timezone.utc)
+    push_public_key = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
+    push_private_key = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
+    push_configured = bool(push_public_key and push_private_key)
 
     for profile in profiles:
         user_id = str(profile["id"])
+        date_key = None
+        claim_created = False
+        inbox_saved = False
         try:
             timezone_name = profile.get("daily_expense_timezone") or "Asia/Kolkata"
             user_tz = ZoneInfo(timezone_name)
             local_now = now_utc.astimezone(user_tz)
             # Railway Cron has a five-minute minimum interval. Keep a
-            # ten-minute window so a delayed first run still catches midnight;
-            # the unique user/date claim below prevents duplicate delivery.
+            # ten-minute window so a delayed first run still catches midnight.
             if local_now.hour != 0 or local_now.minute >= 10:
                 skipped += 1
                 continue
+
             summary_date = local_now.date() - timedelta(days=1)
             date_key = summary_date.isoformat()
-            subscriptions = admin.table("daily_expense_push_subscriptions").select(
-                "id,endpoint,p256dh,auth"
-            ).eq("user_id", user_id).execute().data or []
 
+            # Claim this user/date before building the summary so overlapping
+            # cron runs cannot create duplicate inbox notifications.
             try:
                 admin.table("daily_expense_notification_sends").insert({
                     "user_id": user_id,
                     "summary_date": date_key,
                 }).execute()
+                claim_created = True
             except Exception as claim_error:
                 if "duplicate" in str(claim_error).lower() or "unique" in str(claim_error).lower():
                     skipped += 1
@@ -2063,83 +2068,97 @@ def send_daily_expense_notifications():
             if rows:
                 details = []
                 for row in rows[:3]:
-                    label = (row.get("description") or row.get("raw_text") or row.get("expense_category") or "Expense").strip()
+                    label = (
+                        row.get("description") or row.get("raw_text")
+                        or row.get("expense_category") or "Expense"
+                    ).strip()
                     label = " ".join(label.split())[:32]
                     details.append(f"{label}: ₹{float(row.get('amount') or 0):,.0f}")
                 remaining = len(rows) - len(details)
                 detail_text = " · ".join(details)
                 if remaining:
                     detail_text += f" · +{remaining} more"
-                body = f"₹{total:,.2f} spent · {detail_text}"
                 title = f"Your {summary_date.strftime('%d %b')} expenses"
+                message = f"₹{total:,.2f} spent · {detail_text}"
             else:
                 title = f"No expenses for {summary_date.strftime('%d %b')}"
-                body = "Forgot to add an entry? Open Minto to update your daily expenses."
+                message = "Forgot to add an entry? Open Minto to update your daily expenses."
 
-            # Save the summary in the persistent inbox exactly once. The
-            # user/date claim above makes the whole operation idempotent.
-            try:
-                admin.table("user_notifications").insert({
-                    "user_id": user_id,
-                    "title": title,
-                    "message": body[:240],
-                }).execute()
-            except Exception:
-                # If the inbox write failed, release the daily claim so the
-                # next cron run can retry instead of silently losing the summary.
-                admin.table("daily_expense_notification_sends").delete().eq(
-                    "user_id", user_id
-                ).eq("summary_date", date_key).execute()
-                raise
-
-            delivered = 0
-            if subscriptions and VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY:
-                notification = json.dumps({
-                    "title": title,
-                    "body": body[:240],
-                    "url": "/",
-                    "tag": f"daily-expenses-{date_key}",
-                })
-                for subscription in subscriptions:
-                    try:
-                        webpush(
-                            subscription_info={
-                                "endpoint": subscription["endpoint"],
-                                "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]},
-                            },
-                            data=notification,
-                            vapid_private_key=VAPID_PRIVATE_KEY,
-                            vapid_claims=dict(VAPID_CLAIMS),
-                            ttl=86400,
-                        )
-                        delivered += 1
-                    except WebPushException as push_error:
-                        status = getattr(getattr(push_error, "response", None), "status_code", None)
-                        if status in (404, 410):
-                            admin.table("daily_expense_push_subscriptions").delete().eq(
-                                "id", subscription["id"]
-                            ).execute()
-                        else:
-                            app.logger.warning(
-                                "Daily expense push failed for user %s with status %s",
-                                user_id, status or "unknown",
-                            )
-                    except Exception as push_error:
-                        app.logger.warning(
-                            "Daily expense push failed for user %s (%s)",
-                            user_id, type(push_error).__name__,
-                        )
-            # The in-app inbox is the durable delivery. Keep the claim even
-            # when push delivery is unavailable so retries cannot duplicate it.
+            # The in-app inbox is the primary delivery channel. Keep the claim
+            # once this insert succeeds, even if optional Web Push later fails.
+            admin.table("user_notifications").insert({
+                "user_id": user_id,
+                "title": title[:80],
+                "message": message[:240],
+            }).execute()
+            inbox_saved = True
             sent += 1
+
+            if not push_configured:
+                continue
+
+            subscriptions = admin.table("daily_expense_push_subscriptions").select(
+                "id,endpoint,p256dh,auth"
+            ).eq("user_id", user_id).execute().data or []
+            if not subscriptions:
+                continue
+
+            payload = json.dumps({
+                "title": title,
+                "body": message[:240],
+                "url": "/",
+                "tag": f"daily-expenses-{date_key}",
+            })
+            for subscription in subscriptions:
+                try:
+                    webpush(
+                        subscription_info={
+                            "endpoint": subscription["endpoint"],
+                            "keys": {
+                                "p256dh": subscription["p256dh"],
+                                "auth": subscription["auth"],
+                            },
+                        },
+                        data=payload,
+                        vapid_private_key=push_private_key,
+                        vapid_claims=dict(VAPID_CLAIMS),
+                        ttl=86400,
+                    )
+                except WebPushException as push_error:
+                    status = getattr(getattr(push_error, "response", None), "status_code", None)
+                    if status in (404, 410):
+                        admin.table("daily_expense_push_subscriptions").delete().eq(
+                            "id", subscription["id"]
+                        ).execute()
+                    else:
+                        app.logger.warning(
+                            "Daily expense push failed for user %s with status %s",
+                            user_id, status or "unknown",
+                        )
+                except Exception as push_error:
+                    app.logger.warning(
+                        "Daily expense push failed for user %s (%s)",
+                        user_id, type(push_error).__name__,
+                    )
         except Exception as exc:
             failed += 1
             app.logger.warning(
                 "Daily expense notification processing failed for user %s (%s)",
                 user_id, type(exc).__name__, exc_info=True,
             )
+            # If the inbox write failed, release the claim so the next cron
+            # run can retry. Never release it after an inbox item was saved.
+            if claim_created and not inbox_saved and date_key:
+                try:
+                    admin.table("daily_expense_notification_sends").delete().eq(
+                        "user_id", user_id
+                    ).eq("summary_date", date_key).execute()
+                except Exception:
+                    app.logger.exception(
+                        "Could not release daily notification claim for user %s",
+                        user_id,
+                    )
     return {"sent": sent, "skipped": skipped, "failed": failed}
-
 
 
 def send_due_and_trip_notifications():
