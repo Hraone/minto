@@ -226,6 +226,20 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                     if not subscriptions:
                         flash("No eligible devices are registered for the selected recipient.")
                     else:
+                        # Persist one inbox item per recipient (not per device).
+                        # This is independent of push delivery and remains until
+                        # each user explicitly clears it from their inbox.
+                        recipient_user_ids = sorted({
+                            str(row.get("user_id")) for row in subscriptions if row.get("user_id")
+                        })
+                        if not recipient_user_ids:
+                            flash("No eligible recipients were found.")
+                            return redirect(url_for("admin_notifications"))
+                        service.table("user_notifications").insert([
+                            {"user_id": recipient_id, "title": title, "message": message}
+                            for recipient_id in recipient_user_ids
+                        ]).execute()
+
                         payload = json.dumps({
                             "title": title,
                             "body": message,
