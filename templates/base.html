@@ -3169,6 +3169,227 @@
 {% endif %}
 
 
+{% if session.get("user_id") %}
+<style>
+  .minto-notification-chip {
+    position:fixed; z-index:10041; right:22px; bottom:90px; width:52px; height:52px;
+    display:flex; align-items:center; justify-content:center; border:0; border-radius:50%;
+    background:var(--surface); color:var(--text); box-shadow:0 6px 22px rgba(0,0,0,.2);
+    cursor:pointer; border:1px solid var(--border); -webkit-tap-highlight-color:transparent;
+  }
+  .minto-notification-chip svg { width:22px; height:22px; }
+  .minto-notification-count {
+    position:absolute; top:-5px; right:-5px; min-width:20px; height:20px; padding:0 5px;
+    display:flex; align-items:center; justify-content:center; border-radius:999px;
+    background:var(--negative); color:#fff; border:2px solid var(--surface);
+    font-size:11px; line-height:1; font-weight:800;
+  }
+  .minto-notification-overlay[hidden] { display:none !important; }
+  .minto-notification-overlay {
+    position:fixed; inset:0; z-index:10060; display:grid; place-items:center;
+    padding:18px; background:rgba(0,0,0,.58); backdrop-filter:blur(5px);
+    -webkit-backdrop-filter:blur(5px);
+  }
+  .minto-notification-card {
+    width:min(100%,480px); max-height:min(78vh,720px); display:flex; flex-direction:column;
+    overflow:hidden; border:1px solid var(--border); border-radius:18px;
+    background:var(--surface); color:var(--text); box-shadow:0 24px 70px rgba(0,0,0,.28);
+  }
+  .minto-notification-head,.minto-notification-foot {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:16px 18px; border-bottom:1px solid var(--border);
+  }
+  .minto-notification-head h2 { margin:0; font-size:18px; }
+  .minto-notification-head button,.minto-notification-foot button,
+  .minto-notification-item button {
+    border:1px solid var(--border); border-radius:8px; background:var(--surface-alt);
+    color:var(--text); padding:8px 11px; font:inherit; font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .minto-notification-list { overflow:auto; padding:12px; }
+  .minto-notification-item {
+    padding:14px; margin-bottom:9px; border:1px solid var(--border);
+    border-radius:12px; background:var(--surface-subtle,var(--surface));
+  }
+  .minto-notification-item:last-child { margin-bottom:0; }
+  .minto-notification-item-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+  .minto-notification-item h3 { margin:0; font-size:14px; line-height:1.35; }
+  .minto-notification-item time { display:block; margin-top:4px; color:var(--muted); font-size:11px; }
+  .minto-notification-item p { margin:10px 0 0; color:var(--text-secondary,var(--text)); font-size:13px; line-height:1.55; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .minto-notification-item button { flex:none; padding:5px 8px; }
+  .minto-notification-empty,.minto-notification-status {
+    padding:30px 18px; text-align:center; color:var(--muted); font-size:13px; line-height:1.5;
+  }
+  .minto-notification-foot { border-top:1px solid var(--border); border-bottom:0; }
+  .minto-notification-foot span { color:var(--muted); font-size:11px; }
+  @media(max-width:600px) {
+    .minto-notification-chip {
+      right:16px;
+      bottom:calc(var(--fixed-reminder-bottom, 88px) + 58px + env(safe-area-inset-bottom, 0px));
+      width:48px; height:48px;
+    }
+    .minto-notification-overlay { padding:10px; }
+    .minto-notification-card { max-height:82vh; border-radius:15px; }
+  }
+</style>
+<button class="minto-notification-chip" id="mintoNotificationChip" type="button" aria-label="Open notifications" title="Notifications">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
+  <span class="minto-notification-count" id="mintoNotificationCount" hidden></span>
+</button>
+<div class="minto-notification-overlay" id="mintoNotificationOverlay" hidden role="dialog" aria-modal="true" aria-labelledby="mintoNotificationTitle">
+  <section class="minto-notification-card">
+    <header class="minto-notification-head">
+      <h2 id="mintoNotificationTitle">Notifications</h2>
+      <button type="button" id="mintoNotificationClose" aria-label="Close notifications">Close</button>
+    </header>
+    <div class="minto-notification-list" id="mintoNotificationList" aria-live="polite">
+      <div class="minto-notification-status">Loading notifications…</div>
+    </div>
+    <footer class="minto-notification-foot">
+      <span>Notifications stay here until you clear them.</span>
+      <button type="button" id="mintoNotificationClearAll" hidden>Clear all</button>
+    </footer>
+  </section>
+</div>
+<script>
+(function () {
+  const chip = document.getElementById('mintoNotificationChip');
+  const countBadge = document.getElementById('mintoNotificationCount');
+  const overlay = document.getElementById('mintoNotificationOverlay');
+  const closeButton = document.getElementById('mintoNotificationClose');
+  const list = document.getElementById('mintoNotificationList');
+  const clearAll = document.getElementById('mintoNotificationClearAll');
+  if (!chip || !countBadge || !overlay || !closeButton || !list || !clearAll) return;
+
+  let notifications = [];
+  let busy = false;
+
+  function setCount(count) {
+    const total = Number(count) || 0;
+    countBadge.textContent = total > 99 ? '99+' : String(total);
+    countBadge.hidden = total < 1;
+    chip.setAttribute('aria-label', total ? 'Open notifications, ' + total + ' uncleared' : 'Open notifications');
+    clearAll.hidden = total < 1;
+  }
+
+  function formatDate(value) {
+    const date = value ? new Date(value) : null;
+    if (!date || Number.isNaN(date.getTime())) return '';
+    return date.toLocaleString(undefined, {dateStyle:'medium', timeStyle:'short'});
+  }
+
+  function renderItems() {
+    list.replaceChildren();
+    if (!notifications.length) {
+      const empty = document.createElement('div');
+      empty.className = 'minto-notification-empty';
+      empty.textContent = 'You’re all caught up. New notifications will appear here.';
+      list.appendChild(empty);
+      setCount(0);
+      return;
+    }
+    notifications.forEach(function (item) {
+      const article = document.createElement('article');
+      article.className = 'minto-notification-item';
+      const head = document.createElement('div');
+      head.className = 'minto-notification-item-head';
+      const copy = document.createElement('div');
+      const title = document.createElement('h3');
+      title.textContent = item.title || 'Minto notification';
+      const time = document.createElement('time');
+      time.dateTime = item.created_at || '';
+      time.textContent = formatDate(item.created_at);
+      copy.append(title, time);
+      const dismiss = document.createElement('button');
+      dismiss.type = 'button';
+      dismiss.textContent = 'Clear';
+      dismiss.setAttribute('aria-label', 'Clear notification: ' + (item.title || 'Minto notification'));
+      dismiss.addEventListener('click', function () { clearNotification(item.id); });
+      head.append(copy, dismiss);
+      const message = document.createElement('p');
+      message.textContent = item.message || '';
+      article.append(head, message);
+      list.appendChild(article);
+    });
+    setCount(notifications.length);
+  }
+
+  async function loadNotifications() {
+    if (busy) return;
+    try {
+      const response = await fetch('/api/notifications', {credentials:'same-origin', cache:'no-store', headers:{'Accept':'application/json'}});
+      if (!response.ok) throw new Error('Unable to load notifications');
+      const data = await response.json();
+      notifications = Array.isArray(data.items) ? data.items : [];
+      renderItems();
+    } catch (error) {
+      list.replaceChildren();
+      const status = document.createElement('div');
+      status.className = 'minto-notification-status';
+      status.textContent = 'Notifications couldn’t be loaded. Please try again.';
+      list.appendChild(status);
+    }
+  }
+
+  async function clearNotification(id) {
+    if (busy) return;
+    busy = true;
+    try {
+      const response = await fetch('/api/notifications?id=' + encodeURIComponent(id), {
+        method:'DELETE', credentials:'same-origin', headers:{'Accept':'application/json'}
+      });
+      if (!response.ok) throw new Error('Could not clear notification');
+      notifications = notifications.filter(function (item) { return String(item.id) !== String(id); });
+      renderItems();
+    } catch (error) {
+      window.alert('Could not clear this notification. Please try again.');
+    } finally { busy = false; }
+  }
+
+  async function clearAllNotifications() {
+    if (busy || !notifications.length) return;
+    busy = true;
+    clearAll.disabled = true;
+    try {
+      const response = await fetch('/api/notifications', {
+        method:'DELETE', credentials:'same-origin', headers:{'Accept':'application/json'}
+      });
+      if (!response.ok) throw new Error('Could not clear notifications');
+      notifications = [];
+      renderItems();
+    } catch (error) {
+      window.alert('Could not clear notifications. Please try again.');
+    } finally {
+      busy = false;
+      clearAll.disabled = false;
+    }
+  }
+
+  function openInbox() {
+    overlay.hidden = false;
+    document.body.style.overflow = 'hidden';
+    loadNotifications();
+    closeButton.focus();
+  }
+  function closeInbox() {
+    overlay.hidden = true;
+    document.body.style.overflow = '';
+    chip.focus();
+  }
+
+  chip.addEventListener('click', openInbox);
+  closeButton.addEventListener('click', closeInbox);
+  clearAll.addEventListener('click', clearAllNotifications);
+  overlay.addEventListener('click', function (event) {
+    if (event.target === overlay) closeInbox();
+  });
+  document.addEventListener('keydown', function (event) {
+    if (!overlay.hidden && event.key === 'Escape') closeInbox();
+  });
+  loadNotifications();
+})();
+</script>
+{% endif %}
+
 <!-- First-launch beta notice -->
 <div id="minto-beta-notice" class="minto-beta-overlay" hidden>
   <section class="minto-beta-dialog" role="dialog" aria-modal="true" aria-labelledby="minto-beta-title" aria-describedby="minto-beta-description">
