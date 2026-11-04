@@ -19,3 +19,5 @@ alter table public.user_notifications enable row level security;
 -- All reads and writes go through authenticated Flask routes using the
 -- server-only service-role client, which scopes every operation to session user_id.
 revoke all on public.user_notifications from anon, authenticated;
+grant all on public.user_notifications to service_role;
+grant usage, select on sequence public.user_notifications_id_seq to service_role;
