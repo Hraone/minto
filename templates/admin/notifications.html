@@ -1,0 +1,57 @@
+{% extends "admin/base.html" %}
+{% block title %}Send Notifications · Minto Admin{% endblock %}
+{% block admin_content %}
+<div class="admin-section" style="margin-top:0"><div><h2>Send a push notification</h2><p class="admin-muted">Send a one-time notification to one user or every eligible user.</p></div></div>
+{% if users_error %}<div class="admin-alert" role="alert">{{ users_error }}</div>{% endif %}
+<form class="admin-panel" method="post" onsubmit="return confirm('Send this push notification now? This action cannot be undone.');" style="max-width:760px">
+  <div class="admin-field" style="margin-bottom:16px">
+    <label for="recipient_type">Recipients</label>
+    <select id="recipient_type" name="recipient_type" required>
+      <option value="all">All users with push notifications enabled</option>
+      <option value="user">One selected user</option>
+    </select>
+  </div>
+  <div class="admin-field" id="notification-user-field" style="margin-bottom:16px" hidden>
+    <label for="target_user_id">Select user</label>
+    <select id="target_user_id" name="target_user_id">
+      <option value="">Choose a user</option>
+      {% for user in users %}
+      <option value="{{ user.id }}" {% if not user.push_ready %}disabled{% endif %}>{{ user.display_name or user.email or 'Unnamed user' }} · {{ user.email or user.id }}{% if user.push_ready %} · Push enabled{% else %} · No active push device{% endif %}</option>
+      {% endfor %}
+    </select>
+    <p class="admin-muted">Users without an active push subscription are shown but cannot be selected.</p>
+  </div>
+  <div class="admin-field" style="margin-bottom:16px">
+    <label for="title">Notification title</label>
+    <input id="title" name="title" maxlength="80" minlength="2" required placeholder="A short notification title">
+  </div>
+  <div class="admin-field" style="margin-bottom:16px">
+    <label for="message">Message</label>
+    <textarea id="message" name="message" rows="4" maxlength="240" minlength="2" required placeholder="Write the message users will receive"></textarea>
+    <span class="admin-muted">Up to 240 characters. Keep it clear and useful.</span>
+  </div>
+  <div class="admin-actions"><button class="admin-btn admin-primary" type="submit" {% if users_error %}disabled{% endif %}>Send notification</button></div>
+</form>
+<div class="admin-section"><h2>Recipient availability</h2></div>
+{% if users %}
+<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>User</th><th>Email</th><th>Push status</th></tr></thead><tbody>
+{% for user in users %}<tr><td><strong>{{ user.display_name or 'Unnamed user' }}</strong><div class="admin-mono">{{ user.id }}</div></td><td>{{ user.email or 'No email' }}</td><td>{% if user.push_ready %}<span class="admin-badge">Enabled</span>{% else %}<span class="admin-badge">Not enabled</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% elif not users_error %}<div class="admin-panel"><p class="admin-muted">No registered users found.</p></div>{% endif %}
+<script>
+(function () {
+  const mode = document.getElementById('recipient_type');
+  const userField = document.getElementById('notification-user-field');
+  const userSelect = document.getElementById('target_user_id');
+  if (!mode || !userField || !userSelect) return;
+  function updateRecipientMode() {
+    const selected = mode.value === 'user';
+    userField.hidden = !selected;
+    userSelect.required = selected;
+    if (!selected) userSelect.value = '';
+  }
+  mode.addEventListener('change', updateRecipientMode);
+  updateRecipientMode();
+})();
+</script>
+{% endblock %}
