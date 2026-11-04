@@ -2828,7 +2828,9 @@
     // so the About page can offer an "Install app" button.
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", function () {
-        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function () {});
+        navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(function (error) {
+          console.error("Minto service worker registration failed:", error);
+        });
       });
     }
 
