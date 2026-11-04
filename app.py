@@ -37,6 +37,7 @@ from dashboard_finance import (
 from feedback_validation import FEEDBACK_CATEGORIES, validate_feedback_form
 from admin_validation import validate_admin_feedback_update, parse_admin_page
 from login_performance import load_login_profile_state
+from user_nicknames import generate_random_nickname
 
 load_dotenv()
 
@@ -1081,7 +1082,10 @@ def signup():
         if result.session:
             client.postgrest.auth(result.session.access_token)
         try:
-            client.table("profiles").insert({"id": user_id}).execute()
+            client.table("profiles").upsert({
+                "id": user_id,
+                "display_name": generate_random_nickname(),
+            }).execute()
         except Exception:
             pass  # profile row may already exist, or email confirmation is pending
 
@@ -1157,6 +1161,19 @@ def login():
             session["biometric_enabled"] = bool(profile_state.get("biometric_enabled", False))
             profile_source = "combined_query"
 
+        # Give older accounts a nickname once, but never replace a name the
+        # user has already chosen in their profile.
+        if not (session.get("display_name") or "").strip():
+            nickname = generate_random_nickname()
+            try:
+                user_client.table("profiles").upsert({
+                    "id": result.user.id,
+                    "display_name": nickname,
+                }).execute()
+                session["display_name"] = nickname
+            except Exception as nickname_error:
+                app.logger.warning("Default nickname could not be saved (%s)", type(nickname_error).__name__)
+
         # Always fetch the avatar for the authenticated user at login.
         # Do not reuse a value left in a session from another account.
         avatar_started = time.perf_counter()
@@ -1231,6 +1248,16 @@ def passkey_login():
     session["mode"] = load_saved_mode(user_client, user.id)
     session["theme"] = load_saved_theme(user_client, user.id)
     session["display_name"] = load_display_name(user_client, user.id)
+    if not (session.get("display_name") or "").strip():
+        nickname = generate_random_nickname()
+        try:
+            user_client.table("profiles").upsert({
+                "id": user.id,
+                "display_name": nickname,
+            }).execute()
+            session["display_name"] = nickname
+        except Exception as nickname_error:
+            app.logger.warning("Passkey default nickname could not be saved (%s)", type(nickname_error).__name__)
     session["biometric_enabled"] = load_biometric_flag(user_client, user.id)
     return jsonify(ok=True, redirect=home_url())
 
