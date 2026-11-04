@@ -3172,11 +3172,14 @@
 {% if session.get("user_id") %}
 <style>
   .minto-notification-chip {
-    position:fixed; z-index:10041; right:22px; bottom:90px; width:52px; height:52px;
+    position:fixed; z-index:10041; right:22px; bottom:24px; width:52px; height:52px;
     display:flex; align-items:center; justify-content:center; border:0; border-radius:50%;
     background:var(--surface); color:var(--text); box-shadow:0 6px 22px rgba(0,0,0,.2);
     cursor:pointer; border:1px solid var(--border); -webkit-tap-highlight-color:transparent;
   }
+  .minto-notification-chip[hidden] { display:none !important; }
+  /* Keep the notification bell in the next free slot above the reminder calendar. */
+  body:has(#fixedReminderChip:not([hidden])) .minto-notification-chip { bottom:90px; }
   .minto-notification-chip svg { width:22px; height:22px; }
   .minto-notification-count[hidden], #mintoNotificationClearAll[hidden] { display:none !important; }
   .minto-notification-count {
@@ -3225,14 +3228,17 @@
   @media(max-width:600px) {
     .minto-notification-chip {
       right:16px;
-      bottom:calc(var(--fixed-reminder-bottom, 88px) + 58px + env(safe-area-inset-bottom, 0px));
+      bottom:calc(var(--fixed-reminder-bottom, 88px) + env(safe-area-inset-bottom, 0px));
       width:48px; height:48px;
+    }
+    body:has(#fixedReminderChip:not([hidden])) .minto-notification-chip {
+      bottom:calc(var(--fixed-reminder-bottom, 88px) + 58px + env(safe-area-inset-bottom, 0px));
     }
     .minto-notification-overlay { padding:10px; }
     .minto-notification-card { max-height:82vh; border-radius:15px; }
   }
 </style>
-<button class="minto-notification-chip" id="mintoNotificationChip" type="button" aria-label="Open notifications" title="Notifications">
+<button class="minto-notification-chip" id="mintoNotificationChip" type="button" aria-label="Open notifications" title="Notifications" hidden>
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"></path><path d="M10 21h4"></path></svg>
   <span class="minto-notification-count" id="mintoNotificationCount" hidden></span>
 </button>
@@ -3270,6 +3276,7 @@
     const total = Number(count) || 0;
     countBadge.textContent = total > 99 ? '99+' : String(total);
     countBadge.hidden = total < 1;
+    chip.hidden = total < 1;
     chip.setAttribute('aria-label', total ? 'Open notifications, ' + total + ' uncleared' : 'Open notifications');
     clearAll.disabled = total < 1;
   }
