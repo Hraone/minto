@@ -1907,6 +1907,81 @@ def update_daily_expense_notifications():
     return jsonify(ok=True, enabled=False)
 
 
+@app.route("/profile/daily-expense-notifications/test", methods=["POST"])
+@login_required
+def send_daily_expense_notification_test():
+    """Send a one-time remote push to the current user's registered devices."""
+    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
+        return jsonify(ok=False, error="Push notifications are not configured on the server."), 503
+
+    user_id = session["user_id"]
+    admin = _admin_client()
+    try:
+        profiles = admin.table("profiles").select(
+            "daily_expense_notifications_enabled"
+        ).eq("id", user_id).limit(1).execute().data or []
+        if not profiles or not profiles[0].get("daily_expense_notifications_enabled"):
+            return jsonify(ok=False, error="Enable daily expense notifications before sending a test."), 400
+
+        subscriptions = admin.table("daily_expense_push_subscriptions").select(
+            "id,endpoint,p256dh,auth"
+        ).eq("user_id", user_id).execute().data or []
+        if not subscriptions:
+            return jsonify(ok=False, error="No push subscription is registered. Turn notifications off and on to register this device."), 404
+
+        payload = json.dumps({
+            "title": "Minto · Test notification",
+            "body": "Your device received a remote push from Minto. Daily notifications are ready to be tested.",
+            "url": "/profile",
+            "tag": "minto-daily-expense-test",
+        })
+        delivered = 0
+        expired = 0
+        errors = []
+
+        for subscription in subscriptions:
+            try:
+                webpush(
+                    subscription_info={
+                        "endpoint": subscription["endpoint"],
+                        "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]},
+                    },
+                    data=payload,
+                    vapid_private_key=VAPID_PRIVATE_KEY,
+                    vapid_claims=dict(VAPID_CLAIMS),
+                    ttl=300,
+                )
+                delivered += 1
+            except WebPushException as push_error:
+                status = getattr(getattr(push_error, "response", None), "status_code", None)
+                if status in (404, 410):
+                    admin.table("daily_expense_push_subscriptions").delete().eq(
+                        "id", subscription["id"]
+                    ).execute()
+                    expired += 1
+                else:
+                    errors.append(status or type(push_error).__name__)
+                    app.logger.warning(
+                        "Test daily expense push failed for user %s with status %s",
+                        user_id, status or "unknown",
+                    )
+            except Exception as push_error:
+                errors.append(type(push_error).__name__)
+                app.logger.warning(
+                    "Test daily expense push failed for user %s (%s)",
+                    user_id, type(push_error).__name__,
+                )
+
+        if delivered:
+            return jsonify(ok=True, sent=delivered, expired=expired)
+        if expired and not errors:
+            return jsonify(ok=False, error="The saved push subscription has expired. Turn notifications off and on to register this device.", expired=expired), 410
+        return jsonify(ok=False, error="Minto could not deliver the test push. Check the server logs for the push-provider error.", expired=expired), 502
+    except Exception:
+        app.logger.exception("Test daily expense notification failed for user %s", user_id)
+        return jsonify(ok=False, error="Could not send the test notification. Please try again."), 500
+
+
 def send_daily_expense_notifications():
     """Send one summary/reminder per user shortly after their local midnight.
 
