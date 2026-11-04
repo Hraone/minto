@@ -1850,7 +1850,9 @@
           });
           if (status) status.textContent = 'Sample notification sent. Your daily summaries will use your actual expenses.';
         } catch (error) {
-          if (status) status.textContent = 'Could not show the example notification. Please try again.';
+          console.error('Minto sample notification failed:', error);
+          const reason = error && error.message ? error.message : String(error || 'Unknown browser error');
+          if (status) status.textContent = 'Notification test failed: ' + reason + '. Check this app’s notification permission and service worker, then try again.';
         }
       });
     })();
