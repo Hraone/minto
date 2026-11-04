@@ -18,6 +18,7 @@ from admin_validation import (
     validate_admin_feedback_update,
 )
 from feedback_validation import FEEDBACK_CATEGORIES
+from user_nicknames import generate_random_nickname
 
 PAGE_SIZE = 25
 
@@ -72,6 +73,21 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             profile = profiles.get(uid, {})
             if profile.get("is_deleted") is True:
                 continue
+            if not (profile.get("display_name") or "").strip():
+                nickname = generate_random_nickname()
+                try:
+                    service.table("profiles").upsert({
+                        "id": uid,
+                        "display_name": nickname,
+                    }).execute()
+                    profile["display_name"] = nickname
+                    profiles[uid] = profile
+                except Exception as nickname_error:
+                    app.logger.warning(
+                        "Could not assign default nickname for user %s (%s)",
+                        uid,
+                        type(nickname_error).__name__,
+                    )
             user_metadata = getattr(user, "user_metadata", None) or {}
             if not isinstance(user_metadata, dict):
                 user_metadata = {}
