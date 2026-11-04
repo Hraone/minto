@@ -3240,14 +3240,16 @@
   <section class="minto-notification-card">
     <header class="minto-notification-head">
       <h2 id="mintoNotificationTitle">Notifications</h2>
-      <button type="button" id="mintoNotificationClose" aria-label="Close notifications">Close</button>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button type="button" id="mintoNotificationClearAll" disabled>Clear all</button>
+        <button type="button" id="mintoNotificationClose" aria-label="Close notifications">Close</button>
+      </div>
     </header>
     <div class="minto-notification-list" id="mintoNotificationList" aria-live="polite">
       <div class="minto-notification-status">Loading notifications…</div>
     </div>
     <footer class="minto-notification-foot">
       <span>Notifications stay here until you clear them.</span>
-      <button type="button" id="mintoNotificationClearAll" hidden>Clear all</button>
     </footer>
   </section>
 </div>
@@ -3269,7 +3271,7 @@
     countBadge.textContent = total > 99 ? '99+' : String(total);
     countBadge.hidden = total < 1;
     chip.setAttribute('aria-label', total ? 'Open notifications, ' + total + ' uncleared' : 'Open notifications');
-    clearAll.hidden = total < 1;
+    clearAll.disabled = total < 1;
   }
 
   function formatDate(value) {
