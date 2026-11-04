@@ -2078,11 +2078,19 @@ def send_daily_expense_notifications():
 
             # Save the summary in the persistent inbox exactly once. The
             # user/date claim above makes the whole operation idempotent.
-            admin.table("user_notifications").insert({
-                "user_id": user_id,
-                "title": title,
-                "message": body[:240],
-            }).execute()
+            try:
+                admin.table("user_notifications").insert({
+                    "user_id": user_id,
+                    "title": title,
+                    "message": body[:240],
+                }).execute()
+            except Exception:
+                # If the inbox write failed, release the daily claim so the
+                # next cron run can retry instead of silently losing the summary.
+                admin.table("daily_expense_notification_sends").delete().eq(
+                    "user_id", user_id
+                ).eq("summary_date", date_key).execute()
+                raise
 
             delivered = 0
             if subscriptions and VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY:
