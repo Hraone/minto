@@ -3394,6 +3394,9 @@
   document.addEventListener('visibilitychange', function () {
     if (!document.hidden) loadNotifications();
   });
+  window.setInterval(function () {
+    if (!document.hidden && overlay.hidden) loadNotifications();
+  }, 60000);
 })();
 </script>
 {% endif %}
