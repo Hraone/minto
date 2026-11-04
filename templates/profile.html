@@ -1456,7 +1456,7 @@
       <div class="profile-identity-main">
         <div class="profile-avatar-edit-group">
           <div class="profile-avatar-button" aria-hidden="true">
-            <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}" alt="">
+            <img class="profile-avatar-svg" src="{{ url_for('static', filename='avatars/' ~ (profile_avatar) ~ '.webp') }}?v={{ asset_version }}&amp;account={{ session.get('user_id', '') }}" alt="">
           </div>
         </div>
         <div class="profile-identity-copy">
