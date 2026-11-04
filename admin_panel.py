@@ -296,9 +296,9 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                         except Exception as log_error:
                             app.logger.warning("Admin push audit log failed (%s)", type(log_error).__name__)
                         if sent:
-                            flash(f"Notification sent to {sent} device(s). {failed} failed and {expired} expired subscription(s) removed.")
+                            flash(f"Saved to {len(recipient_user_ids)} user inbox(es) and sent to {sent} device(s). {failed} push delivery(s) failed; {expired} expired subscription(s) removed.")
                         else:
-                            flash(f"No notification was delivered. {failed} failed and {expired} expired subscription(s) removed.")
+                            flash(f"Saved to {len(recipient_user_ids)} user inbox(es). Push delivery failed for {failed} device(s); {expired} expired subscription(s) removed.")
                         return redirect(url_for("admin_notifications"))
                 except Exception as exc:
                     app.logger.exception("Admin notification send failed (%s)", type(exc).__name__)
