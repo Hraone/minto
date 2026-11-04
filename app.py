@@ -2016,8 +2016,8 @@ def send_daily_expense_notifications():
     local day form a delivery window, and a unique user/date claim ensures
     only one notification is sent even when multiple runs overlap.
     """
-    if not VAPID_PUBLIC_KEY or not VAPID_PRIVATE_KEY:
-        raise RuntimeError("VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY must be configured.")
+    # In-app summaries are saved regardless of whether Web Push is configured
+    # or the user currently has an active push subscription.
     admin = _admin_client()
     profiles = admin.table("profiles").select(
         "id,daily_expense_timezone"
@@ -2042,9 +2042,6 @@ def send_daily_expense_notifications():
             subscriptions = admin.table("daily_expense_push_subscriptions").select(
                 "id,endpoint,p256dh,auth"
             ).eq("user_id", user_id).execute().data or []
-            if not subscriptions:
-                skipped += 1
-                continue
 
             try:
                 admin.table("daily_expense_notification_sends").insert({
@@ -2079,50 +2076,54 @@ def send_daily_expense_notifications():
                 title = f"No expenses for {summary_date.strftime('%d %b')}"
                 body = "Forgot to add an entry? Open Minto to update your daily expenses."
 
-            notification = json.dumps({
+            # Save the summary in the persistent inbox exactly once. The
+            # user/date claim above makes the whole operation idempotent.
+            admin.table("user_notifications").insert({
+                "user_id": user_id,
                 "title": title,
-                "body": body[:240],
-                "url": "/",
-                "tag": f"daily-expenses-{date_key}",
-            })
+                "message": body[:240],
+            }).execute()
+
             delivered = 0
-            for subscription in subscriptions:
-                try:
-                    webpush(
-                        subscription_info={
-                            "endpoint": subscription["endpoint"],
-                            "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]},
-                        },
-                        data=notification,
-                        vapid_private_key=VAPID_PRIVATE_KEY,
-                        vapid_claims=dict(VAPID_CLAIMS),
-                        ttl=86400,
-                    )
-                    delivered += 1
-                except WebPushException as push_error:
-                    status = getattr(getattr(push_error, "response", None), "status_code", None)
-                    if status in (404, 410):
-                        admin.table("daily_expense_push_subscriptions").delete().eq(
-                            "id", subscription["id"]
-                        ).execute()
-                    else:
-                        app.logger.warning(
-                            "Daily expense push failed for user %s with status %s",
-                            user_id, status or "unknown",
+            if subscriptions and VAPID_PUBLIC_KEY and VAPID_PRIVATE_KEY:
+                notification = json.dumps({
+                    "title": title,
+                    "body": body[:240],
+                    "url": "/",
+                    "tag": f"daily-expenses-{date_key}",
+                })
+                for subscription in subscriptions:
+                    try:
+                        webpush(
+                            subscription_info={
+                                "endpoint": subscription["endpoint"],
+                                "keys": {"p256dh": subscription["p256dh"], "auth": subscription["auth"]},
+                            },
+                            data=notification,
+                            vapid_private_key=VAPID_PRIVATE_KEY,
+                            vapid_claims=dict(VAPID_CLAIMS),
+                            ttl=86400,
                         )
-                except Exception as push_error:
-                    app.logger.warning(
-                        "Daily expense push failed for user %s (%s)",
-                        user_id, type(push_error).__name__,
-                    )
-            if delivered:
-                sent += 1
-            else:
-                # Release the claim so a transient provider failure can retry.
-                admin.table("daily_expense_notification_sends").delete().eq(
-                    "user_id", user_id
-                ).eq("summary_date", date_key).execute()
-                failed += 1
+                        delivered += 1
+                    except WebPushException as push_error:
+                        status = getattr(getattr(push_error, "response", None), "status_code", None)
+                        if status in (404, 410):
+                            admin.table("daily_expense_push_subscriptions").delete().eq(
+                                "id", subscription["id"]
+                            ).execute()
+                        else:
+                            app.logger.warning(
+                                "Daily expense push failed for user %s with status %s",
+                                user_id, status or "unknown",
+                            )
+                    except Exception as push_error:
+                        app.logger.warning(
+                            "Daily expense push failed for user %s (%s)",
+                            user_id, type(push_error).__name__,
+                        )
+            # The in-app inbox is the durable delivery. Keep the claim even
+            # when push delivery is unavailable so retries cannot duplicate it.
+            sent += 1
         except Exception as exc:
             failed += 1
             app.logger.warning(
