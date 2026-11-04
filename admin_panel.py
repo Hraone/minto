@@ -484,6 +484,20 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             app.logger.warning("Announcement admin list unavailable (%s)", type(exc).__name__)
             announcements = []
             flash("Announcements could not be loaded. Confirm the Supabase migration has been applied.")
+        india_timezone = timezone(timedelta(hours=5, minutes=30))
+        now = datetime.now(timezone.utc)
+        for row in announcements:
+            published = parse_timestamp(row.get("published_at"))
+            expiry = parse_timestamp(row.get("expires_at"))
+            row["published_at_display"] = (
+                published.astimezone(india_timezone).strftime("%-d %b %Y, %-I:%M %p IST")
+                if published else "—"
+            )
+            row["expires_at_display"] = (
+                expiry.astimezone(india_timezone).strftime("%-d %b %Y, %-I:%M %p IST")
+                if expiry else "No expiry"
+            )
+            row["is_expired"] = bool(expiry and expiry <= now)
         return render_template("admin/announcements.html", announcements=announcements)
 
     @app.route("/admin/announcements/<int:announcement_id>/toggle", methods=["POST"])

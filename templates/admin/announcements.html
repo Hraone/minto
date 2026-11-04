@@ -14,9 +14,9 @@
 </form>
 <div class="admin-section"><h2>Announcement history</h2></div>
 {% if announcements %}
-<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Update</th><th>Category</th><th>Published</th><th>Status</th><th></th></tr></thead><tbody>
+<div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Update</th><th>Category</th><th>Published</th><th>Expires</th><th>Status</th><th></th></tr></thead><tbody>
 {% for item in announcements %}
-<tr><td><strong>{{ item.title }}</strong><div class="admin-muted">{{ item.message }}</div></td><td>{{ item.category }}</td><td>{{ item.published_at|replace('T',' ')|replace('Z',' UTC') }}</td><td><span class="admin-badge">{{ 'Active' if item.is_active else 'Archived' }}</span></td><td><form method="post" action="{{ url_for('admin_toggle_announcement',announcement_id=item.id) }}"><button class="admin-btn" type="submit">{{ 'Archive' if item.is_active else 'Republish' }}</button></form></td></tr>
+<tr><td><strong>{{ item.title }}</strong><div class="admin-muted">{{ item.message }}</div></td><td>{{ item.category }}</td><td>{{ item.published_at_display }}</td><td>{{ item.expires_at_display }}</td><td><span class="admin-badge">{{ 'Archived' if not item.is_active else ('Expired' if item.is_expired else 'Active') }}</span></td><td><form method="post" action="{{ url_for('admin_toggle_announcement',announcement_id=item.id) }}"><button class="admin-btn" type="submit">{{ 'Archive' if item.is_active else 'Republish' }}</button></form></td></tr>
 {% endfor %}
 </tbody></table></div>
 {% else %}<div class="admin-panel"><p class="admin-muted">No announcements have been published yet.</p></div>{% endif %}
