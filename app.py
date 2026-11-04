@@ -976,7 +976,7 @@ def get_user_client() -> Client:
 def handle_unexpected_error(e):
     if isinstance(e, SessionRefreshUnavailable):
         return (
-            "Minto is temporarily reconnecting to your account. Your login is محفوظ; please retry in a moment.",
+            "Minto is temporarily reconnecting to your account. your session is still active. Please retry in a moment.",
             503,
             {"Retry-After": "5"},
         )
