@@ -3178,6 +3178,7 @@
     cursor:pointer; border:1px solid var(--border); -webkit-tap-highlight-color:transparent;
   }
   .minto-notification-chip svg { width:22px; height:22px; }
+  .minto-notification-count[hidden], #mintoNotificationClearAll[hidden] { display:none !important; }
   .minto-notification-count {
     position:absolute; top:-5px; right:-5px; min-width:20px; height:20px; padding:0 5px;
     display:flex; align-items:center; justify-content:center; border-radius:999px;
@@ -3386,6 +3387,10 @@
     if (!overlay.hidden && event.key === 'Escape') closeInbox();
   });
   loadNotifications();
+  window.addEventListener('focus', loadNotifications);
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) loadNotifications();
+  });
 })();
 </script>
 {% endif %}
