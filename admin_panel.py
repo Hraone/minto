@@ -216,11 +216,6 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                         flash("There are no registered users to notify.")
                         return redirect(url_for("admin_notifications"))
 
-                    service.table("user_notifications").insert([
-                        {"user_id": recipient_id, "title": title, "message": message}
-                        for recipient_id in recipient_user_ids
-                    ]).execute()
-
                     public_key = os.environ.get("VAPID_PUBLIC_KEY", "").strip()
                     private_key = os.environ.get("VAPID_PRIVATE_KEY", "").strip()
                     push_configured = bool(public_key and private_key)
@@ -236,6 +231,11 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                             if str(row.get("user_id")) in enabled_ids
                             and str(row.get("user_id")) in recipient_set
                         ]
+
+                    service.table("user_notifications").insert([
+                        {"user_id": recipient_id, "title": title, "message": message}
+                        for recipient_id in recipient_user_ids
+                    ]).execute()
 
                     payload = json.dumps({
                         "title": title,
