@@ -85,18 +85,17 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL(
-    event.notification.data && event.notification.data.url || "/",
-    self.location.origin
-  ).href;
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      // If Minto is already open, bring it forward and open its notification inbox.
       for (const client of windowClients) {
         if (client.url.startsWith(self.location.origin) && "focus" in client) {
-          return client.navigate(target).then(() => client.focus());
+          client.postMessage({ type: "MINTO_OPEN_NOTIFICATIONS" });
+          return client.focus();
         }
       }
-      return clients.openWindow(target);
+      // Otherwise launch Minto with a one-time flag to open the inbox after load.
+      return clients.openWindow("/?minto_open=notifications");
     })
   );
 });
