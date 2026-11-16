@@ -8,6 +8,8 @@ alter table public.trip_settlements
 alter table public.trip_settlements
     add column if not exists note text;
 
+grant select (is_advance, note) on public.trip_settlements to authenticated;
+
 create or replace function public.record_trip_advance_received(
     p_trip_id integer,
     p_from_member_id bigint,
