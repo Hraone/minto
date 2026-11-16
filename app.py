@@ -165,7 +165,7 @@ LEGACY_PROFILE_EMOJI_MAP = {
 # that's being shared around a group.
 TRIP_MODE_ENDPOINTS = {
     "trips", "trip_detail", "trip_home", "trip_chat", "trip_chat_api", "friends", "update_trip", "add_trip_friends", "remove_trip_friend",
-    "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "delete_trip",
+    "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "link_trip_expense_to_personal", "delete_trip",
     "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
     "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
     "record_trip_settlement_receipt", "linked_transaction",
@@ -4646,7 +4646,7 @@ def add_trip_expense(trip_id):
         flash("Archived trips are read-only.")
         return back
 
-    payload, shares, error = build_trip_expense_form(client, user_id, trip)
+    payload, shares, error = build_trip_expense_form(client, user_id, trip, require_source=False)
     if error:
         flash(error)
         return back
@@ -4679,6 +4679,34 @@ def add_trip_expense(trip_id):
         return back
 
     flash("Expense added.")
+    return back
+
+
+@app.route("/trips/<int:trip_id>/expenses/<int:expense_id>/personal-link", methods=["POST"])
+@login_required
+def link_trip_expense_to_personal(trip_id, expense_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    back = redirect(url_for("trip_detail", trip_id=trip_id))
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip:
+        flash("That trip wasn't found.")
+        return redirect(url_for("trips"))
+    if trip.get("status") == "archived":
+        flash("Archived trips are read-only.")
+        return back
+    try:
+        source_id = int(request.form.get("source_id") or 0)
+        if source_id <= 0:
+            raise ValueError("Choose an account for the personal transaction.")
+        trip_rpc(client, "link_trip_expense_to_personal", {
+            "p_expense_id": expense_id,
+            "p_source_id": source_id,
+        })
+        flash("Trip expense added to Personal mode and linked successfully.")
+    except Exception as e:
+        app.logger.info("Trip expense personal link failed: %s", e)
+        flash(trip_action_error(e, "Couldn't add this expense to Personal mode. Choose an active account and try again."))
     return back
 
 
