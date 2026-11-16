@@ -5097,6 +5097,30 @@ def download_trip_report(trip_id):
         expense["payer_name"] = you_label if payer.get("id") == current_member_id else (payer.get("name") or payer.get("display_name") or expense.get("paid_by") or "Former member")
         if not payer and str(expense.get("paid_by") or "").strip().lower() == "you":
             expense["payer_name"] = you_label
+
+    shares_by_expense = {}
+    for share in shares:
+        shares_by_expense.setdefault(share.get("trip_expense_id"), []).append(share)
+    splits_by_expense = {}
+    for split in splits:
+        splits_by_expense.setdefault(split.get("trip_expense_id"), []).append(split)
+    for expense in expenses:
+        expense_id = expense.get("id")
+        details = []
+        for share in shares_by_expense.get(expense_id, []):
+            member = member_by_id.get(share.get("trip_member_id"), {})
+            name = you_label if member.get("id") == current_member_id else (
+                member.get("name") or member.get("display_name") or share.get("participant_name") or "Participant"
+            )
+            details.append({"name": name, "amount": share.get("amount") or 0})
+        if not details:
+            for split in splits_by_expense.get(expense_id, []):
+                member = member_by_id.get(split.get("trip_member_id"), {})
+                name = you_label if member.get("id") == current_member_id else (
+                    member.get("name") or member.get("display_name") or split.get("participant_name") or "Participant"
+                )
+                details.append({"name": name, "amount": split.get("share_amount") or 0})
+        expense["split_details"] = details
     paid, owed, net = calculate_trip_balances(members, expenses, shares, settlements, splits, include_pending=True)
     people_rows = [{
         "name": you_label if member["id"] == current_member_id else (member.get("name") or member.get("display_name") or "Former member"),
