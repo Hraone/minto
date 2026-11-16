@@ -5156,10 +5156,17 @@ def download_trip_report(trip_id):
                 details.append({"name": name, "amount": split.get("share_amount") or 0})
         expense["split_details"] = details
     paid, owed, net = calculate_trip_balances(members, expenses, shares, settlements, splits, include_pending=True)
+    advances_by_member = defaultdict(int)
+    for settlement in settlements:
+        if settlement.get("is_advance") and settlement.get("status") == "paid":
+            from_member_id = settlement.get("from_member_id")
+            if from_member_id is not None:
+                advances_by_member[from_member_id] += _to_paise(settlement.get("amount"))
     people_rows = [{
         "name": you_label if member["id"] == current_member_id else (member.get("name") or member.get("display_name") or "Former member"),
         "paid": paid.get(member["id"], 0) / 100,
         "owed": owed.get(member["id"], 0) / 100,
+        "advance": advances_by_member.get(member["id"], 0) / 100,
         "net": net.get(member["id"], 0) / 100,
     } for member in members]
     for settlement in settlements:
