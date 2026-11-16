@@ -4168,7 +4168,7 @@ def get_trip_people(client, user_id, trip_id):
 def get_trip_settlement_rows(client, user_id, trip_id):
     rows = (
         client.table("trip_settlements")
-        .select("id, trip_id, from_person, to_person, amount, settlement_date, status, paid_at, created_at, from_member_id, to_member_id, received_at")
+        .select("id, trip_id, from_person, to_person, amount, settlement_date, status, paid_at, created_at, from_member_id, to_member_id, received_at, is_advance, note")
         .eq("trip_id", trip_id)
         .order("settlement_date", desc=True)
         .order("id", desc=True)
@@ -4836,6 +4836,40 @@ def delete_trip_expense(trip_id, expense_id):
         return redirect(url_for("trip_detail", trip_id=trip_id))
     flash("Expense deleted.")
     return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/advances", methods=["POST"])
+@login_required
+def add_trip_advance(trip_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    back = redirect(url_for("trip_detail", trip_id=trip_id))
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip:
+        flash("That trip wasn't found.")
+        return redirect(url_for("trips"))
+    if trip.get("status") == "archived":
+        flash("Archived trips are read-only.")
+        return back
+    try:
+        from_member_id = int(request.form.get("from_member_id") or 0)
+        amount = parse_money(request.form.get("amount"))
+        advance_date = parse_iso_date(request.form.get("advance_date")) or datetime.now(APP_TZ).date()
+        note = (request.form.get("note") or "").strip()
+        if amount is None:
+            raise ValueError("Enter a valid advance amount.")
+        trip_rpc(client, "record_trip_advance_received", {
+            "p_trip_id": trip_id,
+            "p_from_member_id": from_member_id,
+            "p_amount": amount,
+            "p_advance_date": advance_date.isoformat(),
+            "p_note": note or None,
+        })
+        flash("Advance received saved. It will be deducted from the final settlement.")
+    except Exception as e:
+        app.logger.info("Trip advance recording failed: %s", e)
+        flash(trip_action_error(e, "Couldn't save that advance. Check the participant and amount."))
+    return back
 
 
 @app.route("/trips/<int:trip_id>/settlements", methods=["POST"])
