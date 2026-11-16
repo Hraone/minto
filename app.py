@@ -168,7 +168,7 @@ TRIP_MODE_ENDPOINTS = {
     "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "link_trip_expense_to_personal", "delete_trip",
     "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
     "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
-    "record_trip_settlement_receipt", "linked_transaction",
+    "record_trip_settlement_receipt", "linked_transaction", "delete_linked_trip_expense_transaction",
     # Friends is available in Trip mode, so its form handlers must also be
     # allowed here; otherwise POSTs silently redirect to trip_home before
     # the username or friend-request changes can be saved.
@@ -4984,6 +4984,21 @@ def record_trip_settlement_receipt(trip_id, settlement_id):
         app.logger.info("Trip settlement receipt failed: %s", e)
         flash(trip_action_error(e, "Couldn't record that receipt. Choose an active account."))
     return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/transactions/<int:transaction_id>/linked/delete", methods=["POST"])
+@login_required
+def delete_linked_trip_expense_transaction(transaction_id):
+    client = get_user_client()
+    try:
+        client.rpc("delete_linked_trip_expense_transaction", {
+            "p_transaction_id": transaction_id,
+        }).execute()
+        flash("Linked Personal transaction and Trip expense deleted.")
+    except Exception as e:
+        app.logger.info("Linked trip transaction deletion failed: %s", e)
+        flash(trip_action_error(e, "Couldn't delete this linked trip expense."))
+    return redirect(url_for("trip_home"))
 
 
 @app.route("/transactions/<int:transaction_id>/linked")
