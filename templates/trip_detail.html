@@ -83,9 +83,13 @@
   .settlement-copy{min-width:0}.settlement-copy strong{font-size:13.5px}.settlement-copy small{display:block;margin-top:2px;color:var(--muted-2);font-size:11.5px}
   .status-pill{padding:4px 8px;border-radius:999px;font-size:10.5px;font-weight:800;border:1px solid var(--border)}
   .status-pill.paid{color:var(--positive)}.status-pill.pending{color:var(--muted)}
-  .expense-item{display:flex;align-items:flex-start;gap:12px;padding:14px 15px;border:1px solid var(--surface-subtle-border);border-radius:12px}
-  .expense-main{flex:1;min-width:0}.expense-desc{font-size:14px;font-weight:700;overflow-wrap:anywhere}
-  .expense-meta{margin-top:3px;font-size:12px;color:var(--muted-2);line-height:1.55}
+  .expense-item{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start;gap:12px;padding:14px 15px;border:1px solid var(--surface-subtle-border);border-radius:12px}
+  .expense-main{min-width:0}.expense-desc{font-size:14px;font-weight:700;overflow-wrap:anywhere;word-break:normal}
+  .expense-meta{margin-top:3px;font-size:12px;color:var(--muted-2);line-height:1.55;overflow-wrap:anywhere}
+  .expense-side{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:0;max-width:100%}
+  .expense-side form{width:auto;margin:0}
+  .expense-personal-link{display:flex;align-items:center;justify-content:flex-end;gap:6px;flex-wrap:wrap;max-width:100%}
+  .expense-personal-link select{width:auto;max-width:180px;min-width:0}
   .expense-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
   .share-response-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;min-width:0}
   .share-response-form{display:flex;align-items:center;gap:6px;flex:1 1 250px;flex-wrap:wrap;width:auto;min-width:0;margin:0}
@@ -100,6 +104,7 @@
   .icon-btn svg{width:15px;height:15px}
   .empty-note{margin:0;padding:18px 0 4px;text-align:center;color:var(--muted-2);font-size:13px}
   @media (max-width:700px){.trip-head{flex-direction:column;align-items:stretch}.trip-head>div:first-child{min-width:0}.head-actions{justify-content:flex-start;flex:0 0 auto;min-width:0}.trip-chat-link{white-space:nowrap;flex-shrink:0}.stat-row{grid-template-columns:repeat(2,1fr)}.field-row{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr}.toolbar{display:grid;grid-template-columns:1fr}.toolbar .control,.toolbar .control.search{min-width:0}.toolbar button{width:100%}.trip-head h1{font-size:25px}}
+  @media (max-width:700px){.expense-item{grid-template-columns:minmax(0,1fr);gap:10px}.expense-side{width:100%;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap}.expense-personal-link{justify-content:flex-start;flex:1 1 100%}.expense-personal-link select{flex:1 1 150px;max-width:100%}.expense-amount{margin-left:auto}}
   @media (max-width:500px){.section-card{padding:21px 17px}.stat{padding:15px}.stat-value{font-size:18px}.balance-table thead{display:none}.balance-table,.balance-table tbody,.balance-table tr,.balance-table td{display:block;width:100%}.balance-table tr{padding:10px 0;border-top:1px solid var(--surface-subtle-border)}.balance-table tr:first-child{border-top:0}.balance-table td{padding:3px 0;border:0}.balance-table td:first-child{font-size:15px;padding-bottom:4px}.balance-table td:not(:first-child){display:flex;justify-content:space-between}.balance-table td:not(:first-child)::before{content:attr(data-label);color:var(--muted-2);font-weight:650}.settlement-row{align-items:flex-start;flex-wrap:wrap}.settlement-row>div:last-child{width:100%;justify-content:flex-start!important}.expense-item{flex-wrap:wrap}.expense-main{flex-basis:100%}.expense-actions{margin-left:auto}}
 </style>
 
@@ -306,17 +311,19 @@
             {% if share.status == "rejected" and e.is_author and trip.status != "archived" %}<form method="post" action="{{ url_for('reassign_rejected_trip_share', trip_id=trip.id, share_id=share.id) }}" style="display:flex;gap:6px;margin-top:8px"><select name="member_id" required><option value="">Reassign share to</option>{% for member in members if member.active %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select><button type="submit" class="mini-btn">Reassign</button></form>{% endif %}
           </li>{% endfor %}</ul>{% endif %}
         </div>
-        <div class="expense-amount">{{ e.amount|inr }}</div>
-        {% if e.is_author and not e.payment_transaction_id and trip.status != "archived" and (not trip.is_group or e.payer_member_id == current_member_id) %}
-        <form method="post" action="{{ url_for('link_trip_expense_to_personal', trip_id=trip.id, expense_id=e.id) }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
-          <select name="source_id" aria-label="Personal account for this expense" required style="max-width:150px;"><option value="">Personal account</option>{% for account in expense_accounts %}<option value="{{ account.id }}">{{ account.name }}</option>{% endfor %}</select>
-          <button type="submit" class="mini-btn">Add to Personal</button>
-        </form>
-        {% endif %}
-        {% if e.can_edit and trip.status != "archived" %}<div class="expense-actions">
-          <a class="icon-btn" href="{{ url_for('edit_trip_expense', trip_id=trip.id, expense_id=e.id) }}" aria-label="Edit expense" title="Edit">✎</a>
-          <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}" onsubmit="return confirm('Delete this expense?');"><button type="submit" class="icon-btn danger" aria-label="Delete expense" title="Delete">×</button></form>
-        </div>{% endif %}
+        <div class="expense-side">
+          <div class="expense-amount">{{ e.amount|inr }}</div>
+          {% if e.is_author and not e.payment_transaction_id and trip.status != "archived" and (not trip.is_group or e.payer_member_id == current_member_id) %}
+          <form class="expense-personal-link" method="post" action="{{ url_for('link_trip_expense_to_personal', trip_id=trip.id, expense_id=e.id) }}">
+            <select name="source_id" aria-label="Personal account for this expense" required><option value="">Personal account</option>{% for account in expense_accounts %}<option value="{{ account.id }}">{{ account.name }}</option>{% endfor %}</select>
+            <button type="submit" class="mini-btn">Add to Personal</button>
+          </form>
+          {% endif %}
+          {% if e.can_edit and trip.status != "archived" %}<div class="expense-actions">
+            <a class="icon-btn" href="{{ url_for('edit_trip_expense', trip_id=trip.id, expense_id=e.id) }}" aria-label="Edit expense" title="Edit">✎</a>
+            <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}" onsubmit="return confirm('Delete this expense?');"><button type="submit" class="icon-btn danger" aria-label="Delete expense" title="Delete">×</button></form>
+          </div>{% endif %}
+        </div>
       </li>
       {% endfor %}
     </ul>
