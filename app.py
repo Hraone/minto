@@ -5067,7 +5067,10 @@ def download_trip_report(trip_id):
     if not trip:
         abort(404)
 
-    _, _, members, _ = get_trip_people(client, user_id, trip_id)
+    _, _, members, current_member_id = get_trip_people(client, user_id, trip_id)
+    current_member = next((member for member in members if member["id"] == current_member_id), {})
+    current_user_name = (current_member.get("display_name") or current_member.get("guest_name") or "").strip()
+    you_label = f"You ({current_user_name})" if current_user_name and current_user_name.lower() != "you" else "You"
     expenses = (
         client.table("trip_expenses")
         .select("id, trip_id, description, amount, paid_by, expense_date, category, payer_member_id")
@@ -5091,17 +5094,21 @@ def download_trip_report(trip_id):
     member_by_id = {member["id"]: member for member in members}
     for expense in expenses:
         payer = member_by_id.get(expense.get("payer_member_id"), {})
-        expense["payer_name"] = payer.get("name") or payer.get("display_name") or expense.get("paid_by") or "Former member"
+        expense["payer_name"] = you_label if payer.get("id") == current_member_id else (payer.get("name") or payer.get("display_name") or expense.get("paid_by") or "Former member")
+        if not payer and str(expense.get("paid_by") or "").strip().lower() == "you":
+            expense["payer_name"] = you_label
     paid, owed, net = calculate_trip_balances(members, expenses, shares, settlements, splits)
     people_rows = [{
-        "name": member.get("name") or member.get("display_name") or "Former member",
+        "name": you_label if member["id"] == current_member_id else (member.get("name") or member.get("display_name") or "Former member"),
         "paid": paid.get(member["id"], 0) / 100,
         "owed": owed.get(member["id"], 0) / 100,
         "net": net.get(member["id"], 0) / 100,
     } for member in members]
     for settlement in settlements:
-        settlement["from_name"] = member_by_id.get(settlement.get("from_member_id"), {}).get("name") or settlement.get("from_person") or "Former member"
-        settlement["to_name"] = member_by_id.get(settlement.get("to_member_id"), {}).get("name") or settlement.get("to_person") or "Former member"
+        from_member = member_by_id.get(settlement.get("from_member_id"), {})
+        to_member = member_by_id.get(settlement.get("to_member_id"), {})
+        settlement["from_name"] = you_label if from_member.get("id") == current_member_id else (from_member.get("name") or settlement.get("from_person") or "Former member")
+        settlement["to_name"] = you_label if to_member.get("id") == current_member_id else (to_member.get("name") or settlement.get("to_person") or "Former member")
 
     total = sum(_to_paise(row.get("amount") or 0) for row in expenses) / 100
     pdf = build_trip_report_pdf(trip, expenses, people_rows, settlements, total)
