@@ -933,7 +933,8 @@ def build_trip_report_pdf(trip, expenses, people_rows, settlements, total):
                 ("TOPPADDING",(0,0),(-1,-1),7), ("BOTTOMPADDING",(0,0),(-1,-1),7),
                 ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
             ]))
-            story += [Spacer(1, 7), day_header, Spacer(1, 3)]
+            # Date header is rendered once inside KeepTogether with its table.
+
             data = [[Paragraph("<b>Description</b>", S_CELL),
                      Paragraph("<b>Category</b>", S_CELL),
                      Paragraph("<b>Paid by</b>", S_CELL),
