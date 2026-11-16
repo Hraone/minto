@@ -925,7 +925,7 @@ def build_trip_report_pdf(trip, expenses, people_rows, settlements, total):
             day_header = Table([[
                 Paragraph(f"<b>{_esc(day_label)}</b>  <font color='#6B6E76'>· {len(day_items)} transaction{'s' if len(day_items) != 1 else ''}</font>", S_CELL),
                 Paragraph(f"<b>{inr2(day_total)}</b>", S_RIGHT),
-            ]], colWidths=[CONTENT_W - 16*mm, 16*mm])
+             ]], colWidths=[CONTENT_W - 34*mm, 34*mm])
             day_header.setStyle(TableStyle([
                 ("BACKGROUND",(0,0),(-1,-1),CARD), ("BOX",(0,0),(-1,-1),0.6,LINE),
                 ("LINEBELOW",(0,0),(-1,-1),1,GREEN),
