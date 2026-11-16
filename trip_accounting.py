@@ -31,12 +31,12 @@ def member_aliases(members):
     return aliases
 
 
-def calculate_trip_balances(members, expenses, shares, settlements, legacy_splits=()):
+def calculate_trip_balances(members, expenses, shares, settlements, legacy_splits=(), include_pending=False):
     """Return paid, owed and net paise keyed by trip_member id.
 
     `paid` counts the full trip bill against the member recorded as payer.
-    `owed` counts accepted shares only; pending requests are visible in the
-    expense history but do not become debt until acknowledged. Paid
+    `owed` counts accepted shares by default. Reports may opt into pending
+    shares for a projected balance before every participant responds. Paid
     settlements transfer net between members; pending settlements do not.
     Legacy name-only expenses are resolved through aliases populated from the
     additive migration's trip_members snapshots.
@@ -61,7 +61,8 @@ def calculate_trip_balances(members, expenses, shares, settlements, legacy_split
     for share in shares:
         expense_id = share.get("trip_expense_id")
         expense_ids_with_shares.add(expense_id)
-        if share.get("status") not in ("accepted", "settled"):
+        allowed_statuses = ("accepted", "settled", "pending") if include_pending else ("accepted", "settled")
+        if share.get("status") not in allowed_statuses:
             continue
         member_id = share.get("trip_member_id") or share.get("member_id") or resolve(share.get("participant_name"))
         if member_id in owed:
