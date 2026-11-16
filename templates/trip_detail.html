@@ -256,7 +256,22 @@
 
     <div class="settlement-controls">
       <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Record a settlement</div>
-      {% if trip.status != "archived" %}<form method="post" action="{{ url_for('add_trip_settlement', trip_id=trip.id) }}">
+      {% if trip.status != "archived" %}
+      <div style="font-size:13px;font-weight:700;margin:14px 0 8px;">Record advance received</div>
+      <p class="sub">Save money a participant has already given you. It will reduce what they owe at final settlement.</p>
+      <form method="post" action="{{ url_for('add_trip_advance', trip_id=trip.id) }}">
+        <div class="field-row">
+          <div><label for="advance-from">Received from</label><select id="advance-from" name="from_member_id" required><option value="">Choose participant</option>{% for member in members if member.active and member.id != current_member_id %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select></div>
+          <div><label for="advance-amount">Amount</label><input type="number" id="advance-amount" name="amount" min="0.01" step="0.01" required></div>
+        </div>
+        <div class="field-row">
+          <div><label for="advance-date">Date received</label><input type="date" id="advance-date" name="advance_date" class="minto-date-input" value="{{ today }}" autocomplete="off" required></div>
+          <div><label for="advance-note">Note (optional)</label><input type="text" id="advance-note" name="note" maxlength="160" placeholder="e.g. Cash advance for hotel"></div>
+        </div>
+        <button type="submit">Save advance received</button>
+      </form>
+      <div style="font-size:13px;font-weight:700;margin:18px 0 8px;">Record a settlement</div>
+      <form method="post" action="{{ url_for('add_trip_settlement', trip_id=trip.id) }}">
         <div class="field-row">
           <div><label for="from_person">From</label><select id="from_person" name="from_person">{% for member in members if member.active %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select></div>
           <div><label for="to_person">To</label><select id="to_person" name="to_person">{% for member in members if member.active %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select></div>
@@ -273,7 +288,7 @@
         <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Settlement history</div>
         {% for s in trip_settlements %}
         <div class="settlement-row">
-          <div class="settlement-copy"><strong>{{ s.from_name }} → {{ s.to_name }} · {{ s.amount|inr }}</strong><small>{{ s.settlement_date|nice_date }}{% if s.received_at %} · Received{% elif s.paid_at %} · Paid{% endif %}{% if s.from_transaction_id and s.is_your_payment %} · <a href="{{ url_for('linked_transaction', transaction_id=s.from_transaction_id) }}">View payment</a>{% elif s.to_transaction_id and s.is_your_receipt %} · <a href="{{ url_for('linked_transaction', transaction_id=s.to_transaction_id) }}">View receipt</a>{% endif %}</small></div>
+          <div class="settlement-copy"><strong>{% if s.is_advance %}Advance received from {{ s.from_name }}{% else %}{{ s.from_name }} → {{ s.to_name }}{% endif %} · {{ s.amount|inr }}</strong><small>{{ s.settlement_date|nice_date }}{% if s.note %} · {{ s.note }}{% endif %}{% if s.is_advance %} · Saved for settlement{% elif s.received_at %} · Received{% elif s.paid_at %} · Paid{% endif %}{% if s.from_transaction_id and s.is_your_payment %} · <a href="{{ url_for('linked_transaction', transaction_id=s.from_transaction_id) }}">View payment</a>{% elif s.to_transaction_id and s.is_your_receipt %} · <a href="{{ url_for('linked_transaction', transaction_id=s.to_transaction_id) }}">View receipt</a>{% endif %}</small></div>
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end"><span class="status-pill {{ s.status }}">{{ s.status|capitalize }}</span>
             {% if trip.status != "archived" and s.status == "pending" and s.can_mark_paid %}<form method="post" action="{{ url_for('update_trip_settlement_status', trip_id=trip.id, settlement_id=s.id) }}" style="width:auto;margin:0;display:flex;gap:5px;align-items:center"><input type="hidden" name="status" value="paid">{% if s.is_your_payment %}<select name="source_id" aria-label="Account used for payment" required><option value="">Account</option>{% for account in expense_accounts %}<option value="{{ account.id }}">{{ account.name }}</option>{% endfor %}</select>{% endif %}<button type="submit" class="mini-btn" style="padding:6px 9px;">Mark paid</button></form>{% endif %}
             {% if trip.status != "archived" and s.status == "paid" and not s.received_at and s.is_your_receipt %}<form method="post" action="{{ url_for('record_trip_settlement_receipt', trip_id=trip.id, settlement_id=s.id) }}" style="width:auto;margin:0;display:flex;gap:5px;align-items:center"><select name="source_id" aria-label="Account receiving payment" required><option value="">Account</option>{% for account in expense_accounts %}<option value="{{ account.id }}">{{ account.name }}</option>{% endfor %}</select><button type="submit" class="mini-btn" style="padding:6px 9px;">Record receipt</button></form>{% endif %}
