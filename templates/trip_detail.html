@@ -255,7 +255,6 @@
     {% if settlements %}<ul class="payment-list">{% for s in settlements %}<li class="payment-item"><span>{% if s.from=="You" %}You pay {{ s.to }}{% elif s.to=="You" %}{{ s.from }} pays you{% else %}{{ s.from }} pays {{ s.to }}{% endif %}</span><span class="payment-amount">{{ s.amount|inr }}</span></li>{% endfor %}</ul>{% else %}<p class="empty-note">Everyone is settled up.</p>{% endif %}
 
     <div class="settlement-controls">
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Record a settlement</div>
       {% if trip.status != "archived" %}
       <div style="font-size:13px;font-weight:700;margin:14px 0 8px;">Record advance received</div>
       <p class="sub">Save money a participant has already given you. It will reduce what they owe at final settlement.</p>
