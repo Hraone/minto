@@ -166,7 +166,7 @@ LEGACY_PROFILE_EMOJI_MAP = {
 TRIP_MODE_ENDPOINTS = {
     "trips", "trip_detail", "trip_home", "trip_chat", "trip_chat_api", "friends", "update_trip", "add_trip_friends", "remove_trip_friend",
     "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "link_trip_expense_to_personal", "delete_trip",
-    "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
+    "add_trip_settlement", "add_trip_advance", "update_trip_settlement_status", "update_trip_status", "set_mode",
     "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
     "record_trip_settlement_receipt", "linked_transaction", "delete_linked_trip_expense_transaction", "download_trip_report",
     # Friends is available in Trip mode, so its form handlers must also be
