@@ -218,7 +218,7 @@
       <label>Paid by</label><div class="chip-group">
         {% for member in members if member.active and (member.is_you or not member.is_minto) %}<label class="chip"><input type="radio" name="paid_by" value="{{ member.id }}" {% if member.id == current_member_id %}checked{% endif %}> {{ member.name }}</label>{% endfor %}
       </div>
-      <label for="trip-payment-source">Account used to pay (when you paid)</label><select id="trip-payment-source" name="source_id"><option value="">Choose account</option>{% for account in expense_accounts %}<option value="{{ account.id }}">{{ account.name }}</option>{% endfor %}</select>
+      <p class="sub">You can add this expense to a Personal account later using “Add to Personal” in the expense history.</p>
       <label>Split</label><div class="chip-group">
         <label class="chip"><input type="radio" name="split_type" value="equal" checked onclick="toggleSplitBlocks()"> Equally, everyone</label>
         <label class="chip"><input type="radio" name="split_type" value="subset" onclick="toggleSplitBlocks()"> Equally, some people</label>
@@ -307,6 +307,12 @@
           </li>{% endfor %}</ul>{% endif %}
         </div>
         <div class="expense-amount">{{ e.amount|inr }}</div>
+        {% if e.is_author and not e.payment_transaction_id and trip.status != "archived" and (not trip.is_group or e.payer_member_id == current_member_id) %}
+        <form method="post" action="{{ url_for('link_trip_expense_to_personal', trip_id=trip.id, expense_id=e.id) }}" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:8px;">
+          <select name="source_id" aria-label="Personal account for this expense" required style="max-width:150px;"><option value="">Personal account</option>{% for account in expense_accounts %}<option value="{{ account.id }}">{{ account.name }}</option>{% endfor %}</select>
+          <button type="submit" class="mini-btn">Add to Personal</button>
+        </form>
+        {% endif %}
         {% if e.can_edit and trip.status != "archived" %}<div class="expense-actions">
           <a class="icon-btn" href="{{ url_for('edit_trip_expense', trip_id=trip.id, expense_id=e.id) }}" aria-label="Edit expense" title="Edit">✎</a>
           <form method="post" action="{{ url_for('delete_trip_expense', trip_id=trip.id, expense_id=e.id) }}" onsubmit="return confirm('Delete this expense?');"><button type="submit" class="icon-btn danger" aria-label="Delete expense" title="Delete">×</button></form>
