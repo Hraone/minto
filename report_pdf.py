@@ -939,8 +939,15 @@ def build_trip_report_pdf(trip, expenses, people_rows, settlements, total):
                      Paragraph("<b>Paid by</b>", S_CELL),
                      Paragraph("<b>Amount</b>", S_CELL_R)]]
             for item in day_items:
+                split_details = item.get("split_details") or []
+                split_line = ""
+                if split_details:
+                    split_line = "<br/><font size='7' color='#6B6E76'>Split between: " + ", ".join(
+                        f"{_esc(detail.get('name') or 'Participant')} ({inr2(detail.get('amount') or 0)})"
+                        for detail in split_details
+                    ) + "</font>"
                 data.append([
-                    Paragraph(_esc(item.get("description") or "Expense"), S_CELL),
+                    Paragraph(_esc(item.get("description") or "Expense") + split_line, S_CELL),
                     Paragraph(_esc(pretty(item.get("category"))), S_CELL),
                     Paragraph(_esc(item.get("payer_name") or item.get("paid_by") or "—"), S_CELL),
                     Paragraph(inr2(item.get("amount") or 0), S_CELL_R),
