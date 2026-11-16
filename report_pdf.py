@@ -942,19 +942,28 @@ def build_trip_report_pdf(trip, expenses, people_rows, settlements, total):
                 split_details = item.get("split_details") or []
                 split_line = ""
                 if split_details:
-                    split_line = "<br/><font size='7' color='#6B6E76'>Split between: " + ", ".join(
-                        f"{_esc(detail.get('name') or 'Participant')} ({inr2(detail.get('amount') or 0)})"
-                        for detail in split_details
-                    ) + "</font>"
+                    split_amounts = [round(float(detail.get("amount") or 0) * 100) for detail in split_details]
+                    if len(set(split_amounts)) == 1:
+                        split_names = ", ".join(
+                            _esc(detail.get("name") or "Participant") for detail in split_details
+                        )
+                        split_summary = f"{split_names} ({inr2(split_details[0].get('amount') or 0)} each)"
+                    else:
+                        split_summary = ", ".join(
+                            f"{_esc(detail.get('name') or 'Participant')} ({inr2(detail.get('amount') or 0)})"
+                            for detail in split_details
+                        )
+                    split_line = "<br/><font size='7' color='#6B6E76'>Split between: " + split_summary + "</font>"
                 data.append([
                     Paragraph(_esc(item.get("description") or "Expense") + split_line, S_CELL),
                     Paragraph(_esc(pretty(item.get("category"))), S_CELL),
                     Paragraph(_esc(item.get("payer_name") or item.get("paid_by") or "—"), S_CELL),
                     Paragraph(inr2(item.get("amount") or 0), S_CELL_R),
                 ])
-            # Narrower than the date heading to create a visible hierarchy/indent.
-            story.append(_table(data, [CONTENT_W-16*mm-25*mm-27*mm-27*mm, 25*mm, 27*mm, 27*mm]))
-            story.append(Spacer(1, 5))
+            # Keep the date heading with its table so a day is never orphaned
+            # at the bottom of one page while its transactions start on the next.
+            detail_table = _table(data, [CONTENT_W-16*mm-25*mm-27*mm-27*mm, 25*mm, 27*mm, 27*mm])
+            story.append(KeepTogether([day_header, Spacer(1, 3), detail_table, Spacer(1, 5)]))
     else:
         story.append(Paragraph("No expenses have been recorded for this trip.", S_NOTE))
 
