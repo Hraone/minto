@@ -5280,6 +5280,15 @@ def trip_detail(trip_id):
     paid, owed, net = calculate_trip_balances(members, expenses, shares, settlement_rows, splits)
     total_paise = sum(_to_paise(e["amount"]) for e in expenses)
     log_trip_detail_stage("balance_calculation", stage_started)
+    # Show advances received from each participant separately. These same
+    # paid advance rows are already applied by calculate_trip_balances() to
+    # reduce both sides' net balances; this column is informational only.
+    advances_by_member = defaultdict(int)
+    for settlement in settlement_rows:
+        if settlement.get("is_advance") and settlement.get("status") == "paid":
+            from_member_id = settlement.get("from_member_id")
+            if from_member_id is not None:
+                advances_by_member[from_member_id] += _to_paise(settlement.get("amount"))
     people_rows = []
     for member in members:
         member_id = member["id"]
@@ -5288,6 +5297,7 @@ def trip_detail(trip_id):
             "name": member.get("name") or "Former member",
             "paid": paid.get(member_id, 0) / 100,
             "owed": owed.get(member_id, 0) / 100,
+            "advance": advances_by_member.get(member_id, 0) / 100,
             "net": net.get(member_id, 0) / 100,
             "active": member.get("active", False),
         })
