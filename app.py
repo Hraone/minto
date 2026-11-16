@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 from werkzeug.exceptions import HTTPException
 from werkzeug.security import generate_password_hash, check_password_hash
 from pywebpush import webpush, WebPushException
-from report_pdf import build_report_pdf, build_cashflow_report_pdf, build_money_fun_facts_pdf
+from report_pdf import build_report_pdf, build_cashflow_report_pdf, build_money_fun_facts_pdf, build_trip_report_pdf
 from trip_accounting import calculate_trip_balances, suggested_settlements, trip_payables_for_user
 from dashboard_finance import (
     calculate_dashboard_flow,
@@ -168,7 +168,7 @@ TRIP_MODE_ENDPOINTS = {
     "add_trip_expense", "edit_trip_expense", "delete_trip_expense", "link_trip_expense_to_personal", "delete_trip",
     "add_trip_settlement", "update_trip_settlement_status", "update_trip_status", "set_mode",
     "accept_trip_expense_share", "reject_trip_expense_share", "reassign_rejected_trip_share",
-    "record_trip_settlement_receipt", "linked_transaction", "delete_linked_trip_expense_transaction",
+    "record_trip_settlement_receipt", "linked_transaction", "delete_linked_trip_expense_transaction", "download_trip_report",
     # Friends is available in Trip mode, so its form handlers must also be
     # allowed here; otherwise POSTs silently redirect to trip_home before
     # the username or friend-request changes can be saved.
@@ -5056,6 +5056,60 @@ def update_trip_status(trip_id):
     }).eq("id", trip_id).select("id").execute()
     flash("Trip status updated.")
     return redirect(url_for("trip_detail", trip_id=trip_id))
+
+
+@app.route("/trips/<int:trip_id>/report.pdf")
+@login_required
+def download_trip_report(trip_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip:
+        abort(404)
+
+    _, _, members, _ = get_trip_people(client, user_id, trip_id)
+    expenses = (
+        client.table("trip_expenses")
+        .select("id, trip_id, description, amount, paid_by, expense_date, category, payer_member_id")
+        .eq("trip_id", trip_id)
+        .order("expense_date")
+        .order("id")
+        .execute().data or []
+    )
+    expense_ids = [row["id"] for row in expenses]
+    shares = (
+        client.table("trip_expense_shares")
+        .select("id, trip_expense_id, trip_member_id, amount, status, created_at, responded_at")
+        .in_("trip_expense_id", expense_ids).execute().data or []
+    ) if expense_ids else []
+    splits = (
+        client.table("trip_expense_splits")
+        .select("trip_expense_id, trip_member_id, participant_name, share_amount")
+        .in_("trip_expense_id", expense_ids).execute().data or []
+    ) if expense_ids else []
+    settlements = get_trip_settlement_rows(client, user_id, trip_id)
+    member_by_id = {member["id"]: member for member in members}
+    for expense in expenses:
+        payer = member_by_id.get(expense.get("payer_member_id"), {})
+        expense["payer_name"] = payer.get("name") or payer.get("display_name") or expense.get("paid_by") or "Former member"
+    paid, owed, net = calculate_trip_balances(members, expenses, shares, settlements, splits)
+    people_rows = [{
+        "name": member.get("name") or member.get("display_name") or "Former member",
+        "paid": paid.get(member["id"], 0) / 100,
+        "owed": owed.get(member["id"], 0) / 100,
+        "net": net.get(member["id"], 0) / 100,
+    } for member in members]
+    for settlement in settlements:
+        settlement["from_name"] = member_by_id.get(settlement.get("from_member_id"), {}).get("name") or settlement.get("from_person") or "Former member"
+        settlement["to_name"] = member_by_id.get(settlement.get("to_member_id"), {}).get("name") or settlement.get("to_person") or "Former member"
+
+    total = sum(_to_paise(row.get("amount") or 0) for row in expenses) / 100
+    pdf = build_trip_report_pdf(trip, expenses, people_rows, settlements, total)
+    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "-", trip.get("name") or "trip").strip("-") or "trip"
+    return Response(pdf, mimetype="application/pdf", headers={
+        "Content-Disposition": f'attachment; filename="{safe_name}-trip-report.pdf"',
+        "Content-Length": str(len(pdf)),
+    })
 
 
 @app.route("/trips/<int:trip_id>")
