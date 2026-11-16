@@ -123,6 +123,7 @@
       </p>
     </div>
     <div class="head-actions">
+      <a class="mini-btn" href="{{ url_for('download_trip_report', trip_id=trip.id) }}">Download report</a>
       <a class="mini-btn trip-chat-link" href="{{ url_for('trip_chat', trip_id=trip.id) }}">Chat <span class="chat-unread-badge" id="trip-chat-unread" hidden aria-label="Unread messages">0</span></a>
       {% if trip_owner and trip.status != "archived" %}
       <button type="button" class="mini-btn" onclick="openTripSettings()">Edit trip</button>
