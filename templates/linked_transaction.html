@@ -13,6 +13,13 @@
     <span style="color:var(--muted);font-size:12px">{{ transaction.transaction_date|nice_date }} · {{ transaction.category|replace('_',' ')|title }}</span>
     <span style="color:var(--muted);font-size:12px;text-align:right">{{ transaction.direction|capitalize }}</span>
   </div>
-  {% if transaction.trip_expense_id %}<p style="margin:14px 0 0;color:var(--muted);font-size:12px">Linked to a trip expense.</p>{% elif transaction.trip_settlement_id %}<p style="margin:14px 0 0;color:var(--muted);font-size:12px">Linked to a trip settlement.</p>{% endif %}
+  {% if transaction.trip_expense_id %}
+    <p style="margin:14px 0 0;color:var(--muted);font-size:12px">Linked to a trip expense.</p>
+    <form method="post" action="{{ url_for('delete_linked_trip_expense_transaction', transaction_id=transaction.id) }}" style="margin-top:18px" onsubmit="return confirm('Delete this Personal transaction and its linked Trip expense? This cannot be undone.');">
+      <button type="submit" class="danger-btn" style="padding:10px 16px;border-radius:10px">Delete transaction</button>
+    </form>
+  {% elif transaction.trip_settlement_id %}
+    <p style="margin:14px 0 0;color:var(--muted);font-size:12px">Linked to a trip settlement. Settlement transactions cannot be deleted here.</p>
+  {% endif %}
 </div>
 {% endblock %}
