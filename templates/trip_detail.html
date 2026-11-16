@@ -289,6 +289,8 @@
     <details class="nested-disclosure"><summary>Suggested payments{% if settlements %} · {{ settlements|length }}{% endif %}</summary>
     {% if settlements %}<ul class="payment-list">{% for s in settlements %}<li class="payment-item"><span>{% if s.from=="You" %}You pay {{ s.to }}{% elif s.to=="You" %}{{ s.from }} pays you{% else %}{{ s.from }} pays {{ s.to }}{% endif %}</span><span class="payment-amount">{{ s.amount|inr }}</span></li>{% endfor %}</ul>{% else %}<p class="empty-note">Everyone is settled up.</p>{% endif %}</details>
 
+    {% else %}<p class="empty-note">Add an expense to start calculating balances.</p>{% endif %}
+
     <div class="settlement-controls">
       {% if trip.status != "archived" %}
       <details class="nested-disclosure"><summary>Record advance received</summary>
@@ -333,13 +335,13 @@
       </details>
       {% endif %}
     </div>
-    {% else %}<p class="empty-note">Add an expense to start settling.</p>{% endif %}
   </div>
   {% endif %}
 
   <div class="section-card">
     <h3>Expense history</h3>
     <p class="sub">Showing {{ filtered_expense_count }} of {{ all_expense_count }} expenses.</p>
+    <details class="nested-disclosure expense-filter-disclosure" {% if filter_q or filter_category or filter_payer or filter_from or filter_to %}open{% endif %}><summary>Search and filters</summary>
     <form method="get" class="toolbar">
       <div class="control search"><label for="q">Search</label><input type="text" id="q" name="q" value="{{ filter_q }}" placeholder="Hotel, dinner, fuel…"></div>
       <div class="control"><label for="category-filter">Category</label><select id="category-filter" name="category"><option value="">All categories</option>{% for key,label in trip_expense_categories %}<option value="{{ key }}" {% if filter_category==key %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></div>
@@ -348,7 +350,7 @@
       <div class="control"><label for="to-filter">To</label><input type="date" id="to-filter" name="to" class="minto-date-input" value="{{ filter_to.strftime('%Y-%m-%d') if filter_to else '' }}" autocomplete="off"></div>
       <button type="submit">Filter</button>
       {% if filter_q or filter_category or filter_payer or filter_from or filter_to %}<a class="clear-link" href="{{ url_for('trip_detail', trip_id=trip.id) }}">Clear</a>{% endif %}
-    </form>
+    </form></details>
 
     {% if expenses %}
     <ul class="expense-list" style="margin-top:15px;">
