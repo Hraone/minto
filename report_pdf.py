@@ -887,13 +887,13 @@ def build_money_fun_facts_pdf(user_name, d_from, d_to, rows):
 
 
 def build_trip_report_pdf(trip, expenses, people_rows, settlements, total):
-    """Build a printable trip summary with expenses, participant balances and settlements."""
+    """Build a printable, day-wise trip report with clearly indented expenses."""
     story = []
     trip_name = _esc(trip.get("name") or "Trip report")
     destination = _esc(trip.get("destination") or "")
-    start = str(trip.get("start_date") or "")
-    end = str(trip.get("end_date") or "")
-    period = " to ".join(x for x in (start, end) if x) or "Dates not specified"
+    start_date = str(trip.get("start_date") or "")
+    end_date = str(trip.get("end_date") or "")
+    period = " to ".join(x for x in (start_date, end_date) if x) or "Dates not specified"
     logo = Image(LOGO, width=13 * mm, height=13 * mm) if os.path.exists(LOGO) else ""
     header = Table([[logo,
         [Paragraph(trip_name, S_TITLE),
@@ -909,20 +909,45 @@ def build_trip_report_pdf(trip, expenses, people_rows, settlements, total):
         ("Total trip expenses", inr2(total), f"{len(expenses)} expense entries"),
         ("Participants", str(len(people_rows)), "Trip members"),
         ("Settlements", str(len(settlements)), "Recorded settlement entries")]))
-    story += [Spacer(1, 14), Paragraph("Expense history", S_H2)]
+    story += [Spacer(1, 14), Paragraph("Day-wise expense history", S_H2)]
+
     if expenses:
-        data = [[Paragraph("<b>Date</b>", S_CELL), Paragraph("<b>Description</b>", S_CELL),
-                 Paragraph("<b>Category</b>", S_CELL), Paragraph("<b>Paid by</b>", S_CELL),
-                 Paragraph("<b>Amount</b>", S_CELL_R)]]
+        grouped = defaultdict(list)
         for item in expenses:
-            data.append([
-                Paragraph(_esc(str(item.get("expense_date") or "")[:10]), S_CELL),
-                Paragraph(_esc(item.get("description") or "Expense"), S_CELL),
-                Paragraph(_esc(pretty(item.get("category"))), S_CELL),
-                Paragraph(_esc(item.get("payer_name") or item.get("paid_by") or "—"), S_CELL),
-                Paragraph(inr2(item.get("amount") or 0), S_CELL_R),
-            ])
-        story.append(_table(data, [24*mm, CONTENT_W-24*mm-25*mm-24*mm-27*mm, 25*mm, 24*mm, 27*mm]))
+            grouped[str(item.get("expense_date") or "Date not recorded")[:10]].append(item)
+        for day in sorted(grouped):
+            day_items = grouped[day]
+            day_total = sum(float(item.get("amount") or 0) for item in day_items)
+            try:
+                day_label = fdate(date.fromisoformat(day))
+            except (TypeError, ValueError):
+                day_label = day
+            day_header = Table([[
+                Paragraph(f"<b>{_esc(day_label)}</b>  <font color='#6B6E76'>· {len(day_items)} transaction{'s' if len(day_items) != 1 else ''}</font>", S_CELL),
+                Paragraph(f"<b>{inr2(day_total)}</b>", S_RIGHT),
+            ]], colWidths=[CONTENT_W - 16*mm, 16*mm])
+            day_header.setStyle(TableStyle([
+                ("BACKGROUND",(0,0),(-1,-1),CARD), ("BOX",(0,0),(-1,-1),0.6,LINE),
+                ("LINEBELOW",(0,0),(-1,-1),1,GREEN),
+                ("LEFTPADDING",(0,0),(-1,-1),8), ("RIGHTPADDING",(0,0),(-1,-1),8),
+                ("TOPPADDING",(0,0),(-1,-1),7), ("BOTTOMPADDING",(0,0),(-1,-1),7),
+                ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ]))
+            story += [Spacer(1, 7), day_header, Spacer(1, 3)]
+            data = [[Paragraph("<b>Description</b>", S_CELL),
+                     Paragraph("<b>Category</b>", S_CELL),
+                     Paragraph("<b>Paid by</b>", S_CELL),
+                     Paragraph("<b>Amount</b>", S_CELL_R)]]
+            for item in day_items:
+                data.append([
+                    Paragraph(_esc(item.get("description") or "Expense"), S_CELL),
+                    Paragraph(_esc(pretty(item.get("category"))), S_CELL),
+                    Paragraph(_esc(item.get("payer_name") or item.get("paid_by") or "—"), S_CELL),
+                    Paragraph(inr2(item.get("amount") or 0), S_CELL_R),
+                ])
+            # Narrower than the date heading to create a visible hierarchy/indent.
+            story.append(_table(data, [CONTENT_W-16*mm-25*mm-27*mm-27*mm, 25*mm, 27*mm, 27*mm]))
+            story.append(Spacer(1, 5))
     else:
         story.append(Paragraph("No expenses have been recorded for this trip.", S_NOTE))
 
