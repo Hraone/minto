@@ -27,6 +27,41 @@
   .stat-note{margin-top:4px;font-size:11px;color:var(--muted-2)}
   .section-card{padding:24px;margin-bottom:18px;background:var(--surface-translucent);border:1px solid var(--shadow-card);border-radius:20px;box-shadow:0 12px 34px var(--shadow-soft)}
   .section-card h3{margin:0 0 4px;font-size:16px;font-weight:700}
+  .compact-expense-card{padding:18px 20px}
+  .compact-expense-card .sub{margin-bottom:10px}
+  .compact-expense-card label{margin:0 0 5px;font-size:11.5px}
+  .compact-expense-card input,.compact-expense-card select{min-height:40px;padding:9px 11px;font-size:13px}
+  .compact-expense-card .amount-input input{padding:9px 10px 9px 32px;font-size:16px}
+  .expense-primary-grid{display:grid;grid-template-columns:minmax(220px,2fr) repeat(3,minmax(130px,1fr));gap:10px;align-items:end}
+  .expense-primary-grid>div{min-width:0}
+  .expense-primary-grid .expense-description-field{grid-column:span 1}
+  .compact-expense-card .chip-group{gap:6px;margin:5px 0 8px}
+  .compact-expense-card .chip{padding:6px 9px;font-size:11.5px}
+  .compact-disclosure{padding:0;overflow:hidden}
+  .compact-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 19px;cursor:pointer;list-style:none}
+  .compact-summary::-webkit-details-marker,.nested-disclosure>summary::-webkit-details-marker{display:none}
+  .compact-summary strong{font-size:14px}.compact-summary small{display:block;margin-top:2px;color:var(--muted-2);font-size:11.5px}
+  .disclosure-chevron{color:var(--muted);font-size:20px;transition:transform .15s}
+  .compact-disclosure[open] .disclosure-chevron{transform:rotate(180deg)}
+  .disclosure-content{padding:0 19px 17px}
+  .nested-disclosure{border-top:1px solid var(--surface-subtle-border);margin-top:10px;padding-top:9px}
+  .nested-disclosure>summary{cursor:pointer;list-style:none;font-size:12.5px;font-weight:700;color:var(--text-secondary);padding:5px 0}
+  .nested-disclosure[open]>summary{margin-bottom:9px}
+  .nested-disclosure form{margin-top:7px}
+  .settlement-controls{display:flex;flex-direction:column;gap:9px}
+  .settlement-controls>.nested-disclosure{margin-top:0}
+  .settlement-history-disclosure .settlement-row:first-of-type{border-top:0}
+  .balance-table th{white-space:nowrap}
+  @media(max-width:700px){
+    .compact-expense-card{padding:15px}
+    .expense-primary-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+    .expense-primary-grid .expense-description-field{grid-column:1/-1}
+    .compact-expense-card .field-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .compact-summary{padding:13px 15px}
+    .disclosure-content{padding:0 15px 14px}
+    .balance-table th{white-space:normal}
+  }
+
   .sub{margin:0 0 14px;font-size:13px;line-height:1.5}
   .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .trip-settings-card{padding:0;overflow:hidden}
@@ -144,8 +179,9 @@
   {% if trip.status == "archived" %}<div class="section-card"><strong>Archived trip</strong><p class="sub" style="margin:6px 0 0">This trip is read-only. Its expenses, shares, and settlements remain available for reference.</p></div>{% endif %}
 
   {% if trip.is_group %}
-  <div class="section-card">
-    <h3>People</h3><p class="sub">Minto friends and guests in this trip. Removed members stay in past expense history.</p>
+  <details class="section-card compact-disclosure people-disclosure">
+    <summary class="compact-summary"><span><strong>People</strong><small>{{ members|selectattr("active")|list|length }} participants</small></span><span class="disclosure-chevron">⌄</span></summary>
+    <div class="disclosure-content"><p class="sub">Minto friends and guests in this trip. Removed members stay in past expense history.</p>
     <div class="people-list">
       {% for member in members %}{% if member.active %}
       <span class="person{% if member.is_you %} you{% endif %}">{{ member.name }}{% if member.is_minto and not member.is_you %}<small style="color:var(--muted-2)"> · Minto</small>{% elif not member.is_minto %}<small style="color:var(--muted-2)"> · guest</small>{% endif %}
@@ -153,7 +189,7 @@
       </span>
       {% endif %}{% endfor %}
     </div>
-    {% if trip_owner and trip.status != "archived" %}<form method="post" action="{{ url_for('add_trip_friends', trip_id=trip.id) }}">
+    {% if trip_owner and trip.status != "archived" %}<details class="nested-disclosure"><summary>Add participants</summary><form method="post" action="{{ url_for('add_trip_friends', trip_id=trip.id) }}">
       <label for="guest-names">Add guest names</label><input type="text" id="guest-names" name="guest_names" placeholder="Rohan, Priya">
       <label for="friend-usernames">Add Minto friend usernames</label>
       <div class="friend-picker" id="trip-friend-picker">
@@ -169,8 +205,9 @@
         </div>
       </div>
       <p class="sub">Only existing Minto friends can join as linked members.</p><button type="submit">Add members</button>
-    </form>{% endif %}
-  </div>
+    </form></details>{% endif %}
+    </div>
+  </details>
   {% endif %}
 
   {% if trip_owner and trip.status != "archived" %}
@@ -207,18 +244,16 @@
   {% endif %}
 
   {% if trip.status != "archived" %}
-  <div class="section-card">
+  <div class="section-card compact-expense-card">
     <h3>Add Expense</h3>
     <p class="sub">{% if trip.is_group %}Record what was spent, who paid, the category, and how it is split.{% else %}Record what you spent on this trip.{% endif %}</p>
     <form method="post" action="{{ url_for('add_trip_expense', trip_id=trip.id) }}" id="expense-form">
-      <label for="description">What was it for?</label>
-      <input type="text" id="description" name="description" placeholder="e.g. Hotel, dinner, toll" required maxlength="120">
-      <div class="field-row">
+      <div class="expense-primary-grid">
+        <div class="expense-description-field"><label for="description">Description</label><input type="text" id="description" name="description" placeholder="Hotel, dinner, toll…" required maxlength="120"></div>
         <div><label for="amount">Amount</label><div class="amount-input"><span class="amount-symbol">₹</span><input type="number" step="0.01" min="0.01" id="amount" name="amount" placeholder="0.00" required oninput="updateCustomSum()"></div></div>
         <div><label for="category">Category</label><select id="category" name="category">{% for key,label in trip_expense_categories %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></div>
+        <div><label for="expense_date">Date</label><input type="date" id="expense_date" name="expense_date" class="minto-date-input" value="{{ today }}" autocomplete="off" required></div>
       </div>
-      <label for="expense_date">Date</label>
-      <input type="date" id="expense_date" name="expense_date" class="minto-date-input" value="{{ today }}" autocomplete="off" required>
 
       {% if trip.is_group %}
       <label>Paid by</label><div class="chip-group">
@@ -247,16 +282,16 @@
   <div class="section-card">
     <h3>Settle Up</h3><p class="sub">Accepted shares count toward balances. Pending requests do not; only paid settlements reduce what is owed.</p>
     {% if all_expense_count %}
-    <table class="balance-table"><thead><tr><th>Person</th><th>Paid</th><th>Share</th><th>Balance</th></tr></thead><tbody>
-      {% for p in people_rows %}<tr><td>{{ p.name }}</td><td data-label="Paid">{{ p.paid|inr }}</td><td data-label="Share">{{ p.owed|inr }}</td><td data-label="Balance">{% if p.net > 0 %}<span class="net-positive">gets {{ p.net|inr }}</span>{% elif p.net < 0 %}<span class="net-negative">owes {{ (-p.net)|inr }}</span>{% else %}<span class="net-zero">settled</span>{% endif %}</td></tr>{% endfor %}
+    <table class="balance-table"><thead><tr><th>Person</th><th>Paid</th><th>Share</th><th>Advance to you</th><th>Balance after advances</th></tr></thead><tbody>
+      {% for p in people_rows %}<tr><td>{{ p.name }}</td><td data-label="Paid">{{ p.paid|inr }}</td><td data-label="Share">{{ p.owed|inr }}</td><td data-label="Advance to you">{{ p.advance|inr }}</td><td data-label="Balance after advances">{% if p.net > 0 %}<span class="net-positive">gets {{ p.net|inr }}</span>{% elif p.net < 0 %}<span class="net-negative">owes {{ (-p.net)|inr }}</span>{% else %}<span class="net-zero">settled</span>{% endif %}</td></tr>{% endfor %}
     </tbody></table>
 
-    <div class="payments-heading" style="font-size:13px;font-weight:650;margin-bottom:8px;">Suggested payments</div>
-    {% if settlements %}<ul class="payment-list">{% for s in settlements %}<li class="payment-item"><span>{% if s.from=="You" %}You pay {{ s.to }}{% elif s.to=="You" %}{{ s.from }} pays you{% else %}{{ s.from }} pays {{ s.to }}{% endif %}</span><span class="payment-amount">{{ s.amount|inr }}</span></li>{% endfor %}</ul>{% else %}<p class="empty-note">Everyone is settled up.</p>{% endif %}
+    <details class="nested-disclosure"><summary>Suggested payments{% if settlements %} · {{ settlements|length }}{% endif %}</summary>
+    {% if settlements %}<ul class="payment-list">{% for s in settlements %}<li class="payment-item"><span>{% if s.from=="You" %}You pay {{ s.to }}{% elif s.to=="You" %}{{ s.from }} pays you{% else %}{{ s.from }} pays {{ s.to }}{% endif %}</span><span class="payment-amount">{{ s.amount|inr }}</span></li>{% endfor %}</ul>{% else %}<p class="empty-note">Everyone is settled up.</p>{% endif %}</details>
 
     <div class="settlement-controls">
       {% if trip.status != "archived" %}
-      <div style="font-size:13px;font-weight:700;margin:14px 0 8px;">Record advance received</div>
+      <details class="nested-disclosure"><summary>Record advance received</summary>
       <p class="sub">Save money a participant has already given you. It will reduce what they owe at final settlement.</p>
       <form method="post" action="{{ url_for('add_trip_advance', trip_id=trip.id) }}">
         <div class="field-row">
@@ -268,8 +303,8 @@
           <div><label for="advance-note">Note (optional)</label><input type="text" id="advance-note" name="note" maxlength="160" placeholder="e.g. Cash advance for hotel"></div>
         </div>
         <button type="submit">Save advance received</button>
-      </form>
-      <div style="font-size:13px;font-weight:700;margin:18px 0 8px;">Record a settlement</div>
+      </form></details>
+      <details class="nested-disclosure"><summary>Record a settlement</summary>
       <form method="post" action="{{ url_for('add_trip_settlement', trip_id=trip.id) }}">
         <div class="field-row">
           <div><label for="from_person">From</label><select id="from_person" name="from_person">{% for member in members if member.active %}<option value="{{ member.id }}">{{ member.name }}</option>{% endfor %}</select></div>
@@ -280,11 +315,10 @@
           <div><label for="settle-date">Date</label><input type="date" id="settle-date" name="settlement_date" class="minto-date-input" value="{{ today }}" autocomplete="off" required></div>
         </div>
         <button type="submit">Record settlement</button>
-      </form>{% endif %}
+      </form></details>{% endif %}
 
       {% if trip_settlements %}
-      <div style="margin-top:18px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">Settlement history</div>
+      <details class="nested-disclosure settlement-history-disclosure"><summary>Settlement history · {{ trip_settlements|length }}</summary>
         {% for s in trip_settlements %}
         <div class="settlement-row">
           <div class="settlement-copy"><strong>{% if s.is_advance %}Advance received from {{ s.from_name }}{% else %}{{ s.from_name }} → {{ s.to_name }}{% endif %} · {{ s.amount|inr }}</strong><small>{{ s.settlement_date|nice_date }}{% if s.note %} · {{ s.note }}{% endif %}{% if s.is_advance %} · Saved for settlement{% elif s.received_at %} · Received{% elif s.paid_at %} · Paid{% endif %}{% if s.from_transaction_id and s.is_your_payment %} · <a href="{{ url_for('linked_transaction', transaction_id=s.from_transaction_id) }}">View payment</a>{% elif s.to_transaction_id and s.is_your_receipt %} · <a href="{{ url_for('linked_transaction', transaction_id=s.to_transaction_id) }}">View receipt</a>{% endif %}</small></div>
@@ -296,7 +330,7 @@
           </div>
         </div>
         {% endfor %}
-      </div>
+      </details>
       {% endif %}
     </div>
     {% else %}<p class="empty-note">Add an expense to start settling.</p>{% endif %}
