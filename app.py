@@ -5097,7 +5097,7 @@ def download_trip_report(trip_id):
         expense["payer_name"] = you_label if payer.get("id") == current_member_id else (payer.get("name") or payer.get("display_name") or expense.get("paid_by") or "Former member")
         if not payer and str(expense.get("paid_by") or "").strip().lower() == "you":
             expense["payer_name"] = you_label
-    paid, owed, net = calculate_trip_balances(members, expenses, shares, settlements, splits)
+    paid, owed, net = calculate_trip_balances(members, expenses, shares, settlements, splits, include_pending=True)
     people_rows = [{
         "name": you_label if member["id"] == current_member_id else (member.get("name") or member.get("display_name") or "Former member"),
         "paid": paid.get(member["id"], 0) / 100,
