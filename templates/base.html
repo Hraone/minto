@@ -673,6 +673,13 @@
       box-shadow: 0 2px 8px var(--shadow-card);
     }
 
+    /* Decorative mode transition only; no money or balances are moved. */
+    .mode-toggle.mode-switching { pointer-events: none; }
+    .minto-mode-flight { position:fixed; z-index:10060; width:34px; height:34px; display:grid; place-items:center; border-radius:50%; color:#fff9df; font-size:19px; font-weight:800; background:radial-gradient(circle at 32% 28%,#ffe99a 0 10%,#f8bd36 34%,#d98213 78%); border:2px solid #ffe18a; box-shadow:0 0 0 4px rgba(245,178,42,.16),0 0 22px rgba(245,178,42,.62),inset 0 1px 3px rgba(255,255,255,.65); pointer-events:none; will-change:transform,opacity; }
+    .minto-mode-flight::after { content:""; position:absolute; width:24px; height:7px; right:19px; top:13px; border-radius:99px; background:linear-gradient(90deg,transparent,rgba(255,196,66,.72)); filter:blur(3px); transform:rotate(-18deg); }
+    .mode-option.mode-destination { background:var(--theme-accent,var(--positive)) !important; color:var(--primary-contrast) !important; box-shadow:0 0 0 3px var(--theme-accent-soft,rgba(63,169,128,.18)),0 0 18px rgba(63,169,128,.32) !important; }
+    @media (prefers-reduced-motion: reduce) { .minto-mode-flight { display:none !important; } }
+
     [data-color-theme] .mode-option.active {
       background: var(--primary);
       color: var(--primary-contrast);
@@ -3502,6 +3509,51 @@
 })();
 </script>
 
+<script>
+(function () {
+  var toggle = document.querySelector(".mode-toggle");
+  if (!toggle) return;
+  var links = Array.from(toggle.querySelectorAll(".mode-option[data-mode]"));
+  var busy = false;
+  links.forEach(function (link) {
+    link.addEventListener("click", function (event) {
+      if (busy || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      var targetMode = link.getAttribute("data-mode");
+      var active = toggle.querySelector(".mode-option.active");
+      var currentMode = active && active.getAttribute("data-mode");
+      if (!targetMode || targetMode === currentMode) return;
+      var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (reduced || !link.animate) return;
+      event.preventDefault();
+      busy = true;
+      toggle.classList.add("mode-switching");
+      var fromRect = (active || link).getBoundingClientRect();
+      var toRect = link.getBoundingClientRect();
+      var sx = fromRect.left + fromRect.width / 2 - 17;
+      var sy = fromRect.top + fromRect.height / 2 - 17;
+      var ex = toRect.left + toRect.width / 2 - 17;
+      var ey = toRect.top + toRect.height / 2 - 17;
+      var coin = document.createElement("span");
+      coin.className = "minto-mode-flight";
+      coin.textContent = "₹";
+      coin.setAttribute("aria-hidden", "true");
+      coin.style.left = sx + "px";
+      coin.style.top = sy + "px";
+      document.body.appendChild(coin);
+      links.forEach(function (item) { item.setAttribute("aria-disabled", "true"); });
+      link.classList.add("mode-destination");
+      var dx = ex - sx, dy = ey - sy;
+      var animation = coin.animate([
+        { transform:"translate(0,0) scale(.55) rotate(-18deg)", opacity:0 },
+        { transform:"translate(" + (dx * .42) + "px," + (dy - 16) + "px) scale(1.08) rotate(110deg)", opacity:1, offset:.48 },
+        { transform:"translate(" + dx + "px," + dy + "px) scale(.72) rotate(220deg)", opacity:0 }
+      ], { duration:680, easing:"cubic-bezier(.22,.78,.22,1)", fill:"forwards" });
+      animation.onfinish = function () { coin.remove(); };
+      window.setTimeout(function () { window.location.assign(link.href); }, 700);
+    });
+  });
+})();
+</script>
 </body>
 
 </html>
