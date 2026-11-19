@@ -70,7 +70,7 @@
   .sub{margin:0 0 14px;font-size:13px;line-height:1.5}
   .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .trip-settings-card{padding:0;overflow:hidden}
-  .trip-settings-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:22px 24px;cursor:pointer;list-style:none}
+  .trip-settings-summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 18px;min-height:68px;cursor:pointer;list-style:none}
   .trip-settings-summary::-webkit-details-marker{display:none}
   .trip-settings-summary strong{display:block;font-size:16px;font-weight:700;color:var(--text)}
   .trip-settings-sub{display:block;margin-top:4px;font-size:13px;line-height:1.4;color:var(--muted)}
@@ -208,6 +208,9 @@
   @media (max-width:700px){.trip-head{flex-direction:column;align-items:stretch}.trip-head>div:first-child{min-width:0}.head-actions{justify-content:flex-start;flex:0 0 auto;min-width:0}.trip-chat-link{white-space:nowrap;flex-shrink:0}.stat-row{grid-template-columns:repeat(2,1fr)}.field-row{grid-template-columns:1fr}.summary-strip{grid-template-columns:1fr}.toolbar{display:grid;grid-template-columns:1fr}.toolbar .control,.toolbar .control.search{min-width:0}.toolbar button{width:100%}.trip-head h1{font-size:25px}}
   @media (max-width:700px){.expense-item{grid-template-columns:minmax(0,1fr);gap:10px}.expense-side{width:100%;flex-direction:row;align-items:center;justify-content:space-between;flex-wrap:wrap}.expense-personal-link{justify-content:flex-start;flex:1 1 100%}.expense-personal-link select{flex:1 1 150px;max-width:100%}.expense-amount{margin-left:auto}}
   @media (max-width:500px){.section-card{padding:21px 17px}.stat{padding:15px}.stat-value{font-size:18px}.balance-table thead{display:none}.balance-table,.balance-table tbody,.balance-table tr,.balance-table td{display:block;width:100%}.balance-table tr{padding:10px 0;border-top:1px solid var(--surface-subtle-border)}.balance-table tr:first-child{border-top:0}.balance-table td{padding:3px 0;border:0}.balance-table td:first-child{font-size:15px;padding-bottom:4px}.balance-table td:not(:first-child){display:flex;justify-content:space-between}.balance-table td:not(:first-child)::before{content:attr(data-label);color:var(--muted-2);font-weight:650}.settlement-row{align-items:flex-start;flex-wrap:wrap}.settlement-row>div:last-child{width:100%;justify-content:flex-start!important}.expense-item{flex-wrap:wrap}.expense-main{flex-basis:100%}.expense-actions{margin-left:auto}}
+  /* Keep the trip settings disclosure compact after responsive card styles apply. */
+  .trip-settings-card{padding:0}
+  @media(max-width:500px){.trip-settings-summary{padding:12px 15px;min-height:60px}.trip-settings-content{padding:0 15px 18px}}
 </style>
 
 <div class="trip-wrapper">
