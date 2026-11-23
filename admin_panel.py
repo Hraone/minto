@@ -6,6 +6,7 @@ authentication decorators and server-only Supabase service client.
 from datetime import datetime, timezone, timedelta
 import json
 import os
+import re
 
 from flask import abort, flash, redirect, render_template, request, session, url_for
 from pywebpush import webpush, WebPushException
@@ -41,7 +42,7 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
         offset = 0
         while True:
             try:
-                rows = service.table("profiles").select("id,display_name,is_deleted,phone").range(offset, offset + 999).execute().data or []
+                rows = service.table("profiles").select("id,username,display_name,is_deleted,phone").range(offset, offset + 999).execute().data or []
             except Exception as exc:
                 app.logger.warning("Admin profile lookup unavailable (%s)", type(exc).__name__)
                 break
@@ -106,6 +107,7 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
                 "phone": str(phone),
                 "created_at": getattr(user, "created_at", None),
                 "display_name": profile.get("display_name") or "",
+                "username": profile.get("username") or "",
                 "role": "Administrator" if uid in admin_ids else "User",
                 "feedback_count": feedback_counts.get(uid, 0),
             })
@@ -321,7 +323,7 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
         try:
             directory = user_directory(include_feedback_counts=True)
             if query:
-                directory = [u for u in directory if query in u["id"].lower() or query in u["email"].lower() or query in u["phone"].lower() or query in u["display_name"].lower()]
+                directory = [u for u in directory if query in u["id"].lower() or query in u["email"].lower() or query in u["phone"].lower() or query in u["display_name"].lower() or query in u["username"].lower()]
             if role_filter == "user":
                 directory = [u for u in directory if u["role"] == "User"]
             elif role_filter == "admin":
@@ -333,6 +335,50 @@ def register_admin_routes(app, login_required, admin_required, admin_client):
             app.logger.warning("Admin user directory load failed (%s)", type(exc).__name__)
             users_error = "The user directory could not be loaded. Please retry."
         return render_template("admin/users.html", users=users, users_error=users_error, query=query, role_filter=role_filter, page=page, total_pages=total_pages, has_previous=page > 1, has_next=page < total_pages)
+
+    @app.route("/admin/users/<uuid:target_user_id>/username", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_update_user_username(target_user_id):
+        actor_id, target_id = str(session["user_id"]), str(target_user_id)
+        username = (request.form.get("username") or "").strip().lower()
+        redirect_args = {"q": request.form.get("q", ""), "role": request.form.get("role", "all"), "page": request.form.get("page", "1")}
+        if not re.fullmatch(r"[a-z0-9_]{3,24}", username):
+            flash("Usernames must be 3–24 characters using letters, numbers, or underscores.")
+            return redirect(url_for("admin_users", **redirect_args))
+        try:
+            service = admin_client()
+            target = service.table("profiles").select("id,username").eq("id", target_id).limit(1).execute().data or []
+            if not target:
+                auth_response = service.auth.admin.list_users(page=1, per_page=1000)
+                auth_users = auth_response if isinstance(auth_response, list) else getattr(auth_response, "users", [])
+                if not any(str(getattr(u, "id", "")) == target_id for u in (auth_users or [])):
+                    flash("The selected user could not be found.")
+                    return redirect(url_for("admin_users", **redirect_args))
+                old_username = ""
+            else:
+                old_username = target[0].get("username") or ""
+            duplicate = service.table("profiles").select("id").eq("username", username).neq("id", target_id).limit(1).execute().data or []
+            if duplicate:
+                flash("That username is already in use. Try another one.")
+                return redirect(url_for("admin_users", **redirect_args))
+            service.table("profiles").upsert({"id": target_id, "username": username}, on_conflict="id").execute()
+            verified = service.table("profiles").select("username").eq("id", target_id).limit(1).execute().data or []
+            if not verified or verified[0].get("username") != username:
+                raise RuntimeError("Username update could not be verified.")
+            try:
+                service.table("admin_activity_logs").insert({"actor_user_id": actor_id, "target_type": "user", "target_id": target_id, "action": "update_username", "outcome": "success", "details": {"old_username": old_username, "new_username": username}}).execute()
+            except Exception as audit_error:
+                app.logger.warning("Admin username audit log failed (%s)", type(audit_error).__name__)
+            flash("Username updated successfully.")
+        except Exception as exc:
+            message = str(exc).lower()
+            if "duplicate" in message or "unique" in message or "23505" in message:
+                flash("That username is already in use. Try another one.")
+            else:
+                app.logger.exception("Admin username update failed (%s)", type(exc).__name__)
+                flash("The username could not be saved. Check Railway logs and try again.")
+        return redirect(url_for("admin_users", **redirect_args))
 
     @app.route("/admin/users/<uuid:target_user_id>/delete", methods=["POST"])
     @login_required
