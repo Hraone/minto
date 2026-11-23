@@ -4168,7 +4168,7 @@ def get_trip_people(client, user_id, trip_id):
 def get_trip_settlement_rows(client, user_id, trip_id):
     rows = (
         client.table("trip_settlements")
-        .select("id, trip_id, from_person, to_person, amount, settlement_date, status, paid_at, created_at, from_member_id, to_member_id, received_at, is_advance, note")
+        .select("id, trip_id, user_id, from_person, to_person, amount, settlement_date, status, paid_at, created_at, from_member_id, to_member_id, received_at, is_advance, note")
         .eq("trip_id", trip_id)
         .order("settlement_date", desc=True)
         .order("id", desc=True)
@@ -4178,6 +4178,7 @@ def get_trip_settlement_rows(client, user_id, trip_id):
     links = get_trip_settlement_links(client, trip_id)
     for row in rows:
         row.update(links.get(row["id"], {}))
+        row["can_delete_advance"] = bool(row.get("is_advance") and row.get("user_id") == user_id)
     return rows
 
 
@@ -4869,6 +4870,31 @@ def add_trip_advance(trip_id):
     except Exception as e:
         app.logger.info("Trip advance recording failed: %s", e)
         flash(trip_action_error(e, "Couldn't save that advance. Check the participant and amount."))
+    return back
+
+
+@app.route("/trips/<int:trip_id>/advances/<int:settlement_id>/delete", methods=["POST"])
+@login_required
+def delete_trip_advance(trip_id, settlement_id):
+    client = get_user_client()
+    user_id = session["user_id"]
+    back = redirect(url_for("trip_detail", trip_id=trip_id))
+    trip = get_trip_or_none(client, user_id, trip_id)
+    if not trip:
+        flash("That trip wasn't found.")
+        return redirect(url_for("trips"))
+    if trip.get("status") == "archived":
+        flash("Archived trips are read-only.")
+        return back
+    try:
+        trip_rpc(client, "delete_trip_advance_received", {
+            "p_trip_id": trip_id,
+            "p_settlement_id": settlement_id,
+        })
+        flash("Advance deleted and participant balances recalculated.")
+    except Exception as e:
+        app.logger.info("Trip advance deletion failed: %s", e)
+        flash(trip_action_error(e, "Couldn't delete this advance. Only the person who recorded it can delete it."))
     return back
 
 
