@@ -605,16 +605,72 @@ def parse_iso_date(raw):
 
 
 def insert_entry_and_transaction(client, user_id, entry_text, txn_fields, idempotency_key=None):
-    """Insert an entry/transaction pair atomically, deduplicating retried form POSTs."""
-    result = client.rpc("create_minto_personal_transaction", {
-        "p_user_id": user_id,
-        "p_entry_text": entry_text,
-        "p_transaction": {
-            "currency": "INR",
-            **txn_fields,
-        },
-        "p_idempotency_key": idempotency_key,
-    }).execute().data
+    """Insert an entry/transaction pair atomically, with a legacy fallback before migration."""
+    try:
+        result = client.rpc("create_minto_personal_transaction", {
+            "p_user_id": user_id,
+            "p_entry_text": entry_text,
+            "p_transaction": {
+                "currency": "INR",
+                **txn_fields,
+            },
+            "p_idempotency_key": idempotency_key,
+        }).execute().data
+    except Exception as exc:
+        error_message = str(exc).lower()
+        missing_rpc = (
+            getattr(exc, "code", None) == "PGRST202"
+            or (
+                "create_minto_personal_transaction" in error_message
+                and ("schema cache" in error_message or "could not find the function" in error_message)
+            )
+        )
+        if not missing_rpc:
+            raise
+
+        # Keep saves working if the app deploy reaches production before the
+        # one-time SQL migration has been applied. This path can be removed
+        # after the RPC is installed and verified.
+        app.logger.warning("Atomic transaction RPC missing; using the legacy save path")
+        entry_payload = {
+            "user_id": user_id,
+            "entry_text": entry_text,
+            "mode": "manual",
+        }
+        if idempotency_key:
+            entry_payload["idempotency_key"] = idempotency_key
+        try:
+            entry_row = client.table("entries").insert(entry_payload).execute()
+            entry_id = entry_row.data[0]["id"]
+        except Exception:
+            if idempotency_key:
+                existing = (
+                    client.table("entries")
+                    .select("id")
+                    .eq("user_id", user_id)
+                    .eq("idempotency_key", idempotency_key)
+                    .limit(1)
+                    .execute()
+                    .data
+                )
+                if existing:
+                    return existing[0]["id"]
+            raise
+        try:
+            client.table("transactions").insert({
+                "id": entry_id,
+                "user_id": user_id,
+                "currency": "INR",
+                **txn_fields,
+            }).execute()
+        except Exception:
+            try:
+                client.table("entries").delete().eq("id", entry_id).eq("user_id", user_id).execute()
+            except Exception:
+                pass
+            raise
+        return entry_id
+
     if isinstance(result, int):
         return result
     if isinstance(result, list) and result:
