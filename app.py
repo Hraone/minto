@@ -605,45 +605,25 @@ def parse_iso_date(raw):
 
 
 def insert_entry_and_transaction(client, user_id, entry_text, txn_fields, idempotency_key=None):
-    """Insert an entry/transaction pair, optionally deduplicating a retried form POST."""
-    entry_payload = {
-        "user_id": user_id,
-        "entry_text": entry_text,
-        "mode": "manual",
-    }
-    if idempotency_key:
-        entry_payload["idempotency_key"] = idempotency_key
-    try:
-        entry_row = client.table("entries").insert(entry_payload).execute()
-        entry_id = entry_row.data[0]["id"]
-    except Exception:
-        if idempotency_key:
-            existing = (
-                client.table("entries")
-                .select("id")
-                .eq("user_id", user_id)
-                .eq("idempotency_key", idempotency_key)
-                .limit(1)
-                .execute()
-                .data
-            )
-            if existing:
-                return existing[0]["id"]
-        raise
-    try:
-        client.table("transactions").insert({
-            "id": entry_id,
-            "user_id": user_id,
+    """Insert an entry/transaction pair atomically, deduplicating retried form POSTs."""
+    result = client.rpc("create_minto_personal_transaction", {
+        "p_user_id": user_id,
+        "p_entry_text": entry_text,
+        "p_transaction": {
             "currency": "INR",
             **txn_fields,
-        }).execute()
-    except Exception:
-        try:
-            client.table("entries").delete().eq("id", entry_id).eq("user_id", user_id).execute()
-        except Exception:
-            pass
-        raise
-    return entry_id
+        },
+        "p_idempotency_key": idempotency_key,
+    }).execute().data
+    if isinstance(result, int):
+        return result
+    if isinstance(result, list) and result:
+        result = result[0]
+    if isinstance(result, dict) and len(result) == 1:
+        result = next(iter(result.values()))
+    if isinstance(result, int):
+        return result
+    raise RuntimeError("Transaction save did not return an entry id.")
 
 
 def source_ids_for(client):
@@ -1092,7 +1072,8 @@ def login_required(view):
             status_checked_at = 0.0
 
         account_status_cache_hit = (
-            0 <= account_status_now - status_checked_at
+            session.get("account_status_checked_user_id") == session["user_id"]
+            and 0 <= account_status_now - status_checked_at
             < ACCOUNT_STATUS_CHECK_INTERVAL_SECONDS
         )
         if not account_status_cache_hit:
@@ -1105,11 +1086,13 @@ def login_required(view):
                     flash("This account has been deactivated. Please contact support if you believe this is a mistake.")
                     return redirect(url_for("login"))
                 session["account_status_checked_at"] = account_status_now
+                session["account_status_checked_user_id"] = session["user_id"]
             except Exception as status_exc:
                 # This guard already allows the request when the status read
                 # is unavailable. Cache that attempt briefly to avoid making
                 # every save wait on the same failing profile lookup.
                 session["account_status_checked_at"] = account_status_now
+                session["account_status_checked_user_id"] = session["user_id"]
                 app.logger.warning("Account status check failed (%s)", type(status_exc).__name__)
             finally:
                 account_status_ms = (time.perf_counter() - status_started) * 1000
