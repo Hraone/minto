@@ -186,6 +186,11 @@ def home_url():
     return url_for("entry")
 
 
+def wants_json_response():
+    """Whether the browser requested a JSON response for an in-place save."""
+    return request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+
 def load_saved_mode(client, user_id):
     """The mode this user left the app in last time, so logging back in during
     a trip puts them straight back into it. Falls back to Personal if it
@@ -405,7 +410,7 @@ def inject_template_globals():
     avatar_elapsed_ms = (time.perf_counter() - avatar_started) * 1000
 
     admin_started = time.perf_counter()
-    is_admin_user = _is_admin_user_id(session.get("user_id")) if session.get("user_id") else False
+    is_admin_user = _template_is_admin_user_id(session.get("user_id")) if session.get("user_id") else False
     admin_elapsed_ms = (time.perf_counter() - admin_started) * 1000
     if session.get("user_id"):
         app.logger.info(
@@ -471,6 +476,14 @@ MAX_AMOUNT = 100_000_000  # one hundred million rupees: a sanity ceiling
 # Auth API round trip per page load).
 USER_VERIFY_INTERVAL_SECONDS = 300
 
+# Soft-deactivation is checked once per short session window instead of on
+# every request. Auth token verification remains independently time-limited.
+ACCOUNT_STATUS_CHECK_INTERVAL_SECONDS = 60
+
+# The navigation badge is presentation-only; admin_required still checks the
+# role directly before granting access to protected admin pages.
+TEMPLATE_ADMIN_ROLE_CACHE_SECONDS = 300
+
 # The categories every user starts with, for the expense/investment
 # sub-category chips on the Add Entry form. Kept short and generic on
 # purpose — anyone can add their own on top via /categories/add, stored per
@@ -518,6 +531,28 @@ def get_categories(client, user_id, kind, fixed_list):
     )
     custom_names = [c["name"] for c in custom]
     return fixed_list + custom_names + ["other"]
+
+
+def get_entry_categories(client, user_id):
+    """Load both entry-form category lists with one Supabase request."""
+    rows = (
+        client.table("user_categories")
+        .select("kind, name")
+        .eq("user_id", user_id)
+        .in_("kind", ["expense", "investment"])
+        .order("name")
+        .execute()
+        .data
+    ) or []
+    custom = {"expense": [], "investment": []}
+    for row in rows:
+        kind = row.get("kind")
+        if kind in custom:
+            custom[kind].append(row["name"])
+    return (
+        FIXED_EXPENSE_CATEGORIES + custom["expense"] + ["other"],
+        FIXED_INVESTMENT_CATEGORIES + custom["investment"] + ["other"],
+    )
 
 
 def parse_money(raw, *, allow_zero=False, default=None):
@@ -647,6 +682,31 @@ def _is_admin_user_id(user_id):
     except Exception as exc:
         app.logger.warning("Administrator role lookup failed (%s)", type(exc).__name__)
         return False
+
+
+def _template_is_admin_user_id(user_id):
+    """Cache the navigation-only admin badge; protected routes still recheck."""
+    if not user_id:
+        return False
+    now = time.time()
+    try:
+        checked_at = float(session.get("template_admin_checked_at") or 0)
+    except (TypeError, ValueError):
+        checked_at = 0.0
+    same_user = session.get("template_admin_user_id") == str(user_id)
+    has_cached_role = "template_admin_role" in session
+    if (
+        same_user
+        and has_cached_role
+        and 0 <= now - checked_at < TEMPLATE_ADMIN_ROLE_CACHE_SECONDS
+    ):
+        return bool(session.get("template_admin_role"))
+
+    is_admin = _is_admin_user_id(user_id)
+    session["template_admin_user_id"] = str(user_id)
+    session["template_admin_role"] = is_admin
+    session["template_admin_checked_at"] = now
+    return is_admin
 
 
 def admin_required(view):
@@ -1022,19 +1082,37 @@ def login_required(view):
         if "user_id" not in session:
             return redirect(url_for("info"))
 
-        try:
-            status_client = get_user_client()
-            status_rows = status_client.table("profiles").select("is_deleted").eq("id", session["user_id"]).limit(1).execute().data or []
-            if status_rows and status_rows[0].get("is_deleted") is True:
-                session.clear()
-                flash("This account has been deactivated. Please contact support if you believe this is a mistake.")
-                return redirect(url_for("login"))
-        except Exception as status_exc:
-            app.logger.warning("Account status check failed (%s)", type(status_exc).__name__)
-            # Fail closed only if an explicit soft-delete status was returned; temporary
-            # profile lookup failures should not lock out every user.
-        
         guard_started = time.perf_counter()
+        account_status_ms = 0.0
+        account_status_cache_hit = False
+        account_status_now = time.time()
+        try:
+            status_checked_at = float(session.get("account_status_checked_at") or 0)
+        except (TypeError, ValueError):
+            status_checked_at = 0.0
+
+        account_status_cache_hit = (
+            0 <= account_status_now - status_checked_at
+            < ACCOUNT_STATUS_CHECK_INTERVAL_SECONDS
+        )
+        if not account_status_cache_hit:
+            status_started = time.perf_counter()
+            try:
+                status_client = get_user_client()
+                status_rows = status_client.table("profiles").select("is_deleted").eq("id", session["user_id"]).limit(1).execute().data or []
+                if status_rows and status_rows[0].get("is_deleted") is True:
+                    session.clear()
+                    flash("This account has been deactivated. Please contact support if you believe this is a mistake.")
+                    return redirect(url_for("login"))
+                session["account_status_checked_at"] = account_status_now
+            except Exception as status_exc:
+                # This guard already allows the request when the status read
+                # is unavailable. Cache that attempt briefly to avoid making
+                # every save wait on the same failing profile lookup.
+                session["account_status_checked_at"] = account_status_now
+                app.logger.warning("Account status check failed (%s)", type(status_exc).__name__)
+            finally:
+                account_status_ms = (time.perf_counter() - status_started) * 1000
         profile_started = time.perf_counter()
         if session.get("theme") not in ("light", "dark"):
             session["theme"] = load_saved_theme(get_user_client(), session["user_id"])
@@ -1071,8 +1149,10 @@ def login_required(view):
                 return redirect(url_for("login"))
 
         app.logger.info(
-            "request_stage=auth_guard endpoint=%s profile_preferences_ms=%.1f auth_verify_ms=%.1f elapsed_ms=%.1f",
+            "request_stage=auth_guard endpoint=%s account_status_ms=%.1f account_status_cache_hit=%s profile_preferences_ms=%.1f auth_verify_ms=%.1f elapsed_ms=%.1f",
             request.endpoint or "unmatched",
+            account_status_ms,
+            account_status_cache_hit,
             profile_elapsed_ms,
             auth_verify_ms,
             (time.perf_counter() - guard_started) * 1000,
@@ -1816,7 +1896,6 @@ def profile():
     response = render_template(
         "profile.html",
         display_name=display_name,
-        is_admin_user=_is_admin_user_id(user_id),
         has_custom_name=bool(name),
         email=email,
         member_since=_format_member_since(since),
@@ -2491,10 +2570,13 @@ def monthly_finance_audit():
 @app.route("/profile/contact-sharing", methods=["POST"])
 @login_required
 def update_profile_contact_sharing():
+    wants_json = wants_json_response()
     phone = (request.form.get("phone") or "").strip()[:32]
     share_phone = request.form.get("share_phone") == "on"
     share_email = request.form.get("share_email") == "on"
     if phone and not re.fullmatch(r"[+0-9() .-]{7,32}", phone):
+        if wants_json:
+            return jsonify(ok=False, error="Enter a valid phone number or leave it blank."), 400
         flash("Enter a valid phone number or leave it blank.")
         return redirect(url_for("profile"))
     try:
@@ -2504,9 +2586,13 @@ def update_profile_contact_sharing():
             "share_phone_with_friends": share_phone,
             "share_email_with_friends": share_email,
         }).execute()
+        if wants_json:
+            return jsonify(ok=True, message="Contact sharing preferences saved.", phone=phone)
         flash("Contact sharing preferences saved.")
     except Exception:
         app.logger.exception("Could not save friend contact preferences")
+        if wants_json:
+            return jsonify(ok=False, error="Couldn't save contact preferences. Please try again."), 500
         flash("Couldn't save contact preferences. Run the contact-sharing SQL migration first.")
     return redirect(url_for("profile"))
 
@@ -2635,11 +2721,23 @@ def update_profile_genz_mode():
 @app.route("/profile/emoji", methods=["POST"])
 @login_required
 def update_profile_emoji():
+    wants_json = wants_json_response()
     avatar = request.form.get("profile_avatar", "").strip()
     if save_profile_avatar(get_user_client(), session["user_id"], avatar):
         session["profile_avatar"] = avatar
+        if wants_json:
+            return jsonify(
+                ok=True,
+                message="Profile avatar updated.",
+                avatar=avatar,
+                avatar_url=url_for("static", filename=f"avatars/{avatar}.webp"),
+            )
         flash("Profile avatar updated.")
     else:
+        if wants_json:
+            if avatar not in PROFILE_AVATARS:
+                return jsonify(ok=False, error="Please choose a valid profile avatar."), 400
+            return jsonify(ok=False, error="Couldn't save your avatar. Please try again."), 500
         flash("Please choose a valid profile avatar.")
     return redirect(url_for("profile"))
 
@@ -2724,6 +2822,7 @@ def update_profile_color_theme():
 @app.route("/profile/name", methods=["POST"])
 @login_required
 def update_profile_name():
+    wants_json = wants_json_response()
     name = " ".join(request.form.get("display_name", "").split())[:40]
     client = get_user_client()
     try:
@@ -2731,8 +2830,13 @@ def update_profile_name():
             {"id": session["user_id"], "display_name": name or None}
         ).execute()
         session["display_name"] = name
+        display_name = name or (session.get("email") or "").split("@")[0] or "Minto user"
+        if wants_json:
+            return jsonify(ok=True, message="Name updated.", display_name=display_name)
         flash("Name updated.")
     except Exception:
+        if wants_json:
+            return jsonify(ok=False, error="Couldn't save your name. Please try again."), 500
         flash("Couldn't save your name. Please try again.")
     return redirect(url_for("profile"))
 
@@ -3551,6 +3655,7 @@ def get_lending_summary(client, user_id):
 def entry():
     client = get_user_client()
     user_id = session["user_id"]
+    wants_json = wants_json_response()
 
     if request.method == "POST":
         raw_amount = request.form.get("amount")
@@ -3611,6 +3716,8 @@ def entry():
             except (TypeError, ValueError):
                 problem = "Pick one of your accounts."
         if problem:
+            if wants_json:
+                return jsonify(ok=False, error=problem), 400
             flash(problem)
             return redirect(url_for("entry", **({"modal": "1"} if request.args.get("modal") == "1" else {})))
 
@@ -3638,8 +3745,17 @@ def entry():
                 idempotency_key=(request.form.get("submission_key") or "").strip() or None,
             )
         except Exception:
+            if wants_json:
+                return jsonify(ok=False, error="Couldn't save that entry. Please try again."), 500
             flash("Couldn't save that entry. Please try again.")
             return redirect(url_for("entry"))
+
+        if wants_json:
+            return jsonify(
+                ok=True,
+                message="Saved.",
+                next_submission_key=str(uuid.uuid4()),
+            )
 
         if request.args.get("modal") == "1":
             return redirect(url_for("entry", modal="1", saved="1"))
@@ -3657,8 +3773,7 @@ def entry():
     savings_sources = [s for s in sources if s["source_type"] in ("savings", "cash")]
     cc_sources = [s for s in sources if s["source_type"] == "credit_card"]
     known_counterparties, outstanding_loans = get_lending_summary(client, user_id)
-    expense_categories = get_categories(client, user_id, "expense", FIXED_EXPENSE_CATEGORIES)
-    investment_categories = get_categories(client, user_id, "investment", FIXED_INVESTMENT_CATEGORIES)
+    expense_categories, investment_categories = get_entry_categories(client, user_id)
     return render_template(
         "entry.html",
         savings_sources=savings_sources,
