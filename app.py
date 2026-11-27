@@ -1019,6 +1019,10 @@ class SessionRefreshUnavailable(Exception):
     """A temporary Auth API failure; preserve the user's existing session."""
 
 
+class SessionExpired(Exception):
+    """The saved Supabase session is no longer usable; ask the user to sign in."""
+
+
 def refresh_if_needed(client):
     """Refresh the Supabase access token without logging users out on transient
     Auth API/network failures. Refresh requests can overlap across mobile tabs;
@@ -1027,6 +1031,10 @@ def refresh_if_needed(client):
     expires_at = session.get("expires_at")
     refresh_token = session.get("refresh_token")
     if not refresh_token or expires_at is None:
+        if session.get("user_id"):
+            app.logger.info("Supabase session is incomplete; requiring sign-in")
+            session.clear()
+            raise SessionExpired
         return
     if datetime.now(timezone.utc).timestamp() < float(expires_at) - 60:
         return
@@ -1045,9 +1053,9 @@ def refresh_if_needed(client):
             "refresh token revoked",
         )
         if any(marker in message for marker in terminal_auth_errors):
-            app.logger.warning("Supabase refresh token is no longer valid (%s)", type(exc).__name__)
+            app.logger.info("Supabase refresh token is no longer valid; requiring sign-in (%s)", type(exc).__name__)
             session.clear()
-            return
+            raise SessionExpired from exc
 
         # Do not clear the signed Flask session for a timeout, network error,
         # temporary Supabase outage, or a concurrent refresh race. Stop this
@@ -1070,6 +1078,11 @@ def get_user_client() -> Client:
 
 @app.errorhandler(Exception)
 def handle_unexpected_error(e):
+    if isinstance(e, SessionExpired):
+        session.clear()
+        flash("Your session has expired. Please log in again.")
+        return redirect(url_for("login"))
+
     if isinstance(e, SessionRefreshUnavailable):
         return (
             "Minto is temporarily reconnecting to your account. Your session is still active. Please retry in a moment.",
@@ -1143,6 +1156,11 @@ def login_required(view):
                     return redirect(url_for("login"))
                 session["account_status_checked_at"] = account_status_now
                 session["account_status_checked_user_id"] = session["user_id"]
+            except SessionExpired:
+                # A dead refresh token must not be swallowed by this
+                # best-effort account-status check; the global handler sends
+                # the user to sign in instead of allowing a later KeyError/500.
+                raise
             except Exception as status_exc:
                 # This guard already allows the request when the status read
                 # is unavailable. Cache that attempt briefly to avoid making
